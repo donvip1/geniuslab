@@ -14,7 +14,8 @@ const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [loginData, setLoginData] = useState({ email: "", password: "" });
+  const [isAdminLogin, setIsAdminLogin] = useState(false);
+  const [loginData, setLoginData] = useState({ email: "", password: "", username: "" });
   const [signupData, setSignupData] = useState({ 
     fullName: "", 
     email: "", 
@@ -38,23 +39,66 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: loginData.email,
-        password: loginData.password,
-      });
+      let authData;
+      
+      if (isAdminLogin) {
+        // Admin login with username
+        if (!loginData.username || !loginData.password) {
+          throw new Error("Please enter both username and password");
+        }
 
-      if (error) throw error;
+        // Find the user_id for this username
+        const { data: adminData, error: adminError } = await supabase
+          .from("admin_credentials")
+          .select("user_id, profiles!inner(email)")
+          .eq("username", loginData.username)
+          .single();
+
+        if (adminError || !adminData) {
+          throw new Error("Invalid admin credentials");
+        }
+
+        // Login with the email associated with this admin
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: (adminData.profiles as any).email,
+          password: loginData.password,
+        });
+
+        if (error) throw error;
+        authData = data;
+      } else {
+        // Regular student login with email
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: loginData.email,
+          password: loginData.password,
+        });
+
+        if (error) throw error;
+        authData = data;
+      }
 
       toast({
         title: "Login successful!",
         description: "Welcome back to GeniusLab.",
       });
-      
-      navigate("/exam");
+
+      // Check if user is admin and redirect accordingly
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", authData.user.id)
+        .eq("role", "admin")
+        .single();
+
+      if (roleData) {
+        navigate("/admin");
+      } else {
+        navigate("/exam");
+      }
     } catch (error: any) {
       toast({
         title: "Login failed",
-        description: error.message || "Invalid email or password",
+        description: error.message || "Invalid credentials",
         variant: "destructive",
       });
     } finally {
@@ -131,17 +175,45 @@ const Auth = () => {
 
             <TabsContent value="login">
               <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="login-email">Email</Label>
-                  <Input
-                    id="login-email"
-                    type="email"
-                    placeholder="your@email.com"
-                    value={loginData.email}
-                    onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                    required
+                <div className="flex items-center space-x-2 mb-4">
+                  <input
+                    type="checkbox"
+                    id="admin-login"
+                    checked={isAdminLogin}
+                    onChange={(e) => setIsAdminLogin(e.target.checked)}
+                    className="rounded border-gray-300"
                   />
+                  <Label htmlFor="admin-login" className="cursor-pointer text-sm">
+                    Admin Login
+                  </Label>
                 </div>
+
+                {isAdminLogin ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="login-username">Admin Username</Label>
+                    <Input
+                      id="login-username"
+                      type="text"
+                      placeholder="admin username"
+                      value={loginData.username}
+                      onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
+                      required
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="login-email">Email</Label>
+                    <Input
+                      id="login-email"
+                      type="email"
+                      placeholder="your@email.com"
+                      value={loginData.email}
+                      onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+                      required={!isAdminLogin}
+                    />
+                  </div>
+                )}
+                
                 <div className="space-y-2">
                   <Label htmlFor="login-password">Password</Label>
                   <Input

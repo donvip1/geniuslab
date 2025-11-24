@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { BookOpen, Users, Award, Target, GraduationCap, Lightbulb } from "lucide-react";
 import { Link } from "react-router-dom";
+import tutorialClass1 from "@/assets/tutorial-class-1.jpg";
+import tutorialClass2 from "@/assets/tutorial-class-2.jpg";
+import tutorialClass3 from "@/assets/tutorial-class-3.jpg";
 
 const Index = () => {
   const teamMembers = [
@@ -54,6 +57,50 @@ const Index = () => {
                     Learn More
                   </Button>
                 </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Educational Images Gallery */}
+        <section className="py-16 bg-gradient-to-b from-muted/30 to-background">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">Real Learning, Real Results</h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                See our students in action - from interactive tutorials to focused exam preparation
+              </p>
+            </div>
+            <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              <div className="group relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-all">
+                <img 
+                  src={tutorialClass1} 
+                  alt="Nigerian students in tutorial class with teacher" 
+                  className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
+                  <p className="text-white font-semibold">Interactive Tutorial Sessions</p>
+                </div>
+              </div>
+              <div className="group relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-all">
+                <img 
+                  src={tutorialClass2} 
+                  alt="Students taking computer-based test in modern CBT center" 
+                  className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
+                  <p className="text-white font-semibold">Modern CBT Practice Center</p>
+                </div>
+              </div>
+              <div className="group relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-all">
+                <img 
+                  src={tutorialClass3} 
+                  alt="Students collaborating in group study session" 
+                  className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
+                  <p className="text-white font-semibold">Collaborative Learning Environment</p>
+                </div>
               </div>
             </div>
           </div>
