@@ -14,6 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_credentials: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      document_uploads: {
+        Row: {
+          created_at: string
+          extracted_text: string | null
+          file_name: string
+          file_size: number
+          file_type: string
+          id: string
+          processing_status: string
+          questions_generated: number | null
+          storage_path: string
+          subject_id: string | null
+          updated_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          extracted_text?: string | null
+          file_name: string
+          file_size: number
+          file_type: string
+          id?: string
+          processing_status?: string
+          questions_generated?: number | null
+          storage_path: string
+          subject_id?: string | null
+          updated_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          extracted_text?: string | null
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          processing_status?: string
+          questions_generated?: number | null
+          storage_path?: string
+          subject_id?: string | null
+          updated_at?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_uploads_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_attempts: {
         Row: {
           answers: Json
