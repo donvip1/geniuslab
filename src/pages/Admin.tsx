@@ -22,6 +22,7 @@ const Admin = () => {
   // Subject Management State
   const [subjectName, setSubjectName] = useState("");
   const [subjectDescription, setSubjectDescription] = useState("");
+  const [subjectLevel, setSubjectLevel] = useState("100L");
   const [subjects, setSubjects] = useState<any[]>([]);
 
   // Document Upload State
@@ -108,6 +109,7 @@ const Admin = () => {
         {
           name: subjectName,
           description: subjectDescription,
+          level: subjectLevel,
           created_by: user.id,
         },
       ]);
@@ -125,6 +127,7 @@ const Admin = () => {
       });
       setSubjectName("");
       setSubjectDescription("");
+      setSubjectLevel("100L");
       fetchSubjects();
     }
   };
@@ -264,9 +267,25 @@ const Admin = () => {
                           id="subject-name"
                           value={subjectName}
                           onChange={(e) => setSubjectName(e.target.value)}
-                          placeholder="e.g., Mathematics"
+                          placeholder="e.g., Mathematics, Physics, Chemistry"
                           required
                         />
+                      </div>
+                      <div>
+                        <Label htmlFor="subject-level">Level</Label>
+                        <select
+                          id="subject-level"
+                          className="w-full mt-1 p-2 border rounded-md"
+                          value={subjectLevel}
+                          onChange={(e) => setSubjectLevel(e.target.value)}
+                          required
+                        >
+                          <option value="100L">100 Level</option>
+                          <option value="200L">200 Level</option>
+                          <option value="300L">300 Level</option>
+                          <option value="400L">400 Level</option>
+                          <option value="500L">500 Level</option>
+                        </select>
                       </div>
                       <div>
                         <Label htmlFor="subject-description">Description (Optional)</Label>
@@ -300,12 +319,21 @@ const Admin = () => {
                             key={subject.id}
                             className="p-3 rounded-lg border bg-card hover:bg-accent transition-colors"
                           >
-                            <h3 className="font-medium">{subject.name}</h3>
-                            {subject.description && (
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {subject.description}
-                              </p>
-                            )}
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h3 className="font-medium">{subject.name}</h3>
+                                {subject.description && (
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    {subject.description}
+                                  </p>
+                                )}
+                              </div>
+                              {subject.level && (
+                                <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-1 rounded">
+                                  {subject.level}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         ))
                       )}
