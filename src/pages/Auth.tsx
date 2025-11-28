@@ -50,7 +50,7 @@ const Auth = () => {
         // Find the user_id for this username
         const { data: adminData, error: adminError } = await supabase
           .from("admin_credentials")
-          .select("user_id, profiles!inner(email)")
+          .select("user_id")
           .eq("username", loginData.username)
           .single();
 
@@ -58,9 +58,20 @@ const Auth = () => {
           throw new Error("Invalid admin credentials");
         }
 
+        // Get the email from profiles
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("user_id", adminData.user_id)
+          .single();
+
+        if (profileError || !profileData) {
+          throw new Error("Admin profile not found");
+        }
+
         // Login with the email associated with this admin
         const { data, error } = await supabase.auth.signInWithPassword({
-          email: (adminData.profiles as any).email,
+          email: profileData.email,
           password: loginData.password,
         });
 
