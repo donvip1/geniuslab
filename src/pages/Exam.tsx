@@ -5,6 +5,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { BookOpen, Clock, User, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -12,6 +13,7 @@ interface Subject {
   id: string;
   name: string;
   description: string;
+  level: string;
 }
 
 const Exam = () => {
@@ -20,6 +22,7 @@ const Exam = () => {
   const [user, setUser] = useState<any>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedLevel, setSelectedLevel] = useState<string>("100L");
 
   useEffect(() => {
     checkUser();
@@ -38,13 +41,18 @@ const Exam = () => {
     setLoading(false);
   };
 
-  const fetchSubjects = async () => {
+  const fetchSubjects = async (level?: string) => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("subjects")
         .select("*")
-        .eq("is_active", true)
-        .order("name");
+        .eq("is_active", true);
+      
+      if (level) {
+        query = query.eq("level", level);
+      }
+      
+      const { data, error } = await query.order("name");
 
       if (error) throw error;
       setSubjects(data || []);
@@ -56,6 +64,12 @@ const Exam = () => {
       });
     }
   };
+
+  useEffect(() => {
+    if (selectedLevel) {
+      fetchSubjects(selectedLevel);
+    }
+  }, [selectedLevel]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -85,9 +99,9 @@ const Exam = () => {
         {/* Header */}
         <section className="py-12 bg-gradient-to-br from-primary to-secondary text-primary-foreground">
           <div className="container mx-auto px-4">
-            <div className="flex justify-between items-center max-w-4xl mx-auto">
+            <div className="flex flex-col md:flex-row justify-between items-center max-w-4xl mx-auto gap-4">
               <div>
-                <h1 className="text-3xl md:text-4xl font-bold mb-2">Practice Exams</h1>
+                <h1 className="text-3xl md:text-4xl font-bold mb-2">FUOYE CBT EXAMS MODE</h1>
                 <p className="opacity-90 flex items-center gap-2">
                   <User className="h-4 w-4" />
                   Welcome, {user?.email}
@@ -105,6 +119,23 @@ const Exam = () => {
         <section className="py-16">
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto">
+              {/* Level Filter */}
+              <div className="mb-8">
+                <Label className="text-base font-semibold mb-3 block">Select Your Level</Label>
+                <div className="flex flex-wrap gap-3">
+                  {["100L", "200L", "300L", "400L", "500L"].map((level) => (
+                    <Button
+                      key={level}
+                      variant={selectedLevel === level ? "default" : "outline"}
+                      onClick={() => setSelectedLevel(level)}
+                      className="font-semibold"
+                    >
+                      {level}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
               <h2 className="text-2xl font-bold mb-8 text-center">Select a Subject to Practice</h2>
 
               {subjects.length === 0 ? (
@@ -121,10 +152,15 @@ const Exam = () => {
                   {subjects.map((subject) => (
                     <Card key={subject.id} className="hover:shadow-lg transition-all hover:-translate-y-1">
                       <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <BookOpen className="h-5 w-5 text-primary" />
-                          {subject.name}
-                        </CardTitle>
+                        <div className="flex items-start justify-between mb-2">
+                          <CardTitle className="flex items-center gap-2">
+                            <BookOpen className="h-5 w-5 text-primary" />
+                            {subject.name}
+                          </CardTitle>
+                          <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-1 rounded">
+                            {subject.level}
+                          </span>
+                        </div>
                         <CardDescription>{subject.description || "Practice exam available"}</CardDescription>
                       </CardHeader>
                       <CardContent>
