@@ -10,7 +10,40 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, FileText, BookOpen, Users, Loader2 } from "lucide-react";
+import { Upload, FileText, BookOpen, Loader2, Pencil, Trash2, X, Check, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+interface Subject {
+  id: string;
+  name: string;
+  description: string | null;
+  level: string | null;
+  is_active: boolean;
+}
+
+interface Question {
+  id: string;
+  subject_id: string;
+  question_text: string;
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  correct_answer: string;
+  explanation: string | null;
+  is_active: boolean;
+  subjects?: { name: string };
+}
 
 const Admin = () => {
   const [user, setUser] = useState<any>(null);
@@ -23,13 +56,33 @@ const Admin = () => {
   const [subjectName, setSubjectName] = useState("");
   const [subjectDescription, setSubjectDescription] = useState("");
   const [subjectLevel, setSubjectLevel] = useState("100L");
-  const [subjects, setSubjects] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editLevel, setEditLevel] = useState("");
 
   // Document Upload State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedSubject, setSelectedSubject] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState("");
+
+  // Questions State
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questionsLoading, setQuestionsLoading] = useState(false);
+  const [filterSubject, setFilterSubject] = useState("");
+  const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null);
+  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+  const [editQuestionData, setEditQuestionData] = useState({
+    question_text: "",
+    option_a: "",
+    option_b: "",
+    option_c: "",
+    option_d: "",
+    correct_answer: "",
+    explanation: "",
+  });
 
   useEffect(() => {
     checkUser();
@@ -91,6 +144,31 @@ const Admin = () => {
     }
   };
 
+  const fetchQuestions = async (subjectId?: string) => {
+    setQuestionsLoading(true);
+    let query = supabase
+      .from("questions")
+      .select("*, subjects(name)")
+      .order("created_at", { ascending: false });
+
+    if (subjectId) {
+      query = query.eq("subject_id", subjectId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load questions",
+        variant: "destructive",
+      });
+    } else {
+      setQuestions(data || []);
+    }
+    setQuestionsLoading(false);
+  };
+
   const handleCreateSubject = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -130,6 +208,127 @@ const Admin = () => {
       setSubjectLevel("100L");
       fetchSubjects();
     }
+  };
+
+  const handleUpdateSubject = async (subjectId: string) => {
+    const { error } = await supabase
+      .from("subjects")
+      .update({
+        name: editName,
+        description: editDescription,
+        level: editLevel,
+      })
+      .eq("id", subjectId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update subject",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Subject updated successfully",
+      });
+      setEditingSubject(null);
+      fetchSubjects();
+    }
+  };
+
+  const handleDeleteSubject = async (subjectId: string) => {
+    // First delete all questions for this subject
+    await supabase.from("questions").delete().eq("subject_id", subjectId);
+    
+    const { error } = await supabase
+      .from("subjects")
+      .delete()
+      .eq("id", subjectId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete subject",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Subject and its questions deleted",
+      });
+      fetchSubjects();
+    }
+  };
+
+  const startEditingSubject = (subject: Subject) => {
+    setEditingSubject(subject);
+    setEditName(subject.name);
+    setEditDescription(subject.description || "");
+    setEditLevel(subject.level || "100L");
+  };
+
+  const handleUpdateQuestion = async (questionId: string) => {
+    const { error } = await supabase
+      .from("questions")
+      .update({
+        question_text: editQuestionData.question_text,
+        option_a: editQuestionData.option_a,
+        option_b: editQuestionData.option_b,
+        option_c: editQuestionData.option_c,
+        option_d: editQuestionData.option_d,
+        correct_answer: editQuestionData.correct_answer,
+        explanation: editQuestionData.explanation || null,
+      })
+      .eq("id", questionId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update question",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Question updated successfully",
+      });
+      setEditingQuestion(null);
+      fetchQuestions(filterSubject || undefined);
+    }
+  };
+
+  const handleDeleteQuestion = async (questionId: string) => {
+    const { error } = await supabase
+      .from("questions")
+      .delete()
+      .eq("id", questionId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete question",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Question deleted",
+      });
+      fetchQuestions(filterSubject || undefined);
+    }
+  };
+
+  const startEditingQuestion = (question: Question) => {
+    setEditingQuestion(question);
+    setEditQuestionData({
+      question_text: question.question_text,
+      option_a: question.option_a,
+      option_b: question.option_b,
+      option_c: question.option_c,
+      option_d: question.option_d,
+      correct_answer: question.correct_answer,
+      explanation: question.explanation || "",
+    });
   };
 
   const handleFileUpload = async (e: React.FormEvent) => {
@@ -245,7 +444,7 @@ const Admin = () => {
                 <Upload className="h-4 w-4 mr-2" />
                 Upload
               </TabsTrigger>
-              <TabsTrigger value="questions">
+              <TabsTrigger value="questions" onClick={() => fetchQuestions()}>
                 <FileText className="h-4 w-4 mr-2" />
                 Questions
               </TabsTrigger>
@@ -275,7 +474,7 @@ const Admin = () => {
                         <Label htmlFor="subject-level">Level</Label>
                         <select
                           id="subject-level"
-                          className="w-full mt-1 p-2 border rounded-md"
+                          className="w-full mt-1 p-2 border rounded-md bg-background"
                           value={subjectLevel}
                           onChange={(e) => setSubjectLevel(e.target.value)}
                           required
@@ -307,33 +506,113 @@ const Admin = () => {
                 <Card>
                   <CardHeader>
                     <CardTitle>Existing Subjects</CardTitle>
-                    <CardDescription>All subjects in the system</CardDescription>
+                    <CardDescription>Manage all subjects in the system</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-2">
+                    <div className="space-y-2 max-h-[400px] overflow-y-auto">
                       {subjects.length === 0 ? (
                         <p className="text-sm text-muted-foreground">No subjects yet</p>
                       ) : (
                         subjects.map((subject) => (
                           <div
                             key={subject.id}
-                            className="p-3 rounded-lg border bg-card hover:bg-accent transition-colors"
+                            className="p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
                           >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <h3 className="font-medium">{subject.name}</h3>
-                                {subject.description && (
-                                  <p className="text-sm text-muted-foreground mt-1">
-                                    {subject.description}
-                                  </p>
-                                )}
+                            {editingSubject?.id === subject.id ? (
+                              <div className="space-y-3">
+                                <Input
+                                  value={editName}
+                                  onChange={(e) => setEditName(e.target.value)}
+                                  placeholder="Subject name"
+                                />
+                                <select
+                                  className="w-full p-2 border rounded-md bg-background text-sm"
+                                  value={editLevel}
+                                  onChange={(e) => setEditLevel(e.target.value)}
+                                >
+                                  <option value="100L">100 Level</option>
+                                  <option value="200L">200 Level</option>
+                                  <option value="300L">300 Level</option>
+                                  <option value="400L">400 Level</option>
+                                  <option value="500L">500 Level</option>
+                                </select>
+                                <Textarea
+                                  value={editDescription}
+                                  onChange={(e) => setEditDescription(e.target.value)}
+                                  placeholder="Description"
+                                  rows={2}
+                                />
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleUpdateSubject(subject.id)}
+                                  >
+                                    <Check className="h-4 w-4 mr-1" /> Save
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setEditingSubject(null)}
+                                  >
+                                    <X className="h-4 w-4 mr-1" /> Cancel
+                                  </Button>
+                                </div>
                               </div>
-                              {subject.level && (
-                                <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-1 rounded">
-                                  {subject.level}
-                                </span>
-                              )}
-                            </div>
+                            ) : (
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-medium truncate">{subject.name}</h3>
+                                  {subject.description && (
+                                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                                      {subject.description}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  {subject.level && (
+                                    <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-1 rounded">
+                                      {subject.level}
+                                    </span>
+                                  )}
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-8 w-8"
+                                    onClick={() => startEditingSubject(subject)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-8 w-8 text-destructive hover:text-destructive"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Subject?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          This will permanently delete "{subject.name}" and all its questions. This action cannot be undone.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => handleDeleteSubject(subject.id)}
+                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        >
+                                          Delete
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ))
                       )}
@@ -358,7 +637,7 @@ const Admin = () => {
                       <Label htmlFor="subject-select">Select Subject</Label>
                       <select
                         id="subject-select"
-                        className="w-full mt-1 p-2 border rounded-md"
+                        className="w-full mt-1 p-2 border rounded-md bg-background"
                         value={selectedSubject}
                         onChange={(e) => setSelectedSubject(e.target.value)}
                         required
@@ -366,7 +645,7 @@ const Admin = () => {
                         <option value="">Choose a subject...</option>
                         {subjects.map((subject) => (
                           <option key={subject.id} value={subject.id}>
-                            {subject.name}
+                            {subject.name} ({subject.level})
                           </option>
                         ))}
                       </select>
@@ -422,7 +701,288 @@ const Admin = () => {
                   <CardDescription>View and manage all generated questions</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground">Question management interface coming soon...</p>
+                  {/* Filter */}
+                  <div className="mb-6">
+                    <Label htmlFor="filter-subject">Filter by Subject</Label>
+                    <select
+                      id="filter-subject"
+                      className="w-full mt-1 p-2 border rounded-md bg-background max-w-xs"
+                      value={filterSubject}
+                      onChange={(e) => {
+                        setFilterSubject(e.target.value);
+                        fetchQuestions(e.target.value || undefined);
+                      }}
+                    >
+                      <option value="">All Subjects</option>
+                      {subjects.map((subject) => (
+                        <option key={subject.id} value={subject.id}>
+                          {subject.name} ({subject.level})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Questions List */}
+                  {questionsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    </div>
+                  ) : questions.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      No questions found. Upload documents to generate questions.
+                    </p>
+                  ) : (
+                    <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                      {questions.map((question, index) => (
+                        <div
+                          key={question.id}
+                          className="border rounded-lg bg-card overflow-hidden"
+                        >
+                          {editingQuestion?.id === question.id ? (
+                            <div className="p-4 space-y-4">
+                              <div>
+                                <Label>Question Text</Label>
+                                <Textarea
+                                  value={editQuestionData.question_text}
+                                  onChange={(e) =>
+                                    setEditQuestionData({
+                                      ...editQuestionData,
+                                      question_text: e.target.value,
+                                    })
+                                  }
+                                  rows={3}
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <Label>Option A</Label>
+                                  <Input
+                                    value={editQuestionData.option_a}
+                                    onChange={(e) =>
+                                      setEditQuestionData({
+                                        ...editQuestionData,
+                                        option_a: e.target.value,
+                                      })
+                                    }
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Option B</Label>
+                                  <Input
+                                    value={editQuestionData.option_b}
+                                    onChange={(e) =>
+                                      setEditQuestionData({
+                                        ...editQuestionData,
+                                        option_b: e.target.value,
+                                      })
+                                    }
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Option C</Label>
+                                  <Input
+                                    value={editQuestionData.option_c}
+                                    onChange={(e) =>
+                                      setEditQuestionData({
+                                        ...editQuestionData,
+                                        option_c: e.target.value,
+                                      })
+                                    }
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Option D</Label>
+                                  <Input
+                                    value={editQuestionData.option_d}
+                                    onChange={(e) =>
+                                      setEditQuestionData({
+                                        ...editQuestionData,
+                                        option_d: e.target.value,
+                                      })
+                                    }
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <Label>Correct Answer</Label>
+                                <select
+                                  className="w-full p-2 border rounded-md bg-background"
+                                  value={editQuestionData.correct_answer}
+                                  onChange={(e) =>
+                                    setEditQuestionData({
+                                      ...editQuestionData,
+                                      correct_answer: e.target.value,
+                                    })
+                                  }
+                                >
+                                  <option value="A">A</option>
+                                  <option value="B">B</option>
+                                  <option value="C">C</option>
+                                  <option value="D">D</option>
+                                </select>
+                              </div>
+                              <div>
+                                <Label>Explanation (Optional)</Label>
+                                <Textarea
+                                  value={editQuestionData.explanation}
+                                  onChange={(e) =>
+                                    setEditQuestionData({
+                                      ...editQuestionData,
+                                      explanation: e.target.value,
+                                    })
+                                  }
+                                  rows={2}
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleUpdateQuestion(question.id)}
+                                >
+                                  <Check className="h-4 w-4 mr-1" /> Save
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setEditingQuestion(null)}
+                                >
+                                  <X className="h-4 w-4 mr-1" /> Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div
+                                className="p-4 cursor-pointer hover:bg-accent/30 transition-colors"
+                                onClick={() =>
+                                  setExpandedQuestion(
+                                    expandedQuestion === question.id ? null : question.id
+                                  )
+                                }
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="text-xs font-semibold bg-secondary text-secondary-foreground px-2 py-0.5 rounded">
+                                        Q{index + 1}
+                                      </span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {question.subjects?.name}
+                                      </span>
+                                    </div>
+                                    <p className="font-medium line-clamp-2">
+                                      {question.question_text}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-1 flex-shrink-0">
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-8 w-8"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        startEditingQuestion(question);
+                                      }}
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className="h-8 w-8 text-destructive hover:text-destructive"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Delete Question?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            This will permanently delete this question. This action cannot be undone.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                          <AlertDialogAction
+                                            onClick={() => handleDeleteQuestion(question.id)}
+                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                          >
+                                            Delete
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                    {expandedQuestion === question.id ? (
+                                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                    ) : (
+                                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              {expandedQuestion === question.id && (
+                                <div className="px-4 pb-4 border-t bg-muted/30">
+                                  <div className="pt-3 space-y-2">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                                      <div
+                                        className={`p-2 rounded ${
+                                          question.correct_answer === "A"
+                                            ? "bg-green-100 dark:bg-green-900/30 border-green-500 border"
+                                            : "bg-muted"
+                                        }`}
+                                      >
+                                        <span className="font-semibold">A:</span> {question.option_a}
+                                      </div>
+                                      <div
+                                        className={`p-2 rounded ${
+                                          question.correct_answer === "B"
+                                            ? "bg-green-100 dark:bg-green-900/30 border-green-500 border"
+                                            : "bg-muted"
+                                        }`}
+                                      >
+                                        <span className="font-semibold">B:</span> {question.option_b}
+                                      </div>
+                                      <div
+                                        className={`p-2 rounded ${
+                                          question.correct_answer === "C"
+                                            ? "bg-green-100 dark:bg-green-900/30 border-green-500 border"
+                                            : "bg-muted"
+                                        }`}
+                                      >
+                                        <span className="font-semibold">C:</span> {question.option_c}
+                                      </div>
+                                      <div
+                                        className={`p-2 rounded ${
+                                          question.correct_answer === "D"
+                                            ? "bg-green-100 dark:bg-green-900/30 border-green-500 border"
+                                            : "bg-muted"
+                                        }`}
+                                      >
+                                        <span className="font-semibold">D:</span> {question.option_d}
+                                      </div>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground">
+                                      <span className="font-semibold">Correct Answer:</span>{" "}
+                                      {question.correct_answer}
+                                    </p>
+                                    {question.explanation && (
+                                      <p className="text-sm text-muted-foreground">
+                                        <span className="font-semibold">Explanation:</span>{" "}
+                                        {question.explanation}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
