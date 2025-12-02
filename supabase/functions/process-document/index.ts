@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import JSZip from "https://esm.sh/jszip@3.10.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,6 +15,7 @@ serve(async (req) => {
 
   try {
     const { documentId, storagePath, subjectId } = await req.json();
+    console.log("Processing document:", { documentId, storagePath, subjectId });
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -28,9 +30,10 @@ serve(async (req) => {
       throw new Error(`Failed to download file: ${downloadError.message}`);
     }
 
-    // Convert file to base64
+    console.log("File downloaded successfully, size:", fileData.size);
+
+    // Convert file to arrayBuffer
     const arrayBuffer = await fileData.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
     // Determine file type and extract text
     let extractedText = "";
@@ -38,47 +41,63 @@ serve(async (req) => {
 
     if (fileType.endsWith(".jpg") || fileType.endsWith(".jpeg") || fileType.endsWith(".png")) {
       // Use Lovable AI with vision for OCR on handwritten images
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
       extractedText = await extractTextFromImage(base64);
-    } else if (fileType.endsWith(".pdf") || fileType.endsWith(".doc") || fileType.endsWith(".docx")) {
-      // For PDF/Word, we'd need additional parsing
-      // For now, send to AI to extract if it's an image-based document
-      extractedText = await extractTextFromDocument(base64, fileType);
+    } else if (fileType.endsWith(".docx")) {
+      // Parse Word document (DOCX is a ZIP containing XML)
+      extractedText = await extractTextFromDocx(arrayBuffer);
+    } else if (fileType.endsWith(".doc")) {
+      throw new Error("Old .doc format not supported. Please convert to .docx format.");
+    } else if (fileType.endsWith(".pdf")) {
+      // For PDF, we'd need a PDF parser - for now, suggest using images
+      throw new Error("PDF parsing not yet supported. Please upload as images or .docx format.");
     }
 
-    if (!extractedText) {
-      throw new Error("No text could be extracted from the document");
+    console.log("Extracted text length:", extractedText.length);
+    console.log("Extracted text preview:", extractedText.substring(0, 500));
+
+    if (!extractedText || extractedText.trim().length < 50) {
+      throw new Error("No meaningful text could be extracted from the document. Please check the file content.");
     }
 
     // Extract exact questions from the document text
     const questions = await extractQuestions(extractedText, subjectId);
+    console.log("Questions extracted:", questions.length);
+
+    if (questions.length === 0) {
+      throw new Error("No questions could be extracted from the document. Make sure your document contains exam questions.");
+    }
 
     // Save questions to database
-    const { data: insertedQuestions, error: insertError } = await supabase
+    const { error: insertError } = await supabase
       .from("questions")
       .insert(
         questions.map((q: any) => ({
           subject_id: subjectId,
           question_text: q.question,
-          option_a: q.options[0],
-          option_b: q.options[1],
-          option_c: q.options[2],
-          option_d: q.options[3],
-          correct_answer: q.correct_answer,
-          explanation: q.explanation,
+          option_a: q.options[0] || "Option A",
+          option_b: q.options[1] || "Option B",
+          option_c: q.options[2] || "Option C",
+          option_d: q.options[3] || "Option D",
+          correct_answer: q.correct_answer || "A",
+          explanation: q.explanation || "",
           is_active: true,
         }))
       );
 
     if (insertError) {
+      console.error("Insert error:", insertError);
       throw new Error(`Failed to save questions: ${insertError.message}`);
     }
+
+    console.log("Questions saved to database successfully");
 
     // Update document upload record with full extracted text
     await supabase
       .from("document_uploads")
       .update({
         processing_status: "completed",
-        extracted_text: extractedText, // Store full extracted text
+        extracted_text: extractedText.substring(0, 10000), // Store first 10000 chars
         questions_generated: questions.length,
       })
       .eq("id", documentId);
@@ -90,7 +109,6 @@ serve(async (req) => {
 
     if (deleteError) {
       console.error("Warning: Failed to delete original file:", deleteError.message);
-      // Don't throw - questions were saved successfully
     } else {
       console.log("Original file deleted successfully:", storagePath);
     }
@@ -118,6 +136,8 @@ serve(async (req) => {
 async function extractTextFromImage(base64Image: string): Promise<string> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
+  console.log("Extracting text from image using AI vision...");
+
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -132,7 +152,7 @@ async function extractTextFromImage(base64Image: string): Promise<string> {
           content: [
             {
               type: "text",
-              text: "Extract all text from this image. This may contain handwritten notes or printed text. Please transcribe everything you see accurately, maintaining the structure and formatting as much as possible.",
+              text: "Extract all text from this image. This may contain handwritten notes or printed exam questions. Please transcribe everything you see accurately, maintaining the structure, question numbers, options (A, B, C, D), and formatting as much as possible. Include all mathematical formulas, symbols, and expressions.",
             },
             {
               type: "image_url",
@@ -147,45 +167,59 @@ async function extractTextFromImage(base64Image: string): Promise<string> {
   });
 
   if (!response.ok) {
-    throw new Error(`AI API error: ${await response.text()}`);
+    const errorText = await response.text();
+    console.error("AI vision error:", errorText);
+    throw new Error(`AI API error: ${errorText}`);
   }
 
   const result = await response.json();
   return result.choices[0].message.content;
 }
 
-async function extractTextFromDocument(base64Doc: string, fileType: string): Promise<string> {
-  // For PDF/Word documents, we would ideally use a specialized parser
-  // For this implementation, we'll use AI to extract text from the first page
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+async function extractTextFromDocx(arrayBuffer: ArrayBuffer): Promise<string> {
+  console.log("Parsing DOCX file...");
+  
+  try {
+    // DOCX is a ZIP archive containing XML files
+    const zip = await JSZip.loadAsync(arrayBuffer);
+    
+    // The main document content is in word/document.xml
+    const documentXml = await zip.file("word/document.xml")?.async("string");
+    
+    if (!documentXml) {
+      throw new Error("Could not find document content in DOCX file");
+    }
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        {
-          role: "user",
-          content: `Extract all educational content and text from this ${fileType} document. Focus on questions, topics, and learning materials.`,
-        },
-      ],
-    }),
-  });
+    // Extract text from XML - remove all XML tags and get plain text
+    let text = documentXml
+      // Replace paragraph endings with newlines
+      .replace(/<\/w:p>/g, "\n")
+      // Replace tabs
+      .replace(/<w:tab\/>/g, "\t")
+      // Remove all remaining XML tags
+      .replace(/<[^>]+>/g, "")
+      // Decode XML entities
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&amp;/g, "&")
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      // Clean up multiple newlines
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
 
-  if (!response.ok) {
-    throw new Error(`AI API error: ${await response.text()}`);
+    console.log("DOCX text extracted, length:", text.length);
+    return text;
+  } catch (error: any) {
+    console.error("DOCX parsing error:", error);
+    throw new Error(`Failed to parse DOCX file: ${error.message}`);
   }
-
-  const result = await response.json();
-  return result.choices[0].message.content;
 }
 
 async function extractQuestions(text: string, subjectId: string): Promise<any[]> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
+  console.log("Extracting questions from text using AI...");
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -205,8 +239,9 @@ CRITICAL RULES:
 2. If a question already has options (A, B, C, D), keep them exactly as written
 3. If a question doesn't have options, you may add plausible options BUT the question text must remain unchanged
 4. Preserve the original wording, numbers, formulas, and formatting
-5. The correct answer should be identified from the document if marked, otherwise make your best judgment
+5. The correct answer should be identified from the document if marked, otherwise make your best judgment based on mathematical/subject accuracy
 6. DO NOT paraphrase, summarize, or modify the questions in any way
+7. Extract ALL questions from the document, not just a few
 
 Output format - return a JSON object with a "questions" array:
 {
@@ -226,7 +261,7 @@ Rules for correct_answer:
         },
         {
           role: "user",
-          content: `Extract ALL exam questions from this document. Keep them EXACTLY as written:\n\n${text}`,
+          content: `Extract ALL exam questions from this document. Keep them EXACTLY as written. Do not skip any questions:\n\n${text}`,
         },
       ],
       response_format: { type: "json_object" },
@@ -234,17 +269,23 @@ Rules for correct_answer:
   });
 
   if (!response.ok) {
-    throw new Error(`AI API error: ${await response.text()}`);
+    const errorText = await response.text();
+    console.error("AI question extraction error:", errorText);
+    throw new Error(`AI API error: ${errorText}`);
   }
 
   const result = await response.json();
   const content = result.choices[0].message.content;
   
+  console.log("AI response for questions:", content.substring(0, 500));
+  
   try {
     const parsed = JSON.parse(content);
-    return parsed.questions || parsed;
+    const questions = parsed.questions || parsed;
+    console.log("Parsed questions count:", questions.length);
+    return questions;
   } catch (e) {
-    console.error("Failed to parse questions:", content);
+    console.error("Failed to parse questions JSON:", content);
     throw new Error("Failed to parse extracted questions");
   }
 }
