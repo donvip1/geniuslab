@@ -84,6 +84,20 @@ const Admin = () => {
     explanation: "",
   });
 
+  // Manual Question Entry State
+  const [showAddQuestion, setShowAddQuestion] = useState(false);
+  const [addingQuestion, setAddingQuestion] = useState(false);
+  const [newQuestionSubject, setNewQuestionSubject] = useState("");
+  const [newQuestion, setNewQuestion] = useState({
+    question_text: "",
+    option_a: "",
+    option_b: "",
+    option_c: "",
+    option_d: "",
+    correct_answer: "A",
+    explanation: "",
+  });
+
   useEffect(() => {
     checkUser();
   }, []);
@@ -329,6 +343,75 @@ const Admin = () => {
       correct_answer: question.correct_answer,
       explanation: question.explanation || "",
     });
+  };
+
+  const handleAddQuestion = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!newQuestionSubject) {
+      toast({
+        title: "Error",
+        description: "Please select a subject",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!newQuestion.question_text.trim() || !newQuestion.option_a.trim() || 
+        !newQuestion.option_b.trim() || !newQuestion.option_c.trim() || 
+        !newQuestion.option_d.trim()) {
+      toast({
+        title: "Error",
+        description: "Please fill in the question and all options",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setAddingQuestion(true);
+
+    const { error } = await supabase
+      .from("questions")
+      .insert([
+        {
+          subject_id: newQuestionSubject,
+          question_text: newQuestion.question_text.trim(),
+          option_a: newQuestion.option_a.trim(),
+          option_b: newQuestion.option_b.trim(),
+          option_c: newQuestion.option_c.trim(),
+          option_d: newQuestion.option_d.trim(),
+          correct_answer: newQuestion.correct_answer,
+          explanation: newQuestion.explanation.trim() || null,
+          is_active: true,
+          created_by: user.id,
+        },
+      ]);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add question",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Question added successfully",
+      });
+      setNewQuestion({
+        question_text: "",
+        option_a: "",
+        option_b: "",
+        option_c: "",
+        option_d: "",
+        correct_answer: "A",
+        explanation: "",
+      });
+      setShowAddQuestion(false);
+      fetchQuestions(filterSubject || undefined);
+    }
+
+    setAddingQuestion(false);
   };
 
   const handleFileUpload = async (e: React.FormEvent) => {
@@ -695,12 +778,175 @@ const Admin = () => {
 
             {/* Questions Tab */}
             <TabsContent value="questions">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Question Bank</CardTitle>
-                  <CardDescription>View and manage all generated questions</CardDescription>
-                </CardHeader>
-                <CardContent>
+              <div className="space-y-6">
+                {/* Add Question Card */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>Add Question Manually</CardTitle>
+                        <CardDescription>Create a new question with options and correct answer</CardDescription>
+                      </div>
+                      <Button
+                        variant={showAddQuestion ? "outline" : "default"}
+                        onClick={() => setShowAddQuestion(!showAddQuestion)}
+                      >
+                        {showAddQuestion ? (
+                          <>
+                            <X className="h-4 w-4 mr-2" />
+                            Cancel
+                          </>
+                        ) : (
+                          <>
+                            <FileText className="h-4 w-4 mr-2" />
+                            Add New Question
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {showAddQuestion && (
+                    <CardContent>
+                      <form onSubmit={handleAddQuestion} className="space-y-4">
+                        <div>
+                          <Label htmlFor="new-question-subject">Subject *</Label>
+                          <select
+                            id="new-question-subject"
+                            className="w-full mt-1 p-2 border rounded-md bg-background"
+                            value={newQuestionSubject}
+                            onChange={(e) => setNewQuestionSubject(e.target.value)}
+                            required
+                          >
+                            <option value="">Select a subject...</option>
+                            {subjects.map((subject) => (
+                              <option key={subject.id} value={subject.id}>
+                                {subject.name} ({subject.level})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="new-question-text">Question Text *</Label>
+                          <Textarea
+                            id="new-question-text"
+                            value={newQuestion.question_text}
+                            onChange={(e) =>
+                              setNewQuestion({ ...newQuestion, question_text: e.target.value })
+                            }
+                            placeholder="Enter your question here..."
+                            rows={3}
+                            required
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="new-option-a">Option A *</Label>
+                            <Input
+                              id="new-option-a"
+                              value={newQuestion.option_a}
+                              onChange={(e) =>
+                                setNewQuestion({ ...newQuestion, option_a: e.target.value })
+                              }
+                              placeholder="Enter option A"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="new-option-b">Option B *</Label>
+                            <Input
+                              id="new-option-b"
+                              value={newQuestion.option_b}
+                              onChange={(e) =>
+                                setNewQuestion({ ...newQuestion, option_b: e.target.value })
+                              }
+                              placeholder="Enter option B"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="new-option-c">Option C *</Label>
+                            <Input
+                              id="new-option-c"
+                              value={newQuestion.option_c}
+                              onChange={(e) =>
+                                setNewQuestion({ ...newQuestion, option_c: e.target.value })
+                              }
+                              placeholder="Enter option C"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="new-option-d">Option D *</Label>
+                            <Input
+                              id="new-option-d"
+                              value={newQuestion.option_d}
+                              onChange={(e) =>
+                                setNewQuestion({ ...newQuestion, option_d: e.target.value })
+                              }
+                              placeholder="Enter option D"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="new-correct-answer">Correct Answer *</Label>
+                            <select
+                              id="new-correct-answer"
+                              className="w-full mt-1 p-2 border rounded-md bg-background"
+                              value={newQuestion.correct_answer}
+                              onChange={(e) =>
+                                setNewQuestion({ ...newQuestion, correct_answer: e.target.value })
+                              }
+                              required
+                            >
+                              <option value="A">A - {newQuestion.option_a || "Option A"}</option>
+                              <option value="B">B - {newQuestion.option_b || "Option B"}</option>
+                              <option value="C">C - {newQuestion.option_c || "Option C"}</option>
+                              <option value="D">D - {newQuestion.option_d || "Option D"}</option>
+                            </select>
+                          </div>
+                          <div>
+                            <Label htmlFor="new-explanation">Explanation (Optional)</Label>
+                            <Input
+                              id="new-explanation"
+                              value={newQuestion.explanation}
+                              onChange={(e) =>
+                                setNewQuestion({ ...newQuestion, explanation: e.target.value })
+                              }
+                              placeholder="Why this answer is correct"
+                            />
+                          </div>
+                        </div>
+
+                        <Button type="submit" disabled={addingQuestion} className="w-full">
+                          {addingQuestion ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Adding Question...
+                            </>
+                          ) : (
+                            <>
+                              <Check className="h-4 w-4 mr-2" />
+                              Add Question
+                            </>
+                          )}
+                        </Button>
+                      </form>
+                    </CardContent>
+                  )}
+                </Card>
+
+                {/* Question Bank Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Question Bank</CardTitle>
+                    <CardDescription>View and manage all questions</CardDescription>
+                  </CardHeader>
+                  <CardContent>
                   {/* Filter */}
                   <div className="mb-6">
                     <Label htmlFor="filter-subject">Filter by Subject</Label>
@@ -975,16 +1221,17 @@ const Admin = () => {
                                       </p>
                                     )}
                                   </div>
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             </TabsContent>
           </Tabs>
         </div>
