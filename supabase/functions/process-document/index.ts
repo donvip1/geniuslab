@@ -49,8 +49,8 @@ serve(async (req) => {
       throw new Error("No text could be extracted from the document");
     }
 
-    // Generate questions from extracted text
-    const questions = await generateQuestions(extractedText, subjectId);
+    // Extract exact questions from the document text
+    const questions = await extractQuestions(extractedText, subjectId);
 
     // Save questions to database
     const { data: insertedQuestions, error: insertError } = await supabase
@@ -73,15 +73,27 @@ serve(async (req) => {
       throw new Error(`Failed to save questions: ${insertError.message}`);
     }
 
-    // Update document upload record
+    // Update document upload record with full extracted text
     await supabase
       .from("document_uploads")
       .update({
         processing_status: "completed",
-        extracted_text: extractedText.substring(0, 5000), // Store first 5000 chars
+        extracted_text: extractedText, // Store full extracted text
         questions_generated: questions.length,
       })
       .eq("id", documentId);
+
+    // Delete the original file from storage to save space
+    const { error: deleteError } = await supabase.storage
+      .from("documents")
+      .remove([storagePath]);
+
+    if (deleteError) {
+      console.error("Warning: Failed to delete original file:", deleteError.message);
+      // Don't throw - questions were saved successfully
+    } else {
+      console.log("Original file deleted successfully:", storagePath);
+    }
 
     return new Response(
       JSON.stringify({
@@ -172,7 +184,7 @@ async function extractTextFromDocument(base64Doc: string, fileType: string): Pro
   return result.choices[0].message.content;
 }
 
-async function generateQuestions(text: string, subjectId: string): Promise<any[]> {
+async function extractQuestions(text: string, subjectId: string): Promise<any[]> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -186,27 +198,35 @@ async function generateQuestions(text: string, subjectId: string): Promise<any[]
       messages: [
         {
           role: "system",
-          content: `You are an expert educational content creator for Nigerian JAMB/UTME exams. Generate multiple-choice questions based on the provided text.
+          content: `You are an expert at extracting exam questions from educational documents. Your job is to EXTRACT the EXACT questions from the document - DO NOT create new questions or modify the existing ones.
 
-Each question must follow this EXACT JSON format:
+CRITICAL RULES:
+1. Extract questions EXACTLY as they appear in the document
+2. If a question already has options (A, B, C, D), keep them exactly as written
+3. If a question doesn't have options, you may add plausible options BUT the question text must remain unchanged
+4. Preserve the original wording, numbers, formulas, and formatting
+5. The correct answer should be identified from the document if marked, otherwise make your best judgment
+6. DO NOT paraphrase, summarize, or modify the questions in any way
+
+Output format - return a JSON object with a "questions" array:
 {
-  "question": "The question text",
-  "options": ["Option A text", "Option B text", "Option C text", "Option D text"],
-  "correct_answer": "A" (must be A, B, C, or D),
-  "explanation": "Explanation of why this is correct"
+  "questions": [
+    {
+      "question": "The exact question text from document",
+      "options": ["Option A text", "Option B text", "Option C text", "Option D text"],
+      "correct_answer": "A",
+      "explanation": "Brief explanation if available in document, otherwise provide one"
+    }
+  ]
 }
 
-Rules:
-- Generate 5-10 questions from the text
-- Each question must have exactly 4 options
-- Options should be plausible and test understanding
-- Questions should be clear and unambiguous
-- Return ONLY a valid JSON array of questions
-- Make questions appropriate for Nigerian secondary school/UTME level`,
+Rules for correct_answer:
+- Must be exactly "A", "B", "C", or "D"
+- Match it to the correct option in the options array`,
         },
         {
           role: "user",
-          content: `Generate multiple-choice questions from this text:\n\n${text}`,
+          content: `Extract ALL exam questions from this document. Keep them EXACTLY as written:\n\n${text}`,
         },
       ],
       response_format: { type: "json_object" },
@@ -222,10 +242,9 @@ Rules:
   
   try {
     const parsed = JSON.parse(content);
-    // Handle both {questions: [...]} and direct array formats
     return parsed.questions || parsed;
   } catch (e) {
     console.error("Failed to parse questions:", content);
-    throw new Error("Failed to parse generated questions");
+    throw new Error("Failed to parse extracted questions");
   }
 }
