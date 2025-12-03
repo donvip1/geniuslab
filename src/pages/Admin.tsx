@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, FileText, BookOpen, Loader2, Pencil, Trash2, X, Check, ChevronDown, ChevronUp } from "lucide-react";
+import { Upload, FileText, BookOpen, Loader2, Pencil, Trash2, X, Check, ChevronDown, ChevronUp, ClipboardPaste } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -97,6 +97,12 @@ const Admin = () => {
     correct_answer: "A",
     explanation: "",
   });
+
+  // Bulk Import State
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [bulkImportText, setBulkImportText] = useState("");
+  const [bulkImportSubject, setBulkImportSubject] = useState("");
+  const [bulkImporting, setBulkImporting] = useState(false);
 
   useEffect(() => {
     checkUser();
@@ -412,6 +418,61 @@ const Admin = () => {
     }
 
     setAddingQuestion(false);
+  };
+
+  const handleBulkImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!bulkImportSubject) {
+      toast({
+        title: "Error",
+        description: "Please select a subject",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!bulkImportText.trim()) {
+      toast({
+        title: "Error",
+        description: "Please paste your questions text",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setBulkImporting(true);
+
+    try {
+      // Use AI to parse the bulk text into questions
+      const { data, error } = await supabase.functions.invoke("process-bulk-questions", {
+        body: {
+          text: bulkImportText,
+          subjectId: bulkImportSubject,
+          userId: user.id,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `${data.questionsCreated} questions imported successfully`,
+      });
+
+      setBulkImportText("");
+      setShowBulkImport(false);
+      fetchQuestions(filterSubject || undefined);
+    } catch (error: any) {
+      console.error("Bulk import error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to import questions",
+        variant: "destructive",
+      });
+    } finally {
+      setBulkImporting(false);
+    }
   };
 
   const handleFileUpload = async (e: React.FormEvent) => {
@@ -739,13 +800,13 @@ const Admin = () => {
                       <Input
                         id="file-upload"
                         type="file"
-                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.bmp,.txt,.text,.rtf"
                         onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                         required
                         className="mt-1"
                       />
                       <p className="text-xs text-muted-foreground mt-2">
-                        Supported formats: PDF, Word (.doc, .docx), Images (.jpg, .png) for handwritten notes
+                        Supported formats: PDF, Word (.doc, .docx), Images (.jpg, .png, .gif, .webp), Plain text (.txt), RTF
                       </p>
                     </div>
 
@@ -932,6 +993,103 @@ const Admin = () => {
                             <>
                               <Check className="h-4 w-4 mr-2" />
                               Add Question
+                            </>
+                          )}
+                        </Button>
+                      </form>
+                    </CardContent>
+                  )}
+                </Card>
+
+                {/* Bulk Import Card */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div>
+                        <CardTitle>Bulk Import Questions</CardTitle>
+                        <CardDescription>Paste multiple questions at once to import them</CardDescription>
+                      </div>
+                      <Button
+                        variant={showBulkImport ? "outline" : "secondary"}
+                        onClick={() => setShowBulkImport(!showBulkImport)}
+                      >
+                        {showBulkImport ? (
+                          <>
+                            <X className="h-4 w-4 mr-2" />
+                            Cancel
+                          </>
+                        ) : (
+                          <>
+                            <ClipboardPaste className="h-4 w-4 mr-2" />
+                            Bulk Import
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {showBulkImport && (
+                    <CardContent>
+                      <form onSubmit={handleBulkImport} className="space-y-4">
+                        <div>
+                          <Label htmlFor="bulk-import-subject">Subject *</Label>
+                          <select
+                            id="bulk-import-subject"
+                            className="w-full mt-1 p-2 border rounded-md bg-background"
+                            value={bulkImportSubject}
+                            onChange={(e) => setBulkImportSubject(e.target.value)}
+                            required
+                          >
+                            <option value="">Select a subject...</option>
+                            {subjects.map((subject) => (
+                              <option key={subject.id} value={subject.id}>
+                                {subject.name} ({subject.level})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="bulk-import-text">Paste Questions *</Label>
+                          <Textarea
+                            id="bulk-import-text"
+                            value={bulkImportText}
+                            onChange={(e) => setBulkImportText(e.target.value)}
+                            placeholder={`Paste your questions here. Example format:
+
+1. What is 2 + 2?
+A. 3
+B. 4
+C. 5
+D. 6
+Answer: B
+
+2. What is the capital of Nigeria?
+A. Lagos
+B. Abuja
+C. Kano
+D. Ibadan
+Answer: B
+
+Or any other format - our AI will parse it automatically!`}
+                            rows={12}
+                            required
+                            className="font-mono text-sm"
+                          />
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Paste questions in any format. AI will automatically extract and format them.
+                          </p>
+                        </div>
+
+                        <Button type="submit" disabled={bulkImporting} className="w-full">
+                          {bulkImporting ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Importing Questions...
+                            </>
+                          ) : (
+                            <>
+                              <ClipboardPaste className="h-4 w-4 mr-2" />
+                              Import Questions
                             </>
                           )}
                         </Button>
