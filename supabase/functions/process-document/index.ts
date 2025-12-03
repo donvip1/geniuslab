@@ -8,6 +8,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper function to convert ArrayBuffer to base64 without stack overflow
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -42,18 +54,18 @@ serve(async (req) => {
     if (fileType.endsWith(".jpg") || fileType.endsWith(".jpeg") || fileType.endsWith(".png") || 
         fileType.endsWith(".gif") || fileType.endsWith(".webp") || fileType.endsWith(".bmp")) {
       // Use Lovable AI with vision for OCR on images
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      const base64 = arrayBufferToBase64(arrayBuffer);
       extractedText = await extractTextFromImage(base64);
     } else if (fileType.endsWith(".docx")) {
       // Parse Word document (DOCX is a ZIP containing XML)
       extractedText = await extractTextFromDocx(arrayBuffer);
     } else if (fileType.endsWith(".doc")) {
       // Old .doc format - try to extract via AI vision as fallback
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      const base64 = arrayBufferToBase64(arrayBuffer);
       extractedText = await extractTextFromImage(base64);
     } else if (fileType.endsWith(".pdf")) {
       // For PDF - use AI vision to extract text from PDF rendered as image
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      const base64 = arrayBufferToBase64(arrayBuffer);
       extractedText = await extractTextFromPDF(base64);
     } else if (fileType.endsWith(".txt") || fileType.endsWith(".text")) {
       // Plain text file
@@ -71,7 +83,7 @@ serve(async (req) => {
         }
       } catch {
         // Last resort - try AI vision
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        const base64 = arrayBufferToBase64(arrayBuffer);
         extractedText = await extractTextFromImage(base64);
       }
     }
