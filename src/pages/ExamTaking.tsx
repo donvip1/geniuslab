@@ -6,8 +6,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronLeft, ChevronRight, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle, Clock, AlertCircle, Send } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Question {
   id: string;
@@ -19,6 +30,8 @@ interface Question {
   correct_answer: string;
   explanation: string;
 }
+
+const QUESTIONS_PER_PAGE = 10;
 
 const ExamTaking = () => {
   const { subjectId } = useParams();
@@ -32,6 +45,13 @@ const ExamTaking = () => {
   const [submitting, setSubmitting] = useState(false);
   const [timeLeft, setTimeLeft] = useState(3600); // 60 minutes
   const [subjectName, setSubjectName] = useState("");
+
+  // Pagination for question navigator
+  const currentPage = Math.floor(currentQuestionIndex / QUESTIONS_PER_PAGE);
+  const totalPages = Math.ceil(questions.length / QUESTIONS_PER_PAGE);
+  const startIndex = currentPage * QUESTIONS_PER_PAGE;
+  const endIndex = Math.min(startIndex + QUESTIONS_PER_PAGE, questions.length);
+  const visibleQuestions = questions.slice(startIndex, endIndex);
 
   useEffect(() => {
     fetchQuestionsAndSubject();
@@ -183,6 +203,20 @@ const ExamTaking = () => {
     return Object.keys(answers).length;
   };
 
+  const goToNextPage = () => {
+    if (currentPage < totalPages - 1) {
+      const newIndex = (currentPage + 1) * QUESTIONS_PER_PAGE;
+      setCurrentQuestionIndex(newIndex);
+    }
+  };
+
+  const goToPrevPage = () => {
+    if (currentPage > 0) {
+      const newIndex = (currentPage - 1) * QUESTIONS_PER_PAGE;
+      setCurrentQuestionIndex(newIndex);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -197,7 +231,7 @@ const ExamTaking = () => {
   const currentQuestion = questions[currentQuestionIndex];
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-screen bg-muted/30 flex flex-col">
       {/* Header */}
       <div className="bg-gradient-to-br from-primary to-secondary text-primary-foreground py-4 px-4 sticky top-0 z-10 shadow-md">
         <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
@@ -207,27 +241,62 @@ const ExamTaking = () => {
               Question {currentQuestionIndex + 1} of {questions.length}
             </p>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 md:gap-6 flex-wrap justify-center">
             <div className="flex items-center gap-2">
               <CheckCircle className="h-5 w-5" />
               <span className="font-semibold">
-                {getAnsweredCount()} / {questions.length} Answered
+                {getAnsweredCount()} / {questions.length}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-5 w-5" />
-              <span className={`font-bold text-lg ${timeLeft < 300 ? "text-destructive" : ""}`}>
+              <span className={`font-bold text-lg ${timeLeft < 300 ? "text-red-300 animate-pulse" : ""}`}>
                 {formatTime(timeLeft)}
               </span>
             </div>
+            {/* Submit button always visible */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button 
+                  variant="secondary" 
+                  size="sm"
+                  disabled={submitting}
+                  className="bg-white/20 hover:bg-white/30 text-white border-0"
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  Submit
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Submit Exam?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    You have answered {getAnsweredCount()} out of {questions.length} questions.
+                    {getAnsweredCount() < questions.length && (
+                      <span className="block mt-2 text-destructive font-medium">
+                        Warning: You have {questions.length - getAnsweredCount()} unanswered questions!
+                      </span>
+                    )}
+                    <span className="block mt-2">Are you sure you want to submit?</span>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Continue Exam</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleSubmitExam}>
+                    {submitting ? "Submitting..." : "Submit Exam"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
+      {/* Main Content */}
+      <div className="container mx-auto px-4 py-6 flex-1 flex flex-col">
+        <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col">
           {timeLeft < 300 && (
-            <Alert className="mb-6 border-destructive">
+            <Alert className="mb-4 border-destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
                 Warning: Less than 5 minutes remaining!
@@ -235,20 +304,21 @@ const ExamTaking = () => {
             </Alert>
           )}
 
-          <Card className="mb-6">
-            <CardHeader>
+          {/* Question Card */}
+          <Card className="mb-4 flex-1">
+            <CardHeader className="pb-3">
               <CardTitle className="text-lg">
                 Question {currentQuestionIndex + 1}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <p className="text-lg leading-relaxed">{currentQuestion.question_text}</p>
+            <CardContent className="space-y-4">
+              <p className="text-base md:text-lg leading-relaxed">{currentQuestion.question_text}</p>
 
               <RadioGroup
                 value={answers[currentQuestion.id] || ""}
                 onValueChange={(value) => handleAnswerChange(currentQuestion.id, value)}
               >
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {["A", "B", "C", "D"].map((option) => {
                     const optionKey = `option_${option.toLowerCase()}` as keyof Question;
                     const optionText = currentQuestion[optionKey] as string;
@@ -256,17 +326,17 @@ const ExamTaking = () => {
                     return (
                       <div
                         key={option}
-                        className={`flex items-start space-x-3 p-4 rounded-lg border-2 transition-all cursor-pointer hover:bg-accent ${
+                        className={`flex items-start space-x-3 p-3 rounded-lg border-2 transition-all cursor-pointer hover:bg-accent ${
                           answers[currentQuestion.id] === option
                             ? "border-primary bg-primary/5"
                             : "border-border"
                         }`}
                         onClick={() => handleAnswerChange(currentQuestion.id, option)}
                       >
-                        <RadioGroupItem value={option} id={`option-${option}`} className="mt-1" />
+                        <RadioGroupItem value={option} id={`option-${option}`} className="mt-0.5" />
                         <Label
                           htmlFor={`option-${option}`}
-                          className="flex-1 cursor-pointer text-base"
+                          className="flex-1 cursor-pointer text-sm md:text-base"
                         >
                           <span className="font-semibold mr-2">{option}.</span>
                           {optionText}
@@ -279,49 +349,85 @@ const ExamTaking = () => {
             </CardContent>
           </Card>
 
-          {/* Navigation */}
-          <div className="flex justify-between items-center gap-4">
-            <Button
-              variant="outline"
-              onClick={() => setCurrentQuestionIndex((prev) => Math.max(0, prev - 1))}
-              disabled={currentQuestionIndex === 0}
-            >
-              <ChevronLeft className="mr-2 h-4 w-4" />
-              Previous
-            </Button>
-
-            <div className="flex gap-2">
-              {questions.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentQuestionIndex(index)}
-                  className={`w-10 h-10 rounded-lg font-semibold transition-all ${
-                    index === currentQuestionIndex
-                      ? "bg-primary text-primary-foreground"
-                      : answers[questions[index].id]
-                      ? "bg-green-500/20 text-green-700 border-2 border-green-500"
-                      : "bg-muted hover:bg-muted/80"
-                  }`}
-                >
-                  {index + 1}
-                </button>
-              ))}
+          {/* Navigation Section - All on one screen */}
+          <div className="space-y-4">
+            {/* Question Number Grid - Shows 10 at a time */}
+            <div className="bg-card rounded-lg p-4 border">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-muted-foreground">
+                  Page {currentPage + 1} of {totalPages} ({startIndex + 1}-{endIndex} of {questions.length})
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={goToPrevPage}
+                    disabled={currentPage === 0}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={goToNextPage}
+                    disabled={currentPage >= totalPages - 1}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-5 md:grid-cols-10 gap-2">
+                {visibleQuestions.map((_, localIndex) => {
+                  const globalIndex = startIndex + localIndex;
+                  const question = questions[globalIndex];
+                  const isAnswered = answers[question.id];
+                  const isCurrent = globalIndex === currentQuestionIndex;
+                  
+                  return (
+                    <button
+                      key={globalIndex}
+                      onClick={() => setCurrentQuestionIndex(globalIndex)}
+                      className={`w-full aspect-square rounded-lg font-semibold text-sm transition-all ${
+                        isCurrent
+                          ? "bg-primary text-primary-foreground ring-2 ring-offset-2 ring-primary"
+                          : isAnswered
+                          ? "bg-green-500/20 text-green-700 border-2 border-green-500"
+                          : "bg-muted hover:bg-muted/80 border border-border"
+                      }`}
+                    >
+                      {globalIndex + 1}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            {currentQuestionIndex === questions.length - 1 ? (
-              <Button onClick={handleSubmitExam} disabled={submitting} size="lg">
-                {submitting ? "Submitting..." : "Submit Exam"}
+            {/* Prev/Next Question Navigation */}
+            <div className="flex justify-between items-center gap-4">
+              <Button
+                variant="outline"
+                onClick={() => setCurrentQuestionIndex((prev) => Math.max(0, prev - 1))}
+                disabled={currentQuestionIndex === 0}
+              >
+                <ChevronLeft className="mr-2 h-4 w-4" />
+                Previous
               </Button>
-            ) : (
+
+              <span className="text-sm text-muted-foreground hidden md:block">
+                Use the grid above to jump to any question
+              </span>
+
               <Button
                 onClick={() =>
                   setCurrentQuestionIndex((prev) => Math.min(questions.length - 1, prev + 1))
                 }
+                disabled={currentQuestionIndex === questions.length - 1}
               >
                 Next
                 <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
-            )}
+            </div>
           </div>
         </div>
       </div>

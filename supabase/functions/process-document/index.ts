@@ -39,18 +39,41 @@ serve(async (req) => {
     let extractedText = "";
     const fileType = storagePath.toLowerCase();
 
-    if (fileType.endsWith(".jpg") || fileType.endsWith(".jpeg") || fileType.endsWith(".png")) {
-      // Use Lovable AI with vision for OCR on handwritten images
+    if (fileType.endsWith(".jpg") || fileType.endsWith(".jpeg") || fileType.endsWith(".png") || 
+        fileType.endsWith(".gif") || fileType.endsWith(".webp") || fileType.endsWith(".bmp")) {
+      // Use Lovable AI with vision for OCR on images
       const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
       extractedText = await extractTextFromImage(base64);
     } else if (fileType.endsWith(".docx")) {
       // Parse Word document (DOCX is a ZIP containing XML)
       extractedText = await extractTextFromDocx(arrayBuffer);
     } else if (fileType.endsWith(".doc")) {
-      throw new Error("Old .doc format not supported. Please convert to .docx format.");
+      // Old .doc format - try to extract via AI vision as fallback
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      extractedText = await extractTextFromImage(base64);
     } else if (fileType.endsWith(".pdf")) {
-      // For PDF, we'd need a PDF parser - for now, suggest using images
-      throw new Error("PDF parsing not yet supported. Please upload as images or .docx format.");
+      // For PDF - use AI vision to extract text from PDF rendered as image
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      extractedText = await extractTextFromPDF(base64);
+    } else if (fileType.endsWith(".txt") || fileType.endsWith(".text")) {
+      // Plain text file
+      extractedText = new TextDecoder().decode(arrayBuffer);
+    } else if (fileType.endsWith(".rtf")) {
+      // RTF file - extract plain text
+      const rtfContent = new TextDecoder().decode(arrayBuffer);
+      extractedText = extractTextFromRTF(rtfContent);
+    } else {
+      // Try to read as plain text for any other format
+      try {
+        extractedText = new TextDecoder().decode(arrayBuffer);
+        if (!extractedText || extractedText.length < 10) {
+          throw new Error("Could not extract text");
+        }
+      } catch {
+        // Last resort - try AI vision
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        extractedText = await extractTextFromImage(base64);
+      }
     }
 
     console.log("Extracted text length:", extractedText.length);
@@ -174,6 +197,69 @@ async function extractTextFromImage(base64Image: string): Promise<string> {
 
   const result = await response.json();
   return result.choices[0].message.content;
+}
+
+async function extractTextFromPDF(base64PDF: string): Promise<string> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
+  console.log("Extracting text from PDF using AI...");
+
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Extract all text from this PDF document. This contains exam questions. Please transcribe everything you see accurately, maintaining the structure, question numbers, options (A, B, C, D), and formatting. Include all mathematical formulas, symbols, and expressions. If there are multiple pages, extract text from all pages.",
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:application/pdf;base64,${base64PDF}`,
+              },
+            },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("AI PDF extraction error:", errorText);
+    throw new Error(`AI API error: ${errorText}`);
+  }
+
+  const result = await response.json();
+  return result.choices[0].message.content;
+}
+
+function extractTextFromRTF(rtfContent: string): string {
+  // Simple RTF to plain text conversion
+  let text = rtfContent
+    // Remove RTF header
+    .replace(/^\{\\rtf1[^}]*\}/i, "")
+    // Remove control words
+    .replace(/\\[a-z]+(-?\d+)?[ ]?/gi, "")
+    // Remove curly braces
+    .replace(/[{}]/g, "")
+    // Convert RTF line breaks to newlines
+    .replace(/\\par/g, "\n")
+    // Remove backslashes
+    .replace(/\\/g, "")
+    // Clean up extra whitespace
+    .replace(/\s+/g, " ")
+    .trim();
+  
+  return text;
 }
 
 async function extractTextFromDocx(arrayBuffer: ArrayBuffer): Promise<string> {
