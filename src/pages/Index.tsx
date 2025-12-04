@@ -190,7 +190,7 @@ const Index = () => {
             </p>
             <Link to="/auth">
               <Button size="lg" variant="secondary" className="shadow-lg hover:shadow-xl">
-                Get Started Now
+                Join Our Tutorial
               </Button>
             </Link>
           </div>

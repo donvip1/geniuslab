@@ -113,7 +113,7 @@ export const TestimonialsCarousel = () => {
                         )}
                         
                         <div className="text-muted-foreground">
-                          <ExpandableText text={testimonial.review} maxWords={100} />
+                          <ExpandableText text={testimonial.review} maxWords={30} />
                         </div>
                       </div>
                     </div>
