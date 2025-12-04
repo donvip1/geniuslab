@@ -42,11 +42,11 @@ const Index = () => {
         </section>
 
         {/* Educational Images Gallery */}
-        <section className="py-16 bg-gradient-to-br from-muted/30 to-background">
+        <section className="py-16 bg-foreground">
           <div className="container mx-auto px-4">
             <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">Our Learning Environment</h2>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4 text-background">Our Learning Environment</h2>
+              <p className="text-background/70 max-w-2xl mx-auto">
                 See our students in action - from interactive tutorials to focused exam preparation
               </p>
             </div>
@@ -119,16 +119,16 @@ const Index = () => {
         </section>
 
         {/* Student Reviews Carousel Section */}
-        <section className="py-20 bg-gradient-to-br from-background via-muted/30 to-accent/10 overflow-hidden">
+        <section className="py-20 bg-secondary overflow-hidden">
           <div className="container mx-auto px-4">
             <div className="text-center mb-16 animate-fade-in">
-              <div className="inline-block p-4 rounded-full bg-primary/10 mb-4">
-                <Star className="h-16 w-16 text-primary" />
+              <div className="inline-block p-4 rounded-full bg-secondary-foreground/10 mb-4">
+                <Star className="h-16 w-16 text-secondary-foreground" />
               </div>
-              <h2 className="text-3xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
+              <h2 className="text-3xl md:text-5xl font-bold mb-4 text-secondary-foreground">
                 Student Success Stories
               </h2>
-              <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+              <p className="text-secondary-foreground/80 text-lg max-w-2xl mx-auto">
                 Hear from our students who transformed their academic journey and achieved excellence
               </p>
             </div>
@@ -138,40 +138,40 @@ const Index = () => {
         </section>
 
         {/* Features Section */}
-        <section className="py-16 bg-gradient-to-br from-muted/20 to-background">
+        <section className="py-16 bg-primary">
           <div className="container mx-auto px-4">
             <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">What We Offer</h2>
+              <h2 className="text-3xl md:text-4xl font-bold mb-4 text-primary-foreground">What We Offer</h2>
             </div>
 
             <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-              <Card className="shadow-lg hover:shadow-xl transition-shadow">
+              <Card className="shadow-lg hover:shadow-xl transition-shadow bg-primary-foreground/10 border-primary-foreground/20">
                 <CardContent className="pt-6">
-                  <BookOpen className="h-12 w-12 text-primary mb-4" />
-                  <h3 className="text-xl font-bold mb-2">CBT Practice System</h3>
-                  <p className="text-muted-foreground">
+                  <BookOpen className="h-12 w-12 text-secondary mb-4" />
+                  <h3 className="text-xl font-bold mb-2 text-primary-foreground">CBT Practice System</h3>
+                  <p className="text-primary-foreground/80">
                     State-of-the-art Computer-Based Testing system for JAMB/UTME preparation with 
                     realistic exam simulations and instant feedback.
                   </p>
                 </CardContent>
               </Card>
 
-              <Card className="shadow-lg hover:shadow-xl transition-shadow">
+              <Card className="shadow-lg hover:shadow-xl transition-shadow bg-primary-foreground/10 border-primary-foreground/20">
                 <CardContent className="pt-6">
-                  <Users className="h-12 w-12 text-secondary mb-4" />
-                  <h3 className="text-xl font-bold mb-2">Expert Tutoring</h3>
-                  <p className="text-muted-foreground">
+                  <Users className="h-12 w-12 text-accent mb-4" />
+                  <h3 className="text-xl font-bold mb-2 text-primary-foreground">Expert Tutoring</h3>
+                  <p className="text-primary-foreground/80">
                     Personalized tutorial sessions by experienced educators in Mathematics, 
                     Physics, Chemistry, and university-level courses.
                   </p>
                 </CardContent>
               </Card>
 
-              <Card className="shadow-lg hover:shadow-xl transition-shadow">
+              <Card className="shadow-lg hover:shadow-xl transition-shadow bg-primary-foreground/10 border-primary-foreground/20">
                 <CardContent className="pt-6">
-                  <Award className="h-12 w-12 text-accent mb-4" />
-                  <h3 className="text-xl font-bold mb-2">Proven Track Record</h3>
-                  <p className="text-muted-foreground">
+                  <Award className="h-12 w-12 text-secondary mb-4" />
+                  <h3 className="text-xl font-bold mb-2 text-primary-foreground">Proven Track Record</h3>
+                  <p className="text-primary-foreground/80">
                     Our students consistently achieve JAMB scores of 300+, WAEC distinctions, 
                     and maintain excellent GPAs at top universities.
                   </p>
