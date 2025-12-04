@@ -10,6 +10,7 @@ import Contact from "./pages/Contact";
 import Auth from "./pages/Auth";
 import Exam from "./pages/Exam";
 import ExamTaking from "./pages/ExamTaking";
+import ExamResults from "./pages/ExamResults";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
@@ -29,6 +30,7 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/exam" element={<Exam />} />
           <Route path="/exam/take/:subjectId" element={<ExamTaking />} />
+          <Route path="/exam-results/:subjectId" element={<ExamResults />} />
           <Route path="/admin" element={<Admin />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

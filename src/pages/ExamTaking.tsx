@@ -32,6 +32,16 @@ interface Question {
 }
 
 const QUESTIONS_PER_PAGE = 10;
+const EXAM_TIME_SECONDS = 900; // 15 minutes for all subjects
+
+// Subject-specific question limits
+const getQuestionLimit = (subjectName: string): number => {
+  const limitedSubjects = ["MTH 101", "MTH 103", "PHY"];
+  const isLimitedSubject = limitedSubjects.some(s => 
+    subjectName.toUpperCase().includes(s.toUpperCase())
+  );
+  return isLimitedSubject ? 40 : 100;
+};
 
 const ExamTaking = () => {
   const { subjectId } = useParams();
@@ -43,7 +53,7 @@ const ExamTaking = () => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(3600); // 60 minutes
+  const [timeLeft, setTimeLeft] = useState(EXAM_TIME_SECONDS); // 15 minutes
   const [subjectName, setSubjectName] = useState("");
 
   // Pagination for question navigator
@@ -114,7 +124,12 @@ const ExamTaking = () => {
 
       // Shuffle questions for each exam attempt
       const shuffledQuestions = shuffleArray(questionsData);
-      setQuestions(shuffledQuestions);
+      
+      // Apply question limit based on subject
+      const questionLimit = getQuestionLimit(subjectData.name);
+      const limitedQuestions = shuffledQuestions.slice(0, questionLimit);
+      
+      setQuestions(limitedQuestions);
     } catch (error: any) {
       console.error("Error fetching questions:", error);
       toast({
@@ -153,13 +168,21 @@ const ExamTaking = () => {
         return;
       }
 
-      // Calculate score
+      // Calculate score and prepare results
       let correctCount = 0;
-      questions.forEach((q) => {
-        if (answers[q.id] === q.correct_answer) {
-          correctCount++;
-        }
+      const questionResults = questions.map((q) => {
+        const userAnswer = answers[q.id] || "";
+        const isCorrect = userAnswer === q.correct_answer;
+        if (isCorrect) correctCount++;
+        
+        return {
+          ...q,
+          user_answer: userAnswer,
+          is_correct: isCorrect,
+        };
       });
+
+      const timeTaken = EXAM_TIME_SECONDS - timeLeft;
 
       // Save exam attempt
       const { error } = await supabase.from("exam_attempts").insert([
@@ -168,19 +191,23 @@ const ExamTaking = () => {
           subject_id: subjectId,
           score: correctCount,
           total_questions: questions.length,
-          time_taken_seconds: 3600 - timeLeft,
+          time_taken_seconds: timeTaken,
           answers: answers,
         },
       ]);
 
       if (error) throw error;
 
-      toast({
-        title: "Exam Submitted",
-        description: `You scored ${correctCount} out of ${questions.length}`,
+      // Navigate to results page with exam data
+      navigate(`/exam-results/${subjectId}`, {
+        state: {
+          questions: questionResults,
+          score: correctCount,
+          totalQuestions: questions.length,
+          timeTaken: timeTaken,
+          subjectName: subjectName,
+        },
       });
-
-      navigate("/exam");
     } catch (error: any) {
       console.error("Error submitting exam:", error);
       toast({
