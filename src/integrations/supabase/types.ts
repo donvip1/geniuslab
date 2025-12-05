@@ -38,6 +38,39 @@ export type Database = {
         }
         Relationships: []
       }
+      advertisements: {
+        Row: {
+          content: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       document_uploads: {
         Row: {
           created_at: string
@@ -217,6 +250,7 @@ export type Database = {
       }
       subjects: {
         Row: {
+          contributors: string | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -227,6 +261,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          contributors?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -237,6 +272,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          contributors?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null

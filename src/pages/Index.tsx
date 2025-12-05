@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { BookOpen, Users, Award, Target, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { TestimonialsCarousel } from "@/components/TestimonialsCarousel";
+import { AdvertisementPopup } from "@/components/AdvertisementPopup";
 import tutorialClass1 from "@/assets/tutorial-class-1.jpg";
 import tutorialClass2 from "@/assets/tutorial-class-2.jpg";
 import tutorialClass3 from "@/assets/tutorial-class-3.jpg";
@@ -13,6 +14,7 @@ const Index = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
+      <AdvertisementPopup />
       
       {/* Hero Section */}
       <main className="flex-1 pt-16">
