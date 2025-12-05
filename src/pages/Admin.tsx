@@ -78,10 +78,13 @@ const Admin = () => {
   const [adTitle, setAdTitle] = useState("");
   const [adContent, setAdContent] = useState("");
   const [adImageUrl, setAdImageUrl] = useState("");
+  const [adImageFile, setAdImageFile] = useState<File | null>(null);
+  const [adUploading, setAdUploading] = useState(false);
   const [editingAd, setEditingAd] = useState<Advertisement | null>(null);
   const [editAdTitle, setEditAdTitle] = useState("");
   const [editAdContent, setEditAdContent] = useState("");
   const [editAdImageUrl, setEditAdImageUrl] = useState("");
+  const [editAdImageFile, setEditAdImageFile] = useState<File | null>(null);
 
   // Document Upload State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -331,6 +334,24 @@ const Admin = () => {
   };
 
   // Advertisement Functions
+  const uploadAdImage = async (file: File): Promise<string | null> => {
+    const fileName = `${Date.now()}-${file.name}`;
+    const { error: uploadError } = await supabase.storage
+      .from("advertisements")
+      .upload(fileName, file);
+
+    if (uploadError) {
+      console.error("Upload error:", uploadError);
+      return null;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("advertisements")
+      .getPublicUrl(fileName);
+
+    return urlData.publicUrl;
+  };
+
   const handleCreateAd = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -343,58 +364,122 @@ const Admin = () => {
       return;
     }
 
-    const { error } = await supabase
-      .from("advertisements")
-      .insert([
-        {
-          title: adTitle,
-          content: adContent || null,
-          image_url: adImageUrl || null,
-          created_by: user.id,
-        },
-      ]);
+    setAdUploading(true);
 
-    if (error) {
+    try {
+      let finalImageUrl = adImageUrl || null;
+
+      // If file is selected, upload it
+      if (adImageFile) {
+        const uploadedUrl = await uploadAdImage(adImageFile);
+        if (uploadedUrl) {
+          finalImageUrl = uploadedUrl;
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to upload image",
+            variant: "destructive",
+          });
+          setAdUploading(false);
+          return;
+        }
+      }
+
+      const { error } = await supabase
+        .from("advertisements")
+        .insert([
+          {
+            title: adTitle,
+            content: adContent || null,
+            image_url: finalImageUrl,
+            created_by: user.id,
+          },
+        ]);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to create advertisement",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Advertisement created successfully",
+        });
+        setAdTitle("");
+        setAdContent("");
+        setAdImageUrl("");
+        setAdImageFile(null);
+        fetchAdvertisements();
+      }
+    } catch (error) {
+      console.error("Error creating ad:", error);
       toast({
         title: "Error",
         description: "Failed to create advertisement",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Success",
-        description: "Advertisement created successfully",
-      });
-      setAdTitle("");
-      setAdContent("");
-      setAdImageUrl("");
-      fetchAdvertisements();
+    } finally {
+      setAdUploading(false);
     }
   };
 
   const handleUpdateAd = async (adId: string) => {
-    const { error } = await supabase
-      .from("advertisements")
-      .update({
-        title: editAdTitle,
-        content: editAdContent || null,
-        image_url: editAdImageUrl || null,
-      })
-      .eq("id", adId);
+    setAdUploading(true);
 
-    if (error) {
+    try {
+      let finalImageUrl = editAdImageUrl || null;
+
+      // If file is selected, upload it
+      if (editAdImageFile) {
+        const uploadedUrl = await uploadAdImage(editAdImageFile);
+        if (uploadedUrl) {
+          finalImageUrl = uploadedUrl;
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to upload image",
+            variant: "destructive",
+          });
+          setAdUploading(false);
+          return;
+        }
+      }
+
+      const { error } = await supabase
+        .from("advertisements")
+        .update({
+          title: editAdTitle,
+          content: editAdContent || null,
+          image_url: finalImageUrl,
+        })
+        .eq("id", adId);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to update advertisement",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Advertisement updated successfully",
+        });
+        setEditingAd(null);
+        setEditAdImageFile(null);
+        fetchAdvertisements();
+      }
+    } catch (error) {
+      console.error("Error updating ad:", error);
       toast({
         title: "Error",
         description: "Failed to update advertisement",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Success",
-        description: "Advertisement updated successfully",
-      });
-      setEditingAd(null);
-      fetchAdvertisements();
+    } finally {
+      setAdUploading(false);
     }
   };
 
@@ -1599,9 +1684,35 @@ Or any other format - our AI will parse it automatically!`}
                         <Input
                           id="ad-image"
                           value={adImageUrl}
-                          onChange={(e) => setAdImageUrl(e.target.value)}
+                          onChange={(e) => {
+                            setAdImageUrl(e.target.value);
+                            if (e.target.value) setAdImageFile(null);
+                          }}
                           placeholder="https://example.com/image.jpg"
+                          disabled={!!adImageFile}
                         />
+                      </div>
+                      <div>
+                        <Label htmlFor="ad-image-upload">Or Upload Image</Label>
+                        <Input
+                          id="ad-image-upload"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            setAdImageFile(file);
+                            if (file) setAdImageUrl("");
+                          }}
+                          className="mt-1"
+                        />
+                        {adImageFile && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground">{adImageFile.name}</span>
+                            <Button type="button" size="sm" variant="ghost" onClick={() => setAdImageFile(null)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="ad-content">Ad Content (Optional)</Label>
@@ -1613,9 +1724,18 @@ Or any other format - our AI will parse it automatically!`}
                           rows={4}
                         />
                       </div>
-                      <Button type="submit" className="w-full">
-                        <Megaphone className="h-4 w-4 mr-2" />
-                        Create Advertisement
+                      <Button type="submit" className="w-full" disabled={adUploading}>
+                        {adUploading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Creating...
+                          </>
+                        ) : (
+                          <>
+                            <Megaphone className="h-4 w-4 mr-2" />
+                            Create Advertisement
+                          </>
+                        )}
                       </Button>
                     </form>
                   </CardContent>
@@ -1645,9 +1765,34 @@ Or any other format - our AI will parse it automatically!`}
                                 />
                                 <Input
                                   value={editAdImageUrl}
-                                  onChange={(e) => setEditAdImageUrl(e.target.value)}
+                                  onChange={(e) => {
+                                    setEditAdImageUrl(e.target.value);
+                                    if (e.target.value) setEditAdImageFile(null);
+                                  }}
                                   placeholder="Image URL"
+                                  disabled={!!editAdImageFile}
                                 />
+                                <div>
+                                  <Label className="text-xs">Or Upload New Image</Label>
+                                  <Input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0] || null;
+                                      setEditAdImageFile(file);
+                                      if (file) setEditAdImageUrl("");
+                                    }}
+                                    className="mt-1"
+                                  />
+                                  {editAdImageFile && (
+                                    <div className="mt-1 flex items-center gap-2">
+                                      <span className="text-xs text-muted-foreground">{editAdImageFile.name}</span>
+                                      <Button type="button" size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setEditAdImageFile(null)}>
+                                        <X className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
                                 <Textarea
                                   value={editAdContent}
                                   onChange={(e) => setEditAdContent(e.target.value)}
@@ -1655,10 +1800,11 @@ Or any other format - our AI will parse it automatically!`}
                                   rows={3}
                                 />
                                 <div className="flex gap-2">
-                                  <Button size="sm" onClick={() => handleUpdateAd(ad.id)}>
-                                    <Check className="h-4 w-4 mr-1" /> Save
+                                  <Button size="sm" onClick={() => handleUpdateAd(ad.id)} disabled={adUploading}>
+                                    {adUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}
+                                    {adUploading ? "Saving..." : "Save"}
                                   </Button>
-                                  <Button size="sm" variant="outline" onClick={() => setEditingAd(null)}>
+                                  <Button size="sm" variant="outline" onClick={() => { setEditingAd(null); setEditAdImageFile(null); }}>
                                     <X className="h-4 w-4 mr-1" /> Cancel
                                   </Button>
                                 </div>
