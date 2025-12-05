@@ -55,6 +55,7 @@ const ExamTaking = () => {
   const [submitting, setSubmitting] = useState(false);
   const [timeLeft, setTimeLeft] = useState(EXAM_TIME_SECONDS); // 15 minutes
   const [subjectName, setSubjectName] = useState("");
+  const [contributors, setContributors] = useState<string | null>(null);
 
   // Pagination for question navigator
   const currentPage = Math.floor(currentQuestionIndex / QUESTIONS_PER_PAGE);
@@ -93,15 +94,16 @@ const ExamTaking = () => {
 
   const fetchQuestionsAndSubject = async () => {
     try {
-      // Fetch subject details
+      // Fetch subject details including contributors
       const { data: subjectData, error: subjectError } = await supabase
         .from("subjects")
-        .select("name")
+        .select("name, contributors")
         .eq("id", subjectId)
         .single();
 
       if (subjectError) throw subjectError;
       setSubjectName(subjectData.name);
+      setContributors(subjectData.contributors);
 
       // Fetch questions and shuffle them
       const { data: questionsData, error: questionsError } = await supabase
@@ -267,6 +269,11 @@ const ExamTaking = () => {
             <p className="text-sm opacity-90">
               Question {currentQuestionIndex + 1} of {questions.length}
             </p>
+            {contributors && (
+              <p className="text-xs opacity-75 mt-1">
+                Questions compiled by: <span className="font-medium">{contributors}</span>
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-4 md:gap-6 flex-wrap justify-center">
             <div className="flex items-center gap-2">

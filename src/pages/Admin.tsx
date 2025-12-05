@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, FileText, BookOpen, Loader2, Pencil, Trash2, X, Check, ChevronDown, ChevronUp, ClipboardPaste } from "lucide-react";
+import { Upload, FileText, BookOpen, Loader2, Pencil, Trash2, X, Check, ChevronDown, ChevronUp, ClipboardPaste, Megaphone } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +28,15 @@ interface Subject {
   name: string;
   description: string | null;
   level: string | null;
+  is_active: boolean;
+  contributors: string | null;
+}
+
+interface Advertisement {
+  id: string;
+  title: string;
+  content: string | null;
+  image_url: string | null;
   is_active: boolean;
 }
 
@@ -56,11 +65,23 @@ const Admin = () => {
   const [subjectName, setSubjectName] = useState("");
   const [subjectDescription, setSubjectDescription] = useState("");
   const [subjectLevel, setSubjectLevel] = useState("100L");
+  const [subjectContributors, setSubjectContributors] = useState("");
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editLevel, setEditLevel] = useState("");
+  const [editContributors, setEditContributors] = useState("");
+
+  // Advertisements State
+  const [advertisements, setAdvertisements] = useState<Advertisement[]>([]);
+  const [adTitle, setAdTitle] = useState("");
+  const [adContent, setAdContent] = useState("");
+  const [adImageUrl, setAdImageUrl] = useState("");
+  const [editingAd, setEditingAd] = useState<Advertisement | null>(null);
+  const [editAdTitle, setEditAdTitle] = useState("");
+  const [editAdContent, setEditAdContent] = useState("");
+  const [editAdImageUrl, setEditAdImageUrl] = useState("");
 
   // Document Upload State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -139,6 +160,7 @@ const Admin = () => {
 
       setIsAdmin(true);
       fetchSubjects();
+      fetchAdvertisements();
     } catch (error) {
       console.error("Error checking user:", error);
       navigate("/auth");
@@ -161,6 +183,23 @@ const Admin = () => {
       });
     } else {
       setSubjects(data || []);
+    }
+  };
+
+  const fetchAdvertisements = async () => {
+    const { data, error } = await supabase
+      .from("advertisements")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load advertisements",
+        variant: "destructive",
+      });
+    } else {
+      setAdvertisements(data || []);
     }
   };
 
@@ -208,6 +247,7 @@ const Admin = () => {
           name: subjectName,
           description: subjectDescription,
           level: subjectLevel,
+          contributors: subjectContributors || null,
           created_by: user.id,
         },
       ]);
@@ -226,6 +266,7 @@ const Admin = () => {
       setSubjectName("");
       setSubjectDescription("");
       setSubjectLevel("100L");
+      setSubjectContributors("");
       fetchSubjects();
     }
   };
@@ -237,6 +278,7 @@ const Admin = () => {
         name: editName,
         description: editDescription,
         level: editLevel,
+        contributors: editContributors || null,
       })
       .eq("id", subjectId);
 
@@ -285,6 +327,120 @@ const Admin = () => {
     setEditName(subject.name);
     setEditDescription(subject.description || "");
     setEditLevel(subject.level || "100L");
+    setEditContributors(subject.contributors || "");
+  };
+
+  // Advertisement Functions
+  const handleCreateAd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!adTitle.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter an ad title",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from("advertisements")
+      .insert([
+        {
+          title: adTitle,
+          content: adContent || null,
+          image_url: adImageUrl || null,
+          created_by: user.id,
+        },
+      ]);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create advertisement",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Advertisement created successfully",
+      });
+      setAdTitle("");
+      setAdContent("");
+      setAdImageUrl("");
+      fetchAdvertisements();
+    }
+  };
+
+  const handleUpdateAd = async (adId: string) => {
+    const { error } = await supabase
+      .from("advertisements")
+      .update({
+        title: editAdTitle,
+        content: editAdContent || null,
+        image_url: editAdImageUrl || null,
+      })
+      .eq("id", adId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update advertisement",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Advertisement updated successfully",
+      });
+      setEditingAd(null);
+      fetchAdvertisements();
+    }
+  };
+
+  const handleDeleteAd = async (adId: string) => {
+    const { error } = await supabase
+      .from("advertisements")
+      .delete()
+      .eq("id", adId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete advertisement",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Advertisement deleted",
+      });
+      fetchAdvertisements();
+    }
+  };
+
+  const handleToggleAdStatus = async (ad: Advertisement) => {
+    const { error } = await supabase
+      .from("advertisements")
+      .update({ is_active: !ad.is_active })
+      .eq("id", ad.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update ad status",
+        variant: "destructive",
+      });
+    } else {
+      fetchAdvertisements();
+    }
+  };
+
+  const startEditingAd = (ad: Advertisement) => {
+    setEditingAd(ad);
+    setEditAdTitle(ad.title);
+    setEditAdContent(ad.content || "");
+    setEditAdImageUrl(ad.image_url || "");
   };
 
   const handleUpdateQuestion = async (questionId: string) => {
@@ -579,7 +735,7 @@ const Admin = () => {
           </div>
 
           <Tabs defaultValue="subjects" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3 max-w-md">
+            <TabsList className="grid w-full grid-cols-4 max-w-xl">
               <TabsTrigger value="subjects">
                 <BookOpen className="h-4 w-4 mr-2" />
                 Subjects
@@ -591,6 +747,10 @@ const Admin = () => {
               <TabsTrigger value="questions" onClick={() => fetchQuestions()}>
                 <FileText className="h-4 w-4 mr-2" />
                 Questions
+              </TabsTrigger>
+              <TabsTrigger value="ads">
+                <Megaphone className="h-4 w-4 mr-2" />
+                Ads
               </TabsTrigger>
             </TabsList>
 
@@ -640,6 +800,18 @@ const Admin = () => {
                           rows={3}
                         />
                       </div>
+                      <div>
+                        <Label htmlFor="subject-contributors">Contributors (Optional)</Label>
+                        <Input
+                          id="subject-contributors"
+                          value={subjectContributors}
+                          onChange={(e) => setSubjectContributors(e.target.value)}
+                          placeholder="e.g., Holysinner, Colossus, Green Arrow"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Names of people who compiled the questions
+                        </p>
+                      </div>
                       <Button type="submit" className="w-full">
                         Create Subject
                       </Button>
@@ -686,6 +858,11 @@ const Admin = () => {
                                   placeholder="Description"
                                   rows={2}
                                 />
+                                <Input
+                                  value={editContributors}
+                                  onChange={(e) => setEditContributors(e.target.value)}
+                                  placeholder="Contributors (e.g., Holysinner, Colossus)"
+                                />
                                 <div className="flex gap-2">
                                   <Button
                                     size="sm"
@@ -713,6 +890,11 @@ const Admin = () => {
                                   )}
                                 </div>
                                 <div className="flex items-center gap-2 flex-shrink-0">
+                                  {subject.contributors && (
+                                    <span className="text-xs bg-accent/50 text-accent-foreground px-2 py-1 rounded">
+                                      By: {subject.contributors}
+                                    </span>
+                                  )}
                                   {subject.level && (
                                     <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-1 rounded">
                                       {subject.level}
@@ -1387,6 +1569,158 @@ Or any other format - our AI will parse it automatically!`}
                         ))}
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            {/* Advertisements Tab */}
+            <TabsContent value="ads" className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Create New Advertisement</CardTitle>
+                    <CardDescription>Add ads that will pop up on the homepage every 60 seconds</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleCreateAd} className="space-y-4">
+                      <div>
+                        <Label htmlFor="ad-title">Ad Title *</Label>
+                        <Input
+                          id="ad-title"
+                          value={adTitle}
+                          onChange={(e) => setAdTitle(e.target.value)}
+                          placeholder="e.g., Gift Card Sale!"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="ad-image">Image URL (Optional)</Label>
+                        <Input
+                          id="ad-image"
+                          value={adImageUrl}
+                          onChange={(e) => setAdImageUrl(e.target.value)}
+                          placeholder="https://example.com/image.jpg"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="ad-content">Ad Content (Optional)</Label>
+                        <Textarea
+                          id="ad-content"
+                          value={adContent}
+                          onChange={(e) => setAdContent(e.target.value)}
+                          placeholder="Describe your ad here..."
+                          rows={4}
+                        />
+                      </div>
+                      <Button type="submit" className="w-full">
+                        <Megaphone className="h-4 w-4 mr-2" />
+                        Create Advertisement
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Existing Advertisements</CardTitle>
+                    <CardDescription>Manage all advertisements</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                      {advertisements.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No advertisements yet</p>
+                      ) : (
+                        advertisements.map((ad) => (
+                          <div
+                            key={ad.id}
+                            className="p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                          >
+                            {editingAd?.id === ad.id ? (
+                              <div className="space-y-3">
+                                <Input
+                                  value={editAdTitle}
+                                  onChange={(e) => setEditAdTitle(e.target.value)}
+                                  placeholder="Ad title"
+                                />
+                                <Input
+                                  value={editAdImageUrl}
+                                  onChange={(e) => setEditAdImageUrl(e.target.value)}
+                                  placeholder="Image URL"
+                                />
+                                <Textarea
+                                  value={editAdContent}
+                                  onChange={(e) => setEditAdContent(e.target.value)}
+                                  placeholder="Ad content"
+                                  rows={3}
+                                />
+                                <div className="flex gap-2">
+                                  <Button size="sm" onClick={() => handleUpdateAd(ad.id)}>
+                                    <Check className="h-4 w-4 mr-1" /> Save
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => setEditingAd(null)}>
+                                    <X className="h-4 w-4 mr-1" /> Cancel
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1">
+                                    <h3 className="font-medium">{ad.title}</h3>
+                                    {ad.content && (
+                                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                                        {ad.content}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1 flex-shrink-0">
+                                    <span className={`text-xs px-2 py-1 rounded ${ad.is_active ? 'bg-green-500/20 text-green-700' : 'bg-muted text-muted-foreground'}`}>
+                                      {ad.is_active ? 'Active' : 'Inactive'}
+                                    </span>
+                                  </div>
+                                </div>
+                                {ad.image_url && (
+                                  <img src={ad.image_url} alt={ad.title} className="w-full h-24 object-cover rounded mt-2" />
+                                )}
+                                <div className="flex gap-2 pt-2">
+                                  <Button size="sm" variant="outline" onClick={() => handleToggleAdStatus(ad)}>
+                                    {ad.is_active ? 'Deactivate' : 'Activate'}
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => startEditingAd(ad)}>
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive">
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Advertisement?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          This will permanently delete this advertisement.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => handleDeleteAd(ad.id)}
+                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        >
+                                          Delete
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               </div>
