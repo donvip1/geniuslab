@@ -10,6 +10,7 @@ import { Star } from "lucide-react";
 import { ExpandableText } from "@/components/ExpandableText";
 import reviewMarvelous from "@/assets/review-marvelous.jpg";
 import reviewBlessing from "@/assets/review-blessing.jpg";
+import reviewEmmanuel from "@/assets/review-emmanuel.jpg";
 import Autoplay from "embla-carousel-autoplay";
 import { useRef } from "react";
 
@@ -47,6 +48,29 @@ Looking back now as a 200-level student, I can clearly see how much Genius Lab T
 
 To every student currently attending Genius Lab Tutorial, my sincere advice is to take the classes seriously. The lessons you receive will not only help you now but also prepare you for higher levels. Thank you.`,
     color: "secondary"
+  },
+  {
+    name: "Okunlola Emmanuel",
+    program: "Nursing Department, FUOYE",
+    image: reviewEmmanuel,
+    quote: "The beautiful thing about learning is that no one can take it away from you.",
+    quoteAuthor: "B.B. King",
+    review: `My name is Okunlola Emmanuel, a proud student of the Nursing Department at Federal University Oye-Ekiti – an esteemed institution that nurtures future leaders across every discipline.
+
+Entering university as a 100-level student, I faced overcrowded lecture halls. The sheer volume of students made me feel like a sardine in a can, and the relentless pace of coursework was overwhelming. Yet, I resolved not to be defeated.
+
+The first semester was arduous. I devoted countless hours to rigorous study, persevered, and was rewarded with commendable results. That early triumph ignited a deeper curiosity and desire to excel.
+
+A pivotal moment arrived when I began attending Genius Lab tutorials. Their innovative teaching methods broadened my horizons and taught me strategic study efficiency. I adopted a disciplined habit of reviewing each tutorial note, ensuring full comprehension before progressing. This approach transformed my academic performance.
+
+Equally vital was the spiritual foundation that sustained me. I often remind myself: "I pray as if I do not need to study, and I study as if I do not need to pray." This balance kept me motivated and focused.
+
+By the end of my first academic year, I achieved a CGPA of 4.56, earning me a first-class standing, and maintained a strong second-class upper division. These accomplishments affirmed that success is attainable when one unites belief in God, diligent study, and an active aversion to indolence.
+
+My confidence from those grades empowered me to change my academic path. I entered university to study Biochemistry, but my growing passion for patient care led me to switch to Nursing. My strong CGPA gave me the credibility to make that bold transition.
+
+To every 100-level student—especially those at the Federal University of Oye-Ekiti—I urge you to attend Genius Lab tutorial and similar programs and also do not take classes for granted. They will help you harmonize your academic responsibilities with personal growth.`,
+    color: "primary"
   }
 ];
 

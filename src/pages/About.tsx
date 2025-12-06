@@ -6,6 +6,7 @@ import { ExpandableText } from "@/components/ExpandableText";
 import holysinnerProfile from "@/assets/holysinner-profile.jpg";
 import colossusProfile from "@/assets/colossus-profile.jpg";
 import greenarrowProfile from "@/assets/greenarrow-profile.jpg";
+import mathleteProfile from "@/assets/mathlete-profile.jpg";
 
 const About = () => {
   return (
@@ -148,6 +149,30 @@ His approach is practical, simplified, and deeply analytical, turning the hardes
 With over 3 years of experience teaching Chemistry, Green Arrow has mentored students who scored 340+ in JAMB, excelled in WAEC, and maintained high GPAs in top universities nationwide. A scholar with a 5.0 GPA in 100 level, he embodies discipline, brilliance, and a passion for simplifying Chemistry in a way that makes students fall in love with it.
 
 Green Arrow represents academic brilliance at its finest, the ideal model for every science student." />
+                  </CardContent>
+                </Card>
+
+                {/* Mathlete (Joel) - Contributor */}
+                <Card className="shadow-lg overflow-hidden">
+                  <CardContent className="pt-8">
+                    <div className="flex flex-col items-center mb-6">
+                      <div className="w-48 h-48 rounded-full overflow-hidden mb-4 shadow-xl border-4 border-accent/20">
+                        <img 
+                          src={mathleteProfile} 
+                          alt="Mathlete - Oludipe Olamide Joel"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <h3 className="text-2xl font-bold text-accent mb-1">MATHLETE</h3>
+                      <p className="text-lg font-semibold text-primary mb-2">Question Bank Contributor</p>
+                      <p className="text-sm text-muted-foreground">Oludipe Olamide Joel</p>
+                    </div>
+                    
+                    <ExpandableText text="Oludipe Olamide Joel, popularly known as Mathlete, is a 300-Level student of the Department of Mathematics at Federal University Oye-Ekiti and also the Pioneer Vice President for Faculty of Physical Sciences.
+
+He once served as the PRO of Nigerian Mathematics Science Students FUOYE Chapter (NAMSSN) and is a vibrant student leader. As a passionate advocate for mathematics education, Joel has demonstrated exceptional leadership skills through his various roles.
+
+Joel is a key contributor to the GeniusLab exam question bank, helping to provide quality practice materials for students preparing for their academic assessments." />
                   </CardContent>
                 </Card>
               </div>
