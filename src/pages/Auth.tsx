@@ -9,6 +9,29 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, GraduationCap } from "lucide-react";
 import gecLogo from "@/assets/gec-logo-transparent.png";
+import { z } from "zod";
+
+// Validation schemas
+const emailSchema = z.string().trim().email("Please enter a valid email address").max(255, "Email must be less than 255 characters");
+const passwordSchema = z.string().min(8, "Password must be at least 8 characters").max(72, "Password must be less than 72 characters");
+const usernameSchema = z.string().trim().min(1, "Username is required").max(50, "Username must be less than 50 characters");
+const fullNameSchema = z.string().trim().min(1, "Full name is required").max(100, "Full name must be less than 100 characters");
+
+const loginSchema = z.object({
+  email: emailSchema.optional(),
+  password: passwordSchema,
+  username: usernameSchema.optional(),
+});
+
+const signupSchema = z.object({
+  fullName: fullNameSchema,
+  email: emailSchema,
+  password: passwordSchema,
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -22,6 +45,7 @@ const Auth = () => {
     password: "", 
     confirmPassword: "" 
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     // Check if user is already logged in
@@ -36,6 +60,29 @@ const Auth = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
+
+    // Validate login data
+    try {
+      if (isAdminLogin) {
+        usernameSchema.parse(loginData.username);
+        passwordSchema.parse(loginData.password);
+      } else {
+        emailSchema.parse(loginData.email);
+        passwordSchema.parse(loginData.password);
+      }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const fieldErrors: Record<string, string> = {};
+        error.errors.forEach((err) => {
+          const field = err.path[0] as string;
+          fieldErrors[field] = err.message;
+        });
+        setErrors(fieldErrors);
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -43,9 +90,6 @@ const Auth = () => {
       
       if (isAdminLogin) {
         // Admin login with username
-        if (!loginData.username || !loginData.password) {
-          throw new Error("Please enter both username and password");
-        }
 
         // Find the user_id for this username
         const { data: adminData, error: adminError } = await supabase
@@ -119,13 +163,17 @@ const Auth = () => {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (signupData.password !== signupData.confirmPassword) {
-      toast({
-        title: "Passwords don't match",
-        description: "Please make sure your passwords match",
-        variant: "destructive",
+    setErrors({});
+
+    // Validate signup data
+    const result = signupSchema.safeParse(signupData);
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        const field = err.path[0] as string;
+        fieldErrors[field] = err.message;
       });
+      setErrors(fieldErrors);
       return;
     }
 
@@ -209,7 +257,9 @@ const Auth = () => {
                       value={loginData.username}
                       onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
                       required
+                      maxLength={50}
                     />
+                    {errors.username && <p className="text-sm text-destructive">{errors.username}</p>}
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -221,7 +271,9 @@ const Auth = () => {
                       value={loginData.email}
                       onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                       required={!isAdminLogin}
+                      maxLength={255}
                     />
+                    {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
                   </div>
                 )}
                 
@@ -234,7 +286,9 @@ const Auth = () => {
                     value={loginData.password}
                     onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                     required
+                    maxLength={72}
                   />
+                  {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? (
@@ -259,7 +313,9 @@ const Auth = () => {
                     value={signupData.fullName}
                     onChange={(e) => setSignupData({ ...signupData, fullName: e.target.value })}
                     required
+                    maxLength={100}
                   />
+                  {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>
@@ -270,10 +326,12 @@ const Auth = () => {
                     value={signupData.email}
                     onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
                     required
+                    maxLength={255}
                   />
+                  {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
+                  <Label htmlFor="signup-password">Password (min 8 characters)</Label>
                   <Input
                     id="signup-password"
                     type="password"
@@ -281,7 +339,9 @@ const Auth = () => {
                     value={signupData.password}
                     onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
                     required
+                    maxLength={72}
                   />
+                  {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-confirm-password">Confirm Password</Label>
@@ -292,7 +352,9 @@ const Auth = () => {
                     value={signupData.confirmPassword}
                     onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })}
                     required
+                    maxLength={72}
                   />
+                  {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? (
