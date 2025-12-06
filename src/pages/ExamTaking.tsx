@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { FounderWelcomePopup } from "@/components/FounderWelcomePopup";
 
 interface Question {
   id: string;
@@ -56,6 +57,8 @@ const ExamTaking = () => {
   const [timeLeft, setTimeLeft] = useState(EXAM_TIME_SECONDS); // 15 minutes
   const [subjectName, setSubjectName] = useState("");
   const [contributors, setContributors] = useState<string | null>(null);
+  const [showFounderPopup, setShowFounderPopup] = useState(true);
+  const [examStarted, setExamStarted] = useState(false);
 
   // Pagination for question navigator
   const currentPage = Math.floor(currentQuestionIndex / QUESTIONS_PER_PAGE);
@@ -69,7 +72,7 @@ const ExamTaking = () => {
   }, [subjectId]);
 
   useEffect(() => {
-    if (timeLeft > 0 && questions.length > 0) {
+    if (timeLeft > 0 && questions.length > 0 && examStarted) {
       const timer = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
@@ -81,7 +84,12 @@ const ExamTaking = () => {
       }, 1000);
       return () => clearInterval(timer);
     }
-  }, [timeLeft, questions]);
+  }, [timeLeft, questions, examStarted]);
+
+  const handleCloseFounderPopup = () => {
+    setShowFounderPopup(false);
+    setExamStarted(true);
+  };
 
   const shuffleArray = <T,>(array: T[]): T[] => {
     const shuffled = [...array];
@@ -261,7 +269,11 @@ const ExamTaking = () => {
 
   return (
     <div className="min-h-screen bg-muted/30 flex flex-col">
-      {/* Header */}
+      {/* Founder Welcome Popup */}
+      <FounderWelcomePopup
+        isOpen={showFounderPopup && !loading}
+        onClose={handleCloseFounderPopup}
+      />
       <div className="bg-gradient-to-br from-primary to-secondary text-primary-foreground py-4 px-4 sticky top-0 z-10 shadow-md">
         <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           <div>

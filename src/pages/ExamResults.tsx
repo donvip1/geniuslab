@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, XCircle, Home, RotateCcw, Trophy, Target } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { ExamCompletionPopup } from "@/components/ExamCompletionPopup";
 
 interface QuestionResult {
   id: string;
@@ -32,6 +33,7 @@ const ExamResults = () => {
   const location = useLocation();
   const [results, setResults] = useState<ExamResultsState | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [showCompletionPopup, setShowCompletionPopup] = useState(true);
 
   useEffect(() => {
     if (location.state) {
@@ -73,6 +75,16 @@ const ExamResults = () => {
 
   return (
     <div className="min-h-screen bg-muted/30 flex flex-col">
+      {/* Exam Completion Popup */}
+      {results && (
+        <ExamCompletionPopup
+          isOpen={showCompletionPopup}
+          onClose={() => setShowCompletionPopup(false)}
+          score={results.score}
+          totalQuestions={results.totalQuestions}
+        />
+      )}
+      
       <Navbar />
       
       <main className="flex-1 container mx-auto px-4 py-8">
