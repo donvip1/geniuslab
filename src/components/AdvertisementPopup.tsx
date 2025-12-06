@@ -11,7 +11,7 @@ interface Advertisement {
   image_url: string | null;
 }
 
-const POPUP_INTERVAL = 60000; // 60 seconds
+const POPUP_INTERVAL = 90000; // 90 seconds (1:30)
 
 export const AdvertisementPopup = () => {
   const [isOpen, setIsOpen] = useState(false);
