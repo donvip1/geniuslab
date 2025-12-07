@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { FounderWelcomePopup } from "@/components/FounderWelcomePopup";
 
+// Question interface WITHOUT correct_answer and explanation (security: hidden from client)
 interface Question {
   id: string;
   question_text: string;
@@ -28,8 +29,6 @@ interface Question {
   option_b: string;
   option_c: string;
   option_d: string;
-  correct_answer: string;
-  explanation: string;
 }
 
 const QUESTIONS_PER_PAGE = 10;
@@ -113,10 +112,10 @@ const ExamTaking = () => {
       setSubjectName(subjectData.name);
       setContributors(subjectData.contributors);
 
-      // Fetch questions and shuffle them
+      // Fetch questions WITHOUT correct_answer and explanation (security: server-side validation only)
       const { data: questionsData, error: questionsError } = await supabase
         .from("questions")
-        .select("*")
+        .select("id, question_text, option_a, option_b, option_c, option_d")
         .eq("subject_id", subjectId)
         .eq("is_active", true);
 
@@ -178,42 +177,30 @@ const ExamTaking = () => {
         return;
       }
 
-      // Calculate score and prepare results
-      let correctCount = 0;
-      const questionResults = questions.map((q) => {
-        const userAnswer = answers[q.id] || "";
-        const isCorrect = userAnswer === q.correct_answer;
-        if (isCorrect) correctCount++;
-        
-        return {
-          ...q,
-          user_answer: userAnswer,
-          is_correct: isCorrect,
-        };
-      });
-
       const timeTaken = EXAM_TIME_SECONDS - timeLeft;
 
-      // Save exam attempt
-      const { error } = await supabase.from("exam_attempts").insert([
-        {
-          user_id: session.user.id,
-          subject_id: subjectId,
-          score: correctCount,
-          total_questions: questions.length,
-          time_taken_seconds: timeTaken,
-          answers: answers,
+      // Submit exam via secure edge function (server-side answer validation)
+      const { data, error } = await supabase.functions.invoke('submit-exam', {
+        body: {
+          subjectId,
+          answers,
+          questionIds: questions.map(q => q.id),
+          timeTakenSeconds: timeTaken,
         },
-      ]);
+      });
 
       if (error) throw error;
 
-      // Navigate to results page with exam data
+      if (!data.success) {
+        throw new Error(data.error || "Failed to submit exam");
+      }
+
+      // Navigate to results page with exam data (correct answers now revealed by server)
       navigate(`/exam-results/${subjectId}`, {
         state: {
-          questions: questionResults,
-          score: correctCount,
-          totalQuestions: questions.length,
+          questions: data.questions,
+          score: data.score,
+          totalQuestions: data.totalQuestions,
           timeTaken: timeTaken,
           subjectName: subjectName,
         },
