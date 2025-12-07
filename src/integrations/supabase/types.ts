@@ -307,7 +307,53 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      questions_public: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          is_active: boolean | null
+          option_a: string | null
+          option_b: string | null
+          option_c: string | null
+          option_d: string | null
+          question_text: string | null
+          subject_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          option_a?: string | null
+          option_b?: string | null
+          option_c?: string | null
+          option_d?: string | null
+          question_text?: string | null
+          subject_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          option_a?: string | null
+          option_b?: string | null
+          option_c?: string | null
+          option_d?: string | null
+          question_text?: string | null
+          subject_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "questions_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       has_role: {
