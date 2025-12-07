@@ -76,8 +76,13 @@ const Exam = () => {
     navigate("/");
   };
 
-  const startExam = (subjectId: string) => {
-    navigate(`/exam/take/${subjectId}`);
+  const createSlug = (name: string) => {
+    return name.replace(/\s+/g, '-').toLowerCase();
+  };
+
+  const startExam = (subjectName: string) => {
+    const slug = createSlug(subjectName);
+    navigate(`/exam/take/${slug}`);
   };
 
   if (loading) {
@@ -165,7 +170,7 @@ const Exam = () => {
                       </CardHeader>
                       <CardContent>
                         <Button 
-                          onClick={() => startExam(subject.id)}
+                          onClick={() => startExam(subject.name)}
                           className="w-full"
                         >
                           <Clock className="mr-2 h-4 w-4" />

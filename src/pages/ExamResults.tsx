@@ -26,9 +26,11 @@ interface ExamResultsState {
   totalQuestions: number;
   timeTaken: number;
   subjectName: string;
+  subjectSlug?: string;
 }
 
 const ExamResults = () => {
+  const { subjectSlug } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const [results, setResults] = useState<ExamResultsState | null>(null);
@@ -157,7 +159,7 @@ const ExamResults = () => {
                   <Home className="h-4 w-4" />
                   Back to Subjects
                 </Button>
-                <Button onClick={() => navigate(`/exam/${location.pathname.split("/").pop()}`)} className="gap-2">
+                <Button onClick={() => navigate(`/exam/take/${subjectSlug}`)} className="gap-2">
                   <RotateCcw className="h-4 w-4" />
                   Retake Exam
                 </Button>

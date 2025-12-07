@@ -44,7 +44,7 @@ const getQuestionLimit = (subjectName: string): number => {
 };
 
 const ExamTaking = () => {
-  const { subjectId } = useParams();
+  const { subjectSlug } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -55,6 +55,7 @@ const ExamTaking = () => {
   const [submitting, setSubmitting] = useState(false);
   const [timeLeft, setTimeLeft] = useState(EXAM_TIME_SECONDS); // 15 minutes
   const [subjectName, setSubjectName] = useState("");
+  const [subjectId, setSubjectId] = useState<string | null>(null);
   const [contributors, setContributors] = useState<string | null>(null);
   const [showFounderPopup, setShowFounderPopup] = useState(true);
   const [examStarted, setExamStarted] = useState(false);
@@ -68,7 +69,7 @@ const ExamTaking = () => {
 
   useEffect(() => {
     fetchQuestionsAndSubject();
-  }, [subjectId]);
+  }, [subjectSlug]);
 
   useEffect(() => {
     if (timeLeft > 0 && questions.length > 0 && examStarted) {
@@ -99,16 +100,39 @@ const ExamTaking = () => {
     return shuffled;
   };
 
+  const slugToName = (slug: string) => {
+    // Convert slug back to searchable pattern (handles various formats)
+    return slug.replace(/-/g, ' ');
+  };
+
   const fetchQuestionsAndSubject = async () => {
     try {
-      // Fetch subject details including contributors
-      const { data: subjectData, error: subjectError } = await supabase
+      // Fetch subject by matching slug pattern to name
+      const searchName = slugToName(subjectSlug || '');
+      
+      const { data: subjectsData, error: subjectError } = await supabase
         .from("subjects")
-        .select("name, contributors")
-        .eq("id", subjectId)
-        .single();
+        .select("id, name, contributors")
+        .eq("is_active", true);
 
       if (subjectError) throw subjectError;
+
+      // Find subject by matching slug
+      const subjectData = subjectsData?.find(s => 
+        s.name.replace(/\s+/g, '-').toLowerCase() === subjectSlug?.toLowerCase()
+      );
+
+      if (!subjectData) {
+        toast({
+          title: "Subject Not Found",
+          description: "The requested subject could not be found.",
+          variant: "destructive",
+        });
+        navigate("/exam");
+        return;
+      }
+
+      setSubjectId(subjectData.id);
       setSubjectName(subjectData.name);
       setContributors(subjectData.contributors);
 
@@ -116,7 +140,7 @@ const ExamTaking = () => {
       const { data: questionsData, error: questionsError } = await supabase
         .from("questions_public")
         .select("id, question_text, option_a, option_b, option_c, option_d")
-        .eq("subject_id", subjectId);
+        .eq("subject_id", subjectData.id);
 
       if (questionsError) throw questionsError;
 
@@ -195,13 +219,14 @@ const ExamTaking = () => {
       }
 
       // Navigate to results page with exam data (correct answers now revealed by server)
-      navigate(`/exam-results/${subjectId}`, {
+      navigate(`/exam-results/${subjectSlug}`, {
         state: {
           questions: data.questions,
           score: data.score,
           totalQuestions: data.totalQuestions,
           timeTaken: timeTaken,
           subjectName: subjectName,
+          subjectSlug: subjectSlug,
         },
       });
     } catch (error: any) {
