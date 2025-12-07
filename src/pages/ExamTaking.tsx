@@ -112,12 +112,11 @@ const ExamTaking = () => {
       setSubjectName(subjectData.name);
       setContributors(subjectData.contributors);
 
-      // Fetch questions WITHOUT correct_answer and explanation (security: server-side validation only)
+      // Fetch questions from secure view (excludes correct_answer and explanation)
       const { data: questionsData, error: questionsError } = await supabase
-        .from("questions")
+        .from("questions_public")
         .select("id, question_text, option_a, option_b, option_c, option_d")
-        .eq("subject_id", subjectId)
-        .eq("is_active", true);
+        .eq("subject_id", subjectId);
 
       if (questionsError) throw questionsError;
 
