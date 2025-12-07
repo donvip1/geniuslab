@@ -63,8 +63,7 @@ const Contact = () => {
                       </div>
                       <div>
                         <h3 className="font-bold mb-1">Email</h3>
-                        <p className="text-sm text-muted-foreground">info@geniuslab.edu</p>
-                        <p className="text-sm text-muted-foreground">support@geniuslab.edu</p>
+                        <p className="text-sm text-muted-foreground">Geniuslabeducational@gmail.com</p>
                       </div>
                     </div>
 
@@ -74,8 +73,7 @@ const Contact = () => {
                       </div>
                       <div>
                         <h3 className="font-bold mb-1">Phone</h3>
-                        <p className="text-sm text-muted-foreground">+234 123 456 7890</p>
-                        <p className="text-sm text-muted-foreground">+234 098 765 4321</p>
+                        <p className="text-sm text-muted-foreground">+2348124269495</p>
                       </div>
                     </div>
 
@@ -86,9 +84,8 @@ const Contact = () => {
                       <div>
                         <h3 className="font-bold mb-1">Address</h3>
                         <p className="text-sm text-muted-foreground">
-                          123 Education Avenue<br />
-                          Victoria Island, Lagos<br />
-                          Nigeria
+                          Federal University Oye Ekiti<br />
+                          Ekiti State, Nigeria
                         </p>
                       </div>
                     </div>
