@@ -190,11 +190,11 @@ const Index = () => {
             <p className="text-lg mb-8 opacity-90 max-w-2xl mx-auto">
               Join hundreds of successful students today
             </p>
-            <Link to="/auth">
+            <a href="https://wa.me/2348124269495" target="_blank" rel="noopener noreferrer">
               <Button size="lg" variant="secondary" className="shadow-lg hover:shadow-xl">
                 Join Our Tutorial
               </Button>
-            </Link>
+            </a>
           </div>
         </section>
       </main>
