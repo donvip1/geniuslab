@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Menu, X, GraduationCap } from "lucide-react";
 import { useState } from "react";
-import gecLogo from "@/assets/gec-logo-transparent.png";
+import gecLogo from "@/assets/gec-logo-new.png";
 
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -20,7 +20,7 @@ export const Navbar = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-2 font-bold text-xl">
-            <img src={gecLogo} alt="GeniusLab Educational Consult" className="h-10 w-auto" />
+            <img src={gecLogo} alt="GeniusLab Educational Consult" className="h-14 w-auto" />
             <span className="hidden sm:inline">GeniusLab</span>
           </Link>
 
