@@ -1,14 +1,65 @@
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent } from "@/components/ui/card";
-import { Target, Users, TrendingUp, BookOpen, Award } from "lucide-react";
+import { Target, Users, TrendingUp, BookOpen, Award, Loader2 } from "lucide-react";
 import { ExpandableText } from "@/components/ExpandableText";
+import { supabase } from "@/integrations/supabase/client";
 import holysinnerProfile from "@/assets/holysinner-profile.jpg";
 import colossusProfile from "@/assets/colossus-profile.jpg";
 import greenarrowProfile from "@/assets/greenarrow-profile.jpg";
 import mathleteProfile from "@/assets/mathlete-profile.jpg";
+import sonofgodProfile from "@/assets/sonofgod-profile.jpg";
+
+interface TeamExpert {
+  id: string;
+  name: string;
+  alias: string | null;
+  title: string;
+  description: string;
+  image_url: string | null;
+  display_order: number;
+}
+
+// Map aliases to local images as fallback
+const aliasImageMap: { [key: string]: string } = {
+  "Colossus": colossusProfile,
+  "Green Arrow": greenarrowProfile,
+  "Mathlete": mathleteProfile,
+  "Son of God": sonofgodProfile,
+};
 
 const About = () => {
+  const [experts, setExperts] = useState<TeamExpert[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchExperts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("team_experts")
+          .select("*")
+          .eq("is_active", true)
+          .order("display_order", { ascending: true });
+        
+        if (error) throw error;
+        setExperts(data || []);
+      } catch (error) {
+        console.error("Error fetching team experts:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchExperts();
+  }, []);
+
+  const getExpertImage = (expert: TeamExpert) => {
+    if (expert.image_url) return expert.image_url;
+    if (expert.alias && aliasImageMap[expert.alias]) return aliasImageMap[expert.alias];
+    return null;
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -105,77 +156,50 @@ Our learning model goes beyond teaching; we create an environment where students
                 </p>
               </div>
 
-              <div className="space-y-8">
-                {/* Colossus */}
-                <Card className="shadow-lg overflow-hidden">
-                  <CardContent className="pt-8">
-                    <div className="flex flex-col items-center mb-6">
-                      <div className="w-48 h-48 rounded-full overflow-hidden mb-4 shadow-xl border-4 border-primary/20">
-                        <img 
-                          src={colossusProfile} 
-                          alt="Colossus - Olonade Modiu Akorede"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <h3 className="text-2xl font-bold text-primary mb-1">COLOSSUS</h3>
-                      <p className="text-lg font-semibold text-secondary mb-2">The Mathematics Maestro</p>
-                      <p className="text-sm text-muted-foreground">Olonade Modiu Akorede</p>
-                    </div>
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  {experts.map((expert, index) => {
+                    const image = getExpertImage(expert);
+                    const colors = [
+                      { border: "border-primary/20", name: "text-primary", title: "text-secondary" },
+                      { border: "border-secondary/20", name: "text-secondary", title: "text-accent" },
+                      { border: "border-accent/20", name: "text-accent", title: "text-primary" },
+                    ];
+                    const colorSet = colors[index % colors.length];
                     
-                    <ExpandableText text="Olonade Modiu Akorede (popularly known as Colossus) is a graduate of the Department of Mathematics, Federal University Oye-Ekiti (FUOYE). A seasoned tutor of Mathematics, Physics, and all mathematics-related courses, he brings over 6 years of continuous tutoring excellence, helping students dismantle their fear of Mathematics and achieve results they once thought were impossible.
-
-His approach is practical, simplified, and deeply analytical, turning the hardest mathematical/physics concepts into understandable steps. His impact in the field is widely acknowledged, and for many students, Colossus is the difference between struggling and succeeding." />
-                  </CardContent>
-                </Card>
-
-                {/* Green Arrow */}
-                <Card className="shadow-lg overflow-hidden">
-                  <CardContent className="pt-8">
-                    <div className="flex flex-col items-center mb-6">
-                      <div className="w-48 h-48 rounded-full overflow-hidden mb-4 shadow-xl border-4 border-secondary/20">
-                        <img 
-                          src={greenarrowProfile} 
-                          alt="Green Arrow - Aroyame Praise Okemeshimi"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <h3 className="text-2xl font-bold text-secondary mb-1">GREEN ARROW</h3>
-                      <p className="text-lg font-semibold text-accent mb-2">The Chemistry Prodigy</p>
-                      <p className="text-sm text-muted-foreground">Aroyame Praise Okemeshimi</p>
-                    </div>
-                    
-                    <ExpandableText text="Aroyame Praise Okemeshimi, fondly called Green Arrow, is a 200-Level Medicine & Surgery student of FUOYE and one of the most outstanding young tutors in the sciences today.
-
-With over 3 years of experience teaching Chemistry, Green Arrow has mentored students who scored 340+ in JAMB, excelled in WAEC, and maintained high GPAs in top universities nationwide. A scholar with a 5.0 GPA in 100 level, he embodies discipline, brilliance, and a passion for simplifying Chemistry in a way that makes students fall in love with it.
-
-Green Arrow represents academic brilliance at its finest, the ideal model for every science student." />
-                  </CardContent>
-                </Card>
-
-                {/* Mathlete (Joel) - Contributor */}
-                <Card className="shadow-lg overflow-hidden">
-                  <CardContent className="pt-8">
-                    <div className="flex flex-col items-center mb-6">
-                      <div className="w-48 h-48 rounded-full overflow-hidden mb-4 shadow-xl border-4 border-accent/20">
-                        <img 
-                          src={mathleteProfile} 
-                          alt="Mathlete - Oludipe Olamide Joel"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <h3 className="text-2xl font-bold text-accent mb-1">MATHLETE</h3>
-                      <p className="text-lg font-semibold text-primary mb-2">Question Bank Contributor</p>
-                      <p className="text-sm text-muted-foreground">Oludipe Olamide Joel</p>
-                    </div>
-                    
-                    <ExpandableText text="Oludipe Olamide Joel, popularly known as Mathlete, is a 300-Level student of the Department of Mathematics at Federal University Oye-Ekiti and also the Pioneer Vice President for Faculty of Physical Sciences.
-
-He once served as the PRO of Nigerian Mathematics Science Students FUOYE Chapter (NAMSSN) and is a vibrant student leader. As a passionate advocate for mathematics education, Joel has demonstrated exceptional leadership skills through his various roles.
-
-Joel is a key contributor to the GeniusLab exam question bank, helping to provide quality practice materials for students preparing for their academic assessments." />
-                  </CardContent>
-                </Card>
-              </div>
+                    return (
+                      <Card key={expert.id} className="shadow-lg overflow-hidden">
+                        <CardContent className="pt-8">
+                          <div className="flex flex-col items-center mb-6">
+                            {image && (
+                              <div className={`w-48 h-48 rounded-full overflow-hidden mb-4 shadow-xl border-4 ${colorSet.border}`}>
+                                <img 
+                                  src={image} 
+                                  alt={expert.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
+                            {expert.alias && (
+                              <h3 className={`text-2xl font-bold ${colorSet.name} mb-1`}>
+                                {expert.alias.toUpperCase()}
+                              </h3>
+                            )}
+                            <p className={`text-lg font-semibold ${colorSet.title} mb-2`}>{expert.title}</p>
+                            <p className="text-sm text-muted-foreground">{expert.name}</p>
+                          </div>
+                          
+                          <ExpandableText text={expert.description} />
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </section>
