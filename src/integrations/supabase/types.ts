@@ -284,6 +284,90 @@ export type Database = {
         }
         Relationships: []
       }
+      success_stories: {
+        Row: {
+          color_theme: string
+          created_at: string
+          display_order: number
+          id: string
+          image_url: string | null
+          is_active: boolean
+          program: string
+          quote: string
+          quote_author: string | null
+          review: string
+          student_name: string
+          updated_at: string
+        }
+        Insert: {
+          color_theme?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          program: string
+          quote: string
+          quote_author?: string | null
+          review: string
+          student_name: string
+          updated_at?: string
+        }
+        Update: {
+          color_theme?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          program?: string
+          quote?: string
+          quote_author?: string | null
+          review?: string
+          student_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      team_experts: {
+        Row: {
+          alias: string | null
+          created_at: string
+          description: string
+          display_order: number
+          id: string
+          image_url: string | null
+          is_active: boolean
+          name: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          alias?: string | null
+          created_at?: string
+          description: string
+          display_order?: number
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          name: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          alias?: string | null
+          created_at?: string
+          description?: string
+          display_order?: number
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          name?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

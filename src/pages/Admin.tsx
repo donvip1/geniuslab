@@ -10,7 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, FileText, BookOpen, Loader2, Pencil, Trash2, X, Check, ChevronDown, ChevronUp, ClipboardPaste, Megaphone } from "lucide-react";
+import { Upload, FileText, BookOpen, Loader2, Pencil, Trash2, X, Check, ChevronDown, ChevronUp, ClipboardPaste, Megaphone, Users, Star } from "lucide-react";
+import { TeamExpertManagement } from "@/components/admin/TeamExpertManagement";
+import { SuccessStoryManagement } from "@/components/admin/SuccessStoryManagement";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -820,22 +822,30 @@ const Admin = () => {
           </div>
 
           <Tabs defaultValue="subjects" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4 max-w-xl">
+            <TabsList className="grid w-full grid-cols-6 max-w-3xl">
               <TabsTrigger value="subjects">
-                <BookOpen className="h-4 w-4 mr-2" />
-                Subjects
+                <BookOpen className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Subjects</span>
               </TabsTrigger>
               <TabsTrigger value="upload">
-                <Upload className="h-4 w-4 mr-2" />
-                Upload
+                <Upload className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Upload</span>
               </TabsTrigger>
               <TabsTrigger value="questions" onClick={() => fetchQuestions()}>
-                <FileText className="h-4 w-4 mr-2" />
-                Questions
+                <FileText className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Questions</span>
               </TabsTrigger>
               <TabsTrigger value="ads">
-                <Megaphone className="h-4 w-4 mr-2" />
-                Ads
+                <Megaphone className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Ads</span>
+              </TabsTrigger>
+              <TabsTrigger value="team">
+                <Users className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Team</span>
+              </TabsTrigger>
+              <TabsTrigger value="stories">
+                <Star className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Stories</span>
               </TabsTrigger>
             </TabsList>
 
@@ -1870,6 +1880,16 @@ Or any other format - our AI will parse it automatically!`}
                   </CardContent>
                 </Card>
               </div>
+            </TabsContent>
+
+            {/* Team Experts Tab */}
+            <TabsContent value="team">
+              <TeamExpertManagement />
+            </TabsContent>
+
+            {/* Success Stories Tab */}
+            <TabsContent value="stories">
+              <SuccessStoryManagement />
             </TabsContent>
           </Tabs>
         </div>
