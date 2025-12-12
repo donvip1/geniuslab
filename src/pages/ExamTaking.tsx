@@ -32,7 +32,7 @@ interface Question {
 }
 
 const QUESTIONS_PER_PAGE = 10;
-const EXAM_TIME_SECONDS = 900; // 15 minutes for all subjects
+const DEFAULT_EXAM_TIME_SECONDS = 900; // 15 minutes default
 
 // Subject-specific question limits
 const getQuestionLimit = (subjectName: string): number => {
@@ -53,12 +53,14 @@ const ExamTaking = () => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(EXAM_TIME_SECONDS); // 15 minutes
+  const [timeLeft, setTimeLeft] = useState(DEFAULT_EXAM_TIME_SECONDS);
+  const [examDuration, setExamDuration] = useState(DEFAULT_EXAM_TIME_SECONDS);
   const [subjectName, setSubjectName] = useState("");
   const [subjectId, setSubjectId] = useState<string | null>(null);
   const [contributors, setContributors] = useState<string | null>(null);
   const [showFounderPopup, setShowFounderPopup] = useState(true);
   const [examStarted, setExamStarted] = useState(false);
+  const [isExamMode, setIsExamMode] = useState(false);
 
   // Pagination for question navigator
   const currentPage = Math.floor(currentQuestionIndex / QUESTIONS_PER_PAGE);
@@ -68,8 +70,35 @@ const ExamTaking = () => {
   const visibleQuestions = questions.slice(startIndex, endIndex);
 
   useEffect(() => {
+    fetchExamSettings();
     fetchQuestionsAndSubject();
   }, [subjectSlug]);
+
+  const fetchExamSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("exam_settings")
+        .select("*")
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error fetching exam settings:", error);
+        return;
+      }
+
+      if (data) {
+        setIsExamMode(data.is_exam_mode);
+        if (data.is_exam_mode && data.exam_duration_minutes) {
+          const durationSeconds = data.exam_duration_minutes * 60;
+          setTimeLeft(durationSeconds);
+          setExamDuration(durationSeconds);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching exam settings:", error);
+    }
+  };
 
   useEffect(() => {
     if (timeLeft > 0 && questions.length > 0 && examStarted) {
@@ -200,7 +229,7 @@ const ExamTaking = () => {
         return;
       }
 
-      const timeTaken = EXAM_TIME_SECONDS - timeLeft;
+      const timeTaken = examDuration - timeLeft;
 
       // Submit exam via secure edge function (server-side answer validation)
       const { data, error } = await supabase.functions.invoke('submit-exam', {

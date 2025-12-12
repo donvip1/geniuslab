@@ -165,6 +165,36 @@ export type Database = {
           },
         ]
       }
+      exam_settings: {
+        Row: {
+          created_at: string
+          exam_duration_minutes: number
+          exam_end_time: string | null
+          exam_start_time: string | null
+          id: string
+          is_exam_mode: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          exam_duration_minutes?: number
+          exam_end_time?: string | null
+          exam_start_time?: string | null
+          id?: string
+          is_exam_mode?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          exam_duration_minutes?: number
+          exam_end_time?: string | null
+          exam_start_time?: string | null
+          id?: string
+          is_exam_mode?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
