@@ -5,10 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Download, FileText, Clock, Users, Trophy, AlertCircle, RefreshCw } from "lucide-react";
+import { Loader2, Download, FileText, Clock, Users, Trophy, AlertCircle, RefreshCw, Trash2, Calendar, Filter } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import jsPDF from "jspdf";
 
 interface ExamSettings {
   id: string;
@@ -35,18 +38,65 @@ interface ExamAttemptWithProfile {
   } | null;
 }
 
+interface Subject {
+  id: string;
+  name: string;
+}
+
 export const ExamModeManagement = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<ExamSettings | null>(null);
   const [examAttempts, setExamAttempts] = useState<ExamAttemptWithProfile[]>([]);
+  const [filteredAttempts, setFilteredAttempts] = useState<ExamAttemptWithProfile[]>([]);
   const [attemptsLoading, setAttemptsLoading] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  
+  // Filters
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [selectedSubject, setSelectedSubject] = useState<string>("all");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
 
   useEffect(() => {
     fetchSettings();
+    fetchSubjects();
   }, []);
+
+  useEffect(() => {
+    applyFilters();
+  }, [examAttempts, selectedSubject, startDate, endDate]);
+
+  const fetchSubjects = async () => {
+    const { data } = await supabase.from("subjects").select("id, name").eq("is_active", true);
+    if (data) setSubjects(data);
+  };
+
+  const applyFilters = () => {
+    let filtered = [...examAttempts];
+    
+    // Filter by subject
+    if (selectedSubject !== "all") {
+      filtered = filtered.filter(a => a.subject_id === selectedSubject);
+    }
+    
+    // Filter by date range
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      filtered = filtered.filter(a => new Date(a.created_at) >= start);
+    }
+    
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(a => new Date(a.created_at) <= end);
+    }
+    
+    setFilteredAttempts(filtered);
+  };
 
   const fetchSettings = async () => {
     try {
@@ -78,7 +128,6 @@ export const ExamModeManagement = () => {
   const fetchExamAttempts = async () => {
     setAttemptsLoading(true);
     try {
-      // Fetch exam attempts
       const { data: attemptsData, error: attemptsError } = await supabase
         .from("exam_attempts")
         .select("*")
@@ -91,7 +140,6 @@ export const ExamModeManagement = () => {
         return;
       }
 
-      // Fetch profiles and subjects separately
       const userIds = [...new Set(attemptsData.map(a => a.user_id))];
       const subjectIds = [...new Set(attemptsData.map(a => a.subject_id))];
       
@@ -198,6 +246,31 @@ export const ExamModeManagement = () => {
     }
   };
 
+  const clearAllResults = async () => {
+    setClearing(true);
+    try {
+      const { error } = await supabase.from("exam_attempts").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      
+      if (error) throw error;
+      
+      setExamAttempts([]);
+      setFilteredAttempts([]);
+      
+      toast({
+        title: "Results Cleared",
+        description: "All student performances have been reset",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to clear results",
+        variant: "destructive",
+      });
+    } finally {
+      setClearing(false);
+    }
+  };
+
   const formatTime = (seconds: number | null) => {
     if (!seconds) return "N/A";
     const mins = Math.floor(seconds / 60);
@@ -210,98 +283,268 @@ export const ExamModeManagement = () => {
   };
 
   const getGrade = (percentage: number) => {
-    if (percentage >= 70) return { grade: "A", color: "bg-green-500" };
-    if (percentage >= 60) return { grade: "B", color: "bg-blue-500" };
-    if (percentage >= 50) return { grade: "C", color: "bg-yellow-500" };
-    if (percentage >= 40) return { grade: "D", color: "bg-orange-500" };
-    return { grade: "F", color: "bg-red-500" };
+    if (percentage >= 70) return { grade: "A", color: "bg-green-500", remark: "Excellent" };
+    if (percentage >= 60) return { grade: "B", color: "bg-blue-500", remark: "Very Good" };
+    if (percentage >= 50) return { grade: "C", color: "bg-yellow-500", remark: "Good" };
+    if (percentage >= 40) return { grade: "D", color: "bg-orange-500", remark: "Fair" };
+    return { grade: "F", color: "bg-red-500", remark: "Needs Improvement" };
   };
 
-  const downloadSingleResult = (attempt: ExamAttemptWithProfile) => {
+  const generatePDF = (attempt: ExamAttemptWithProfile) => {
     const percentage = getPercentage(attempt.score, attempt.total_questions);
-    const { grade } = getGrade(percentage);
+    const { grade, remark } = getGrade(percentage);
     
-    const content = `
-GENIUSLAB EDUCATIONAL CONSULT
-EXAM RESULT SLIP
-================================
-
-Student Name: ${attempt.profiles?.full_name || "Unknown"}
-Email: ${attempt.profiles?.email || "N/A"}
-Subject: ${attempt.subjects?.name || "Unknown"}
-Date: ${new Date(attempt.created_at).toLocaleDateString()}
-
-PERFORMANCE
------------
-Score: ${attempt.score}/${attempt.total_questions}
-Percentage: ${percentage}%
-Grade: ${grade}
-Time Taken: ${formatTime(attempt.time_taken_seconds)}
-
-================================
-Generated by GeniusLab CBT System
-    `.trim();
-
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${attempt.profiles?.full_name || "Student"}_Result_${attempt.subjects?.name || "Exam"}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Header with branding
+    doc.setFillColor(34, 197, 94); // Green color
+    doc.rect(0, 0, pageWidth, 40, "F");
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont("helvetica", "bold");
+    doc.text("GENIUSLAB", pageWidth / 2, 18, { align: "center" });
+    
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.text("EDUCATIONAL CONSULT", pageWidth / 2, 26, { align: "center" });
+    doc.text("Excellence Through Knowledge", pageWidth / 2, 34, { align: "center" });
+    
+    // Title
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text("EXAMINATION RESULT SLIP", pageWidth / 2, 55, { align: "center" });
+    
+    // Decorative line
+    doc.setDrawColor(34, 197, 94);
+    doc.setLineWidth(1);
+    doc.line(20, 60, pageWidth - 20, 60);
+    
+    // Student details section
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("STUDENT INFORMATION", 20, 75);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.text(`Full Name: ${attempt.profiles?.full_name || "Unknown Student"}`, 20, 85);
+    doc.text(`Email: ${attempt.profiles?.email || "N/A"}`, 20, 93);
+    doc.text(`Examination Date: ${new Date(attempt.created_at).toLocaleDateString("en-GB", { 
+      weekday: "long", year: "numeric", month: "long", day: "numeric" 
+    })}`, 20, 101);
+    
+    // Subject section
+    doc.setFont("helvetica", "bold");
+    doc.text("SUBJECT", 20, 118);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${attempt.subjects?.name || "Unknown Subject"}`, 20, 128);
+    
+    // Performance section with box
+    doc.setFillColor(245, 245, 245);
+    doc.rect(20, 140, pageWidth - 40, 50, "F");
+    doc.setDrawColor(34, 197, 94);
+    doc.rect(20, 140, pageWidth - 40, 50, "S");
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("PERFORMANCE SUMMARY", pageWidth / 2, 152, { align: "center" });
+    
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    const col1 = 35;
+    const col2 = pageWidth / 2 + 10;
+    
+    doc.text(`Score: ${attempt.score} out of ${attempt.total_questions}`, col1, 165);
+    doc.text(`Percentage: ${percentage}%`, col2, 165);
+    doc.text(`Grade: ${grade}`, col1, 178);
+    doc.text(`Time Taken: ${formatTime(attempt.time_taken_seconds)}`, col2, 178);
+    
+    // Remark
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(34, 197, 94);
+    doc.text(`Remark: ${remark}`, pageWidth / 2, 210, { align: "center" });
+    
+    // Signature section
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    
+    doc.line(pageWidth - 80, 250, pageWidth - 20, 250);
+    doc.text("Etim Nsisong Enefiok", pageWidth - 50, 258, { align: "center" });
+    doc.setFontSize(9);
+    doc.text("Founder & Lead Tutor", pageWidth - 50, 265, { align: "center" });
+    doc.text("GeniusLab Educational Consult", pageWidth - 50, 272, { align: "center" });
+    
+    // Footer
+    doc.setFillColor(34, 197, 94);
+    doc.rect(0, 280, pageWidth, 20, "F");
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.text("This is an official result slip generated by the GeniusLab CBT System", pageWidth / 2, 288, { align: "center" });
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, pageWidth / 2, 294, { align: "center" });
+    
+    // Save
+    doc.save(`${attempt.profiles?.full_name || "Student"}_Result_${attempt.subjects?.name || "Exam"}.pdf`);
   };
 
-  const downloadAllResults = () => {
-    if (examAttempts.length === 0) return;
+  const generateBulkPDF = () => {
+    if (filteredAttempts.length === 0) return;
     
     setDownloadingPdf(true);
     
-    let content = `
-GENIUSLAB EDUCATIONAL CONSULT
-BULK EXAM RESULTS REPORT
-================================
-Generated: ${new Date().toLocaleString()}
-Total Students: ${examAttempts.length}
-================================
-
-`;
-
-    examAttempts.forEach((attempt, index) => {
-      const percentage = getPercentage(attempt.score, attempt.total_questions);
-      const { grade } = getGrade(percentage);
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Cover page
+    doc.setFillColor(34, 197, 94);
+    doc.rect(0, 0, pageWidth, 50, "F");
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(28);
+    doc.setFont("helvetica", "bold");
+    doc.text("GENIUSLAB", pageWidth / 2, 22, { align: "center" });
+    
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "normal");
+    doc.text("EDUCATIONAL CONSULT", pageWidth / 2, 34, { align: "center" });
+    doc.text("Excellence Through Knowledge", pageWidth / 2, 44, { align: "center" });
+    
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.text("BULK EXAMINATION RESULTS", pageWidth / 2, 75, { align: "center" });
+    
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Report Generated: ${new Date().toLocaleString()}`, pageWidth / 2, 90, { align: "center" });
+    doc.text(`Total Students: ${filteredAttempts.length}`, pageWidth / 2, 100, { align: "center" });
+    
+    if (selectedSubject !== "all") {
+      const subjectName = subjects.find(s => s.id === selectedSubject)?.name || "Selected Subject";
+      doc.text(`Subject Filter: ${subjectName}`, pageWidth / 2, 110, { align: "center" });
+    }
+    
+    if (startDate || endDate) {
+      doc.text(`Date Range: ${startDate || "Start"} to ${endDate || "End"}`, pageWidth / 2, 120, { align: "center" });
+    }
+    
+    // Summary statistics
+    const avgScore = filteredAttempts.reduce((sum, a) => sum + getPercentage(a.score, a.total_questions), 0) / filteredAttempts.length;
+    const passCount = filteredAttempts.filter(a => getPercentage(a.score, a.total_questions) >= 50).length;
+    
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("Summary Statistics", 20, 145);
+    
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Average Score: ${avgScore.toFixed(1)}%`, 20, 158);
+    doc.text(`Pass Rate: ${((passCount / filteredAttempts.length) * 100).toFixed(1)}%`, 20, 168);
+    doc.text(`Total Passed: ${passCount} students`, 20, 178);
+    doc.text(`Total Failed: ${filteredAttempts.length - passCount} students`, 20, 188);
+    
+    // Results table header
+    let yPos = 210;
+    
+    doc.setFillColor(34, 197, 94);
+    doc.rect(10, yPos - 6, pageWidth - 20, 10, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("S/N", 15, yPos);
+    doc.text("Student Name", 28, yPos);
+    doc.text("Subject", 85, yPos);
+    doc.text("Score", 130, yPos);
+    doc.text("Grade", 155, yPos);
+    doc.text("Remark", 175, yPos);
+    
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "normal");
+    yPos += 12;
+    
+    filteredAttempts.forEach((attempt, index) => {
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+        
+        // Add header on new page
+        doc.setFillColor(34, 197, 94);
+        doc.rect(10, yPos - 6, pageWidth - 20, 10, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.text("S/N", 15, yPos);
+        doc.text("Student Name", 28, yPos);
+        doc.text("Subject", 85, yPos);
+        doc.text("Score", 130, yPos);
+        doc.text("Grade", 155, yPos);
+        doc.text("Remark", 175, yPos);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont("helvetica", "normal");
+        yPos += 12;
+      }
       
-      content += `
-${index + 1}. ${attempt.profiles?.full_name || "Unknown Student"}
-   Email: ${attempt.profiles?.email || "N/A"}
-   Subject: ${attempt.subjects?.name || "Unknown"}
-   Score: ${attempt.score}/${attempt.total_questions} (${percentage}%)
-   Grade: ${grade}
-   Time: ${formatTime(attempt.time_taken_seconds)}
-   Date: ${new Date(attempt.created_at).toLocaleDateString()}
----
-`;
+      const percentage = getPercentage(attempt.score, attempt.total_questions);
+      const { grade, remark } = getGrade(percentage);
+      
+      // Alternate row colors
+      if (index % 2 === 0) {
+        doc.setFillColor(250, 250, 250);
+        doc.rect(10, yPos - 5, pageWidth - 20, 8, "F");
+      }
+      
+      doc.setFontSize(8);
+      doc.text(`${index + 1}`, 15, yPos);
+      doc.text((attempt.profiles?.full_name || "Unknown").substring(0, 25), 28, yPos);
+      doc.text((attempt.subjects?.name || "N/A").substring(0, 20), 85, yPos);
+      doc.text(`${attempt.score}/${attempt.total_questions} (${percentage}%)`, 130, yPos);
+      doc.text(grade, 158, yPos);
+      doc.text(remark.substring(0, 15), 175, yPos);
+      
+      yPos += 8;
     });
-
-    content += `
-================================
-END OF REPORT
-Generated by GeniusLab CBT System
-`;
-
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `GeniusLab_Exam_Results_${new Date().toISOString().split('T')[0]}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+    
+    // Final signature page
+    doc.addPage();
+    
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.text("This report is certified to be a true record of student performances", pageWidth / 2, 100, { align: "center" });
+    doc.text("in the GeniusLab CBT Examination System.", pageWidth / 2, 110, { align: "center" });
+    
+    doc.line(pageWidth / 2 - 40, 150, pageWidth / 2 + 40, 150);
+    doc.setFont("helvetica", "bold");
+    doc.text("Etim Nsisong Enefiok", pageWidth / 2, 160, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text("Founder & Lead Tutor", pageWidth / 2, 168, { align: "center" });
+    doc.text("GeniusLab Educational Consult", pageWidth / 2, 176, { align: "center" });
+    
+    // Footer on last page
+    doc.setFillColor(34, 197, 94);
+    doc.rect(0, 280, pageWidth, 20, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.text("GeniusLab Educational Consult - Excellence Through Knowledge", pageWidth / 2, 290, { align: "center" });
+    
+    doc.save(`GeniusLab_Exam_Results_${new Date().toISOString().split('T')[0]}.pdf`);
     
     setDownloadingPdf(false);
     
     toast({
-      title: "Download Complete",
-      description: `Downloaded results for ${examAttempts.length} students`,
+      title: "PDF Generated",
+      description: `Downloaded results for ${filteredAttempts.length} students`,
     });
+  };
+
+  const clearFilters = () => {
+    setSelectedSubject("all");
+    setStartDate("");
+    setEndDate("");
   };
 
   if (loading) {
@@ -359,7 +602,7 @@ Generated by GeniusLab CBT System
             </div>
           )}
 
-          {/* Duration Selector - Only show when exam mode is active or being configured */}
+          {/* Duration Selector */}
           <div className="space-y-2">
             <Label className="text-base font-semibold">Exam Duration</Label>
             <p className="text-sm text-muted-foreground mb-2">
@@ -384,21 +627,21 @@ Generated by GeniusLab CBT System
         </CardContent>
       </Card>
 
-      {/* Student Results Card - Only show when exam mode is active */}
+      {/* Student Results Card */}
       {settings?.is_exam_mode && (
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Trophy className="h-5 w-5" />
                   Student Performances
                 </CardTitle>
                 <CardDescription>
-                  View and download student exam results
+                  View, filter, and download student exam results as PDF
                 </CardDescription>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -411,26 +654,104 @@ Generated by GeniusLab CBT System
                 <Button
                   variant="default"
                   size="sm"
-                  onClick={downloadAllResults}
-                  disabled={examAttempts.length === 0 || downloadingPdf}
+                  onClick={generateBulkPDF}
+                  disabled={filteredAttempts.length === 0 || downloadingPdf}
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  Download All ({examAttempts.length})
+                  Download PDF ({filteredAttempts.length})
                 </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" disabled={examAttempts.length === 0 || clearing}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Clear All
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Clear All Results?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete all {examAttempts.length} student performances. This action cannot be undone. Make sure you have downloaded the results before clearing.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={clearAllResults} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        {clearing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Clear All Results"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {/* Filters */}
+            <div className="flex flex-wrap gap-4 p-4 rounded-lg border bg-muted/30">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Filters:</span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Label htmlFor="subject-filter" className="text-sm whitespace-nowrap">Subject:</Label>
+                <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+                  <SelectTrigger className="w-[180px]" id="subject-filter">
+                    <SelectValue placeholder="All Subjects" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Subjects</SelectItem>
+                    {subjects.map(subject => (
+                      <SelectItem key={subject.id} value={subject.id}>{subject.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <Label htmlFor="start-date" className="text-sm whitespace-nowrap">From:</Label>
+                <Input
+                  type="date"
+                  id="start-date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-[150px]"
+                />
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Label htmlFor="end-date" className="text-sm whitespace-nowrap">To:</Label>
+                <Input
+                  type="date"
+                  id="end-date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-[150px]"
+                />
+              </div>
+              
+              {(selectedSubject !== "all" || startDate || endDate) && (
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+
             {attemptsLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
               </div>
-            ) : examAttempts.length === 0 ? (
+            ) : filteredAttempts.length === 0 ? (
               <div className="text-center py-8">
                 <Users className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground">No exam attempts yet</p>
+                <p className="text-muted-foreground">
+                  {examAttempts.length === 0 ? "No exam attempts yet" : "No results match your filters"}
+                </p>
                 <p className="text-sm text-muted-foreground">
-                  Student results will appear here as they complete exams
+                  {examAttempts.length === 0 
+                    ? "Student results will appear here as they complete exams"
+                    : "Try adjusting the filters to see more results"}
                 </p>
               </div>
             ) : (
@@ -444,11 +765,11 @@ Generated by GeniusLab CBT System
                       <TableHead>Grade</TableHead>
                       <TableHead>Time</TableHead>
                       <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
+                      <TableHead className="text-right">PDF</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {examAttempts.map((attempt) => {
+                    {filteredAttempts.map((attempt) => {
                       const percentage = getPercentage(attempt.score, attempt.total_questions);
                       const { grade, color } = getGrade(percentage);
                       
@@ -476,7 +797,7 @@ Generated by GeniusLab CBT System
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => downloadSingleResult(attempt)}
+                              onClick={() => generatePDF(attempt)}
                             >
                               <FileText className="h-4 w-4" />
                             </Button>
