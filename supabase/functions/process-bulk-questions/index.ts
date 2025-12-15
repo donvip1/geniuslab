@@ -7,8 +7,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Maximum characters per chunk to stay within AI token limits
-const MAX_CHUNK_SIZE = 15000;
+// Maximum characters per chunk - reduced to ensure AI can return ALL questions
+const MAX_CHUNK_SIZE = 10000;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -320,46 +320,39 @@ async function extractQuestions(text: string, chunkNum: number, totalChunks: num
     },
     body: JSON.stringify({
       model: "google/gemini-2.5-flash",
+      max_tokens: 16000,
       messages: [
         {
           role: "system",
-          content: `You are an expert at extracting exam questions from text. Your job is to EXTRACT the EXACT questions from the text - DO NOT create new questions or modify the existing ones.
+          content: `You are an expert at extracting exam questions from text. Your CRITICAL job is to EXTRACT ALL questions - never skip or truncate.
 
-CRITICAL RULES:
-1. Extract questions EXACTLY as they appear in the text
-2. If a question already has options (A, B, C, D), keep them exactly as written
-3. If a question doesn't have options, you may add plausible options BUT the question text must remain unchanged
-4. Preserve the original wording, numbers, formulas, and formatting
-5. The correct answer should be identified from the text if marked (e.g., "Answer: B", "*B", "B (correct)"), otherwise set to "A"
-6. DO NOT paraphrase, summarize, or modify the questions in any way
-7. Extract ALL questions from the text, not just a few
-8. Handle various question formats including numbered lists, lettered options, and different marking styles
+ABSOLUTE RULES:
+1. Extract EVERY SINGLE QUESTION - there is NO limit on output
+2. If the text has 100 questions, return exactly 100. If it has 150, return all 150
+3. Extract questions EXACTLY as written - do not modify or paraphrase
+4. If a question has options (A, B, C, D), keep them exactly as written
+5. If a question lacks options, add plausible ones but keep question text unchanged
+6. Identify correct answers from markers like "Answer: B", "*B", or "(correct)"
+7. Default correct_answer to "A" if not marked
+8. DO NOT summarize, skip, or limit your output in any way
 
-Common formats to recognize:
-- Numbered questions: "1. Question text", "1) Question text"
-- Questions with A/B/C/D options (with dots, parentheses, or just letters)
-- Questions with answer marked as "Answer: X", "Ans: X", "Correct: X"
-- Questions with correct answer indicated by asterisk (*), bold, or underline descriptions
+IMPORTANT: Count the questions in the input and ensure your output has the SAME count.
 
-Output format - return a JSON object with a "questions" array:
+Output JSON format:
 {
   "questions": [
     {
-      "question": "The exact question text",
-      "options": ["Option A text", "Option B text", "Option C text", "Option D text"],
+      "question": "Exact question text",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
       "correct_answer": "A",
-      "explanation": "Brief explanation if available"
+      "explanation": ""
     }
   ]
-}
-
-Rules for correct_answer:
-- Must be exactly "A", "B", "C", or "D"
-- Match it to the correct option in the options array`,
+}`,
         },
         {
           role: "user",
-          content: `Extract ALL exam questions from this text. Keep them EXACTLY as written. Do not skip any questions:\n\n${text}`,
+          content: `IMPORTANT: Extract EVERY question from this text without skipping any. Count them first, then return ALL of them:\n\n${text}`,
         },
       ],
       response_format: { type: "json_object" },
