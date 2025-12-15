@@ -697,11 +697,31 @@ const Admin = () => {
         },
       });
 
-      if (error) throw error;
+      // Handle edge function errors with detailed messages
+      if (error) {
+        console.error("Bulk import edge function error:", error);
+        // Try to extract error details from the response
+        let errorMessage = "Failed to import questions. Please try again.";
+        if (error.message) {
+          errorMessage = error.message;
+        }
+        throw new Error(errorMessage);
+      }
 
+      // Check if data contains an error (edge function returned error in body)
+      if (data?.error) {
+        console.error("Bulk import returned error:", data);
+        throw new Error(data.error);
+      }
+
+      // Success with detailed feedback
+      const skippedMsg = data.skippedInvalid > 0 
+        ? ` (${data.skippedInvalid} invalid questions skipped)` 
+        : "";
+      
       toast({
-        title: "Success",
-        description: `${data.questionsCreated} questions imported successfully`,
+        title: "Questions Imported Successfully",
+        description: `${data.questionsCreated} questions imported${skippedMsg}`,
       });
 
       setBulkImportText("");
@@ -709,9 +729,26 @@ const Admin = () => {
       fetchQuestions(filterSubject || undefined);
     } catch (error: any) {
       console.error("Bulk import error:", error);
+      
+      // Parse error message for user-friendly display
+      let title = "Import Failed";
+      let description = error.message || "An unexpected error occurred while importing questions.";
+      
+      // Handle specific error codes from edge function
+      if (description.includes("TIMEOUT") || description.includes("too long")) {
+        title = "Upload Timeout";
+        description = "The request took too long. Try uploading 40-50 questions at a time instead.";
+      } else if (description.includes("NO_QUESTIONS_FOUND") || description.includes("No questions")) {
+        title = "No Questions Found";
+        description = "Could not find any questions in the text. Please ensure questions are numbered (e.g., 1. Question text) or clearly formatted.";
+      } else if (description.includes("non-2xx") || description.includes("FunctionsHttpError")) {
+        title = "Server Error";
+        description = "The server encountered an error. Try uploading fewer questions (40-50 at a time) or check your text format.";
+      }
+      
       toast({
-        title: "Error",
-        description: error.message || "Failed to import questions",
+        title,
+        description,
         variant: "destructive",
       });
     } finally {
@@ -778,25 +815,54 @@ const Admin = () => {
         }
       );
 
-      if (processError) throw processError;
+      // Handle edge function errors
+      if (processError) {
+        console.error("Document process edge function error:", processError);
+        let errorMessage = "Failed to process document. Please try again.";
+        if (processError.message) {
+          errorMessage = processError.message;
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Check if data contains an error
+      if (processData?.error) {
+        console.error("Document process returned error:", processData);
+        throw new Error(processData.error);
+      }
 
       toast({
-        title: "Success",
-        description: `Document processed! ${processData.questionsGenerated} questions created.`,
+        title: "Document Processed Successfully",
+        description: `${processData.questionsGenerated} questions created from the document.`,
       });
 
       setSelectedFile(null);
       setSelectedSubject("");
       setUploadProgress("");
+      fetchQuestions(filterSubject || undefined);
     } catch (error: any) {
       console.error("Upload error:", error);
+      
+      // Parse error for user-friendly display
+      let title = "Upload Failed";
+      let description = error.message || "An unexpected error occurred while processing the document.";
+      
+      if (description.includes("non-2xx") || description.includes("FunctionsHttpError")) {
+        title = "Server Error";
+        description = "The server encountered an error processing your document. The file may be too large or in an unsupported format.";
+      } else if (description.includes("storage") || description.includes("upload")) {
+        title = "Upload Error";
+        description = "Failed to upload the file. Please check your file size and try again.";
+      }
+      
       toast({
-        title: "Error",
-        description: error.message || "Failed to process document",
+        title,
+        description,
         variant: "destructive",
       });
     } finally {
       setUploading(false);
+      setUploadProgress("");
     }
   };
 
