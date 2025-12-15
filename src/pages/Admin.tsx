@@ -130,6 +130,7 @@ const Admin = () => {
   const [bulkImportText, setBulkImportText] = useState("");
   const [bulkImportSubject, setBulkImportSubject] = useState("");
   const [bulkImporting, setBulkImporting] = useState(false);
+  const [bulkImportProgress, setBulkImportProgress] = useState({ stage: "", percent: 0 });
 
   useEffect(() => {
     checkUser();
@@ -686,8 +687,22 @@ const Admin = () => {
     }
 
     setBulkImporting(true);
+    setBulkImportProgress({ stage: "Analyzing text...", percent: 10 });
+
+    // Estimate question count from text (rough estimate: ~150 chars per question)
+    const estimatedQuestions = Math.ceil(bulkImportText.length / 150);
 
     try {
+      // Simulate progress stages
+      const progressInterval = setInterval(() => {
+        setBulkImportProgress(prev => {
+          if (prev.percent < 30) return { stage: "Analyzing text structure...", percent: prev.percent + 5 };
+          if (prev.percent < 60) return { stage: `Extracting ~${estimatedQuestions} questions...`, percent: prev.percent + 3 };
+          if (prev.percent < 85) return { stage: "Processing with AI...", percent: prev.percent + 2 };
+          return { stage: "Saving to database...", percent: Math.min(prev.percent + 1, 90) };
+        });
+      }, 800);
+
       // Use AI to parse the bulk text into questions
       const { data, error } = await supabase.functions.invoke("process-bulk-questions", {
         body: {
@@ -696,6 +711,9 @@ const Admin = () => {
           userId: user.id,
         },
       });
+
+      clearInterval(progressInterval);
+      setBulkImportProgress({ stage: "Finalizing...", percent: 95 });
 
       // Handle edge function errors with detailed messages
       if (error) {
@@ -753,6 +771,7 @@ const Admin = () => {
       });
     } finally {
       setBulkImporting(false);
+      setBulkImportProgress({ stage: "", percent: 0 });
     }
   };
 
@@ -1428,11 +1447,26 @@ Or any other format - our AI will parse it automatically!`}
                           </p>
                         </div>
 
+                        {bulkImporting && bulkImportProgress.stage && (
+                          <div className="space-y-2 p-3 bg-muted/50 rounded-lg border">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">{bulkImportProgress.stage}</span>
+                              <span className="font-medium">{bulkImportProgress.percent}%</span>
+                            </div>
+                            <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                              <div 
+                                className="bg-primary h-full transition-all duration-500 ease-out"
+                                style={{ width: `${bulkImportProgress.percent}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
                         <Button type="submit" disabled={bulkImporting} className="w-full">
                           {bulkImporting ? (
                             <>
                               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Importing Questions...
+                              {bulkImportProgress.stage || "Importing Questions..."}
                             </>
                           ) : (
                             <>
