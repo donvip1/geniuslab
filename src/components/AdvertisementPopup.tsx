@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { X, ExternalLink } from "lucide-react";
+import { trackAdClick } from "@/hooks/usePageTracking";
 
 interface Advertisement {
   id: string;
@@ -69,40 +70,14 @@ export const AdvertisementPopup = ({
     setAdIndex((prev) => prev + 1);
   };
 
-  const handleAdClick = () => {
+  const handleVisitLink = async () => {
     if (currentAd?.link_url) {
+      await trackAdClick(currentAd.id);
       window.open(currentAd.link_url, '_blank', 'noopener,noreferrer');
     }
   };
 
   if (!currentAd) return null;
-
-  const AdContent = () => (
-    <>
-      {currentAd.image_url && (
-        <img
-          src={currentAd.image_url}
-          alt={currentAd.title}
-          className={`w-full h-48 object-cover ${currentAd.link_url ? 'cursor-pointer' : ''}`}
-        />
-      )}
-
-      <div className="p-6">
-        <h3 className="text-xl font-bold mb-2">{currentAd.title}</h3>
-        {currentAd.content && (
-          <p className="text-muted-foreground whitespace-pre-wrap">
-            {currentAd.content}
-          </p>
-        )}
-        {currentAd.link_url && (
-          <div className="mt-4 flex items-center gap-2 text-primary font-medium">
-            <ExternalLink className="h-4 w-4" />
-            <span>Click to learn more</span>
-          </div>
-        )}
-      </div>
-    </>
-  );
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -118,16 +93,31 @@ export const AdvertisementPopup = ({
             <X className="h-4 w-4" />
           </Button>
 
-          {currentAd.link_url ? (
-            <div 
-              onClick={handleAdClick}
-              className="cursor-pointer hover:opacity-90 transition-opacity"
-            >
-              <AdContent />
-            </div>
-          ) : (
-            <AdContent />
+          {currentAd.image_url && (
+            <img
+              src={currentAd.image_url}
+              alt={currentAd.title}
+              className="w-full h-48 object-cover"
+            />
           )}
+
+          <div className="p-6">
+            <h3 className="text-xl font-bold mb-2">{currentAd.title}</h3>
+            {currentAd.content && (
+              <p className="text-muted-foreground whitespace-pre-wrap mb-4">
+                {currentAd.content}
+              </p>
+            )}
+            {currentAd.link_url && (
+              <Button 
+                onClick={handleVisitLink}
+                className="w-full"
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Visit Link
+              </Button>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
