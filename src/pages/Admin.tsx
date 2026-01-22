@@ -40,6 +40,7 @@ interface Advertisement {
   title: string;
   content: string | null;
   image_url: string | null;
+  link_url: string | null;
   is_active: boolean;
 }
 
@@ -81,12 +82,14 @@ const Admin = () => {
   const [adTitle, setAdTitle] = useState("");
   const [adContent, setAdContent] = useState("");
   const [adImageUrl, setAdImageUrl] = useState("");
+  const [adLinkUrl, setAdLinkUrl] = useState("");
   const [adImageFile, setAdImageFile] = useState<File | null>(null);
   const [adUploading, setAdUploading] = useState(false);
   const [editingAd, setEditingAd] = useState<Advertisement | null>(null);
   const [editAdTitle, setEditAdTitle] = useState("");
   const [editAdContent, setEditAdContent] = useState("");
   const [editAdImageUrl, setEditAdImageUrl] = useState("");
+  const [editAdLinkUrl, setEditAdLinkUrl] = useState("");
   const [editAdImageFile, setEditAdImageFile] = useState<File | null>(null);
 
   // Document Upload State
@@ -396,6 +399,7 @@ const Admin = () => {
             title: adTitle,
             content: adContent || null,
             image_url: finalImageUrl,
+            link_url: adLinkUrl || null,
             created_by: user.id,
           },
         ]);
@@ -414,6 +418,7 @@ const Admin = () => {
         setAdTitle("");
         setAdContent("");
         setAdImageUrl("");
+        setAdLinkUrl("");
         setAdImageFile(null);
         fetchAdvertisements();
       }
@@ -457,6 +462,7 @@ const Admin = () => {
           title: editAdTitle,
           content: editAdContent || null,
           image_url: finalImageUrl,
+          link_url: editAdLinkUrl || null,
         })
         .eq("id", adId);
 
@@ -530,6 +536,7 @@ const Admin = () => {
     setEditAdTitle(ad.title);
     setEditAdContent(ad.content || "");
     setEditAdImageUrl(ad.image_url || "");
+    setEditAdLinkUrl(ad.link_url || "");
   };
 
   const handleUpdateQuestion = async (questionId: string) => {
@@ -1830,6 +1837,17 @@ Or any other format - our AI will parse it automatically!`}
                         )}
                       </div>
                       <div>
+                        <Label htmlFor="ad-link">Link URL (Optional)</Label>
+                        <Input
+                          id="ad-link"
+                          value={adLinkUrl}
+                          onChange={(e) => setAdLinkUrl(e.target.value)}
+                          placeholder="https://example.com/learn-more"
+                          type="url"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Add a link to make the ad clickable</p>
+                      </div>
+                      <div>
                         <Label htmlFor="ad-content">Ad Content (Optional)</Label>
                         <Textarea
                           id="ad-content"
@@ -1908,6 +1926,12 @@ Or any other format - our AI will parse it automatically!`}
                                     </div>
                                   )}
                                 </div>
+                                <Input
+                                  value={editAdLinkUrl}
+                                  onChange={(e) => setEditAdLinkUrl(e.target.value)}
+                                  placeholder="Link URL (optional)"
+                                  type="url"
+                                />
                                 <Textarea
                                   value={editAdContent}
                                   onChange={(e) => setEditAdContent(e.target.value)}
@@ -1941,6 +1965,11 @@ Or any other format - our AI will parse it automatically!`}
                                     </span>
                                   </div>
                                 </div>
+                                {ad.link_url && (
+                                  <a href={ad.link_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                                    🔗 {ad.link_url.length > 30 ? ad.link_url.substring(0, 30) + '...' : ad.link_url}
+                                  </a>
+                                )}
                                 {ad.image_url && (
                                   <img src={ad.image_url} alt={ad.title} className="w-full h-24 object-cover rounded mt-2" />
                                 )}
