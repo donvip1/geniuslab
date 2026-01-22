@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users, Eye, UserPlus, Activity, MousePointerClick, RefreshCw, TrendingUp } from "lucide-react";
 import { Loader2 } from "lucide-react";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 
 interface AnalyticsData {
   totalPageViews: number;
@@ -14,6 +16,7 @@ interface AnalyticsData {
   newUsersToday: number;
   topPages: { page_path: string; views: number }[];
   adClicks: { title: string; clicks: number }[];
+  pageViewsOverTime: { date: string; views: number; visitors: number }[];
 }
 
 export const AnalyticsDashboard = () => {
@@ -28,6 +31,7 @@ export const AnalyticsDashboard = () => {
     newUsersToday: 0,
     topPages: [],
     adClicks: [],
+    pageViewsOverTime: [],
   });
 
   const getDateRange = () => {
@@ -52,6 +56,53 @@ export const AnalyticsDashboard = () => {
     }
     
     return startDate.toISOString();
+  };
+
+  const processPageViewsOverTime = (pageViews: any[], startDate: string) => {
+    const now = new Date();
+    const start = new Date(startDate);
+    const isHourly = timeRange === "24h";
+    
+    const dataMap: Record<string, { views: number; sessions: Set<string> }> = {};
+    
+    // Initialize all time slots
+    if (isHourly) {
+      for (let i = 0; i < 24; i++) {
+        const date = new Date(now.getTime() - (23 - i) * 60 * 60 * 1000);
+        const key = date.toISOString().slice(0, 13); // YYYY-MM-DDTHH
+        dataMap[key] = { views: 0, sessions: new Set() };
+      }
+    } else {
+      const days = timeRange === "7d" ? 7 : timeRange === "30d" ? 30 : 30;
+      for (let i = 0; i < days; i++) {
+        const date = new Date(now.getTime() - (days - 1 - i) * 24 * 60 * 60 * 1000);
+        const key = date.toISOString().slice(0, 10); // YYYY-MM-DD
+        dataMap[key] = { views: 0, sessions: new Set() };
+      }
+    }
+    
+    // Fill in actual data
+    pageViews?.forEach(pv => {
+      const date = new Date(pv.created_at);
+      const key = isHourly 
+        ? date.toISOString().slice(0, 13)
+        : date.toISOString().slice(0, 10);
+      
+      if (dataMap[key]) {
+        dataMap[key].views += 1;
+        dataMap[key].sessions.add(pv.session_id);
+      }
+    });
+    
+    return Object.entries(dataMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => ({
+        date: isHourly 
+          ? new Date(key + ":00:00Z").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : new Date(key).toLocaleDateString([], { month: 'short', day: 'numeric' }),
+        views: value.views,
+        visitors: value.sessions.size,
+      }));
   };
 
   const fetchAnalytics = async () => {
@@ -99,6 +150,9 @@ export const AnalyticsDashboard = () => {
         .select("title, click_count")
         .order("click_count", { ascending: false });
 
+      // Process page views over time for chart
+      const pageViewsOverTime = processPageViewsOverTime(pageViews || [], startDate);
+
       setAnalytics({
         totalPageViews: totalViews || 0,
         uniqueVisitors: uniqueSessions.size,
@@ -107,6 +161,7 @@ export const AnalyticsDashboard = () => {
         newUsersToday: newUsersToday || 0,
         topPages,
         adClicks: adClicks?.map(ad => ({ title: ad.title, clicks: ad.click_count })) || [],
+        pageViewsOverTime,
       });
     } catch (error) {
       console.error("Error fetching analytics:", error);
@@ -132,6 +187,17 @@ export const AnalyticsDashboard = () => {
       </div>
     );
   }
+
+  const chartConfig = {
+    views: {
+      label: "Page Views",
+      color: "hsl(var(--primary))",
+    },
+    visitors: {
+      label: "Unique Visitors",
+      color: "hsl(var(--secondary))",
+    },
+  };
 
   return (
     <div className="space-y-6">
@@ -163,8 +229,8 @@ export const AnalyticsDashboard = () => {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-500/10 rounded-lg">
-                <Eye className="h-5 w-5 text-blue-500" />
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Eye className="h-5 w-5 text-primary" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{analytics.totalPageViews.toLocaleString()}</p>
@@ -177,8 +243,8 @@ export const AnalyticsDashboard = () => {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-500/10 rounded-lg">
-                <Users className="h-5 w-5 text-green-500" />
+              <div className="p-2 bg-secondary/10 rounded-lg">
+                <Users className="h-5 w-5 text-secondary-foreground" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{analytics.uniqueVisitors.toLocaleString()}</p>
@@ -191,8 +257,8 @@ export const AnalyticsDashboard = () => {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-500/10 rounded-lg">
-                <UserPlus className="h-5 w-5 text-purple-500" />
+              <div className="p-2 bg-accent/10 rounded-lg">
+                <UserPlus className="h-5 w-5 text-accent-foreground" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{analytics.registeredUsers.toLocaleString()}</p>
@@ -205,8 +271,8 @@ export const AnalyticsDashboard = () => {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-500/10 rounded-lg">
-                <Activity className="h-5 w-5 text-orange-500" />
+              <div className="p-2 bg-muted rounded-lg">
+                <Activity className="h-5 w-5 text-foreground" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{analytics.activeUsers.toLocaleString()}</p>
@@ -219,8 +285,8 @@ export const AnalyticsDashboard = () => {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-500/10 rounded-lg">
-                <TrendingUp className="h-5 w-5 text-emerald-500" />
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <TrendingUp className="h-5 w-5 text-primary" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{analytics.newUsersToday.toLocaleString()}</p>
@@ -230,6 +296,65 @@ export const AnalyticsDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Page Views Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Traffic Over Time</CardTitle>
+          <CardDescription>
+            Page views and unique visitors {timeRange === "24h" ? "by hour" : "by day"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {analytics.pageViewsOverTime.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">No traffic data yet</p>
+          ) : (
+            <ChartContainer config={chartConfig} className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={analytics.pageViewsOverTime} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorVisitors" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--secondary))" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="hsl(var(--secondary))" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis 
+                    dataKey="date" 
+                    className="text-xs"
+                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  />
+                  <YAxis 
+                    className="text-xs"
+                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Area 
+                    type="monotone" 
+                    dataKey="views" 
+                    stroke="hsl(var(--primary))" 
+                    fillOpacity={1} 
+                    fill="url(#colorViews)" 
+                    strokeWidth={2}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="visitors" 
+                    stroke="hsl(var(--secondary))" 
+                    fillOpacity={1} 
+                    fill="url(#colorVisitors)" 
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid md:grid-cols-2 gap-6">
         {/* Top Pages */}
