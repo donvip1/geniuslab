@@ -2,22 +2,23 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { X, ExternalLink } from "lucide-react";
 
 interface Advertisement {
   id: string;
   title: string;
   content: string | null;
   image_url: string | null;
+  link_url: string | null;
 }
 
 interface AdvertisementPopupProps {
-  intervalMs?: number; // Custom interval in milliseconds
-  initialDelayMs?: number; // Custom initial delay in milliseconds
+  intervalMs?: number;
+  initialDelayMs?: number;
 }
 
-const DEFAULT_POPUP_INTERVAL = 90000; // 90 seconds (1:30)
-const DEFAULT_INITIAL_DELAY = 10000; // 10 seconds
+const DEFAULT_POPUP_INTERVAL = 90000;
+const DEFAULT_INITIAL_DELAY = 10000;
 
 export const AdvertisementPopup = ({ 
   intervalMs = DEFAULT_POPUP_INTERVAL,
@@ -35,12 +36,10 @@ export const AdvertisementPopup = ({
   useEffect(() => {
     if (ads.length === 0) return;
 
-    // Show first ad after initial delay
     const initialTimeout = setTimeout(() => {
       showNextAd();
     }, initialDelayMs);
 
-    // Then show ads at configured interval
     const interval = setInterval(() => {
       showNextAd();
     }, intervalMs);
@@ -70,7 +69,40 @@ export const AdvertisementPopup = ({
     setAdIndex((prev) => prev + 1);
   };
 
+  const handleAdClick = () => {
+    if (currentAd?.link_url) {
+      window.open(currentAd.link_url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   if (!currentAd) return null;
+
+  const AdContent = () => (
+    <>
+      {currentAd.image_url && (
+        <img
+          src={currentAd.image_url}
+          alt={currentAd.title}
+          className={`w-full h-48 object-cover ${currentAd.link_url ? 'cursor-pointer' : ''}`}
+        />
+      )}
+
+      <div className="p-6">
+        <h3 className="text-xl font-bold mb-2">{currentAd.title}</h3>
+        {currentAd.content && (
+          <p className="text-muted-foreground whitespace-pre-wrap">
+            {currentAd.content}
+          </p>
+        )}
+        {currentAd.link_url && (
+          <div className="mt-4 flex items-center gap-2 text-primary font-medium">
+            <ExternalLink className="h-4 w-4" />
+            <span>Click to learn more</span>
+          </div>
+        )}
+      </div>
+    </>
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -86,22 +118,16 @@ export const AdvertisementPopup = ({
             <X className="h-4 w-4" />
           </Button>
 
-          {currentAd.image_url && (
-            <img
-              src={currentAd.image_url}
-              alt={currentAd.title}
-              className="w-full h-48 object-cover"
-            />
+          {currentAd.link_url ? (
+            <div 
+              onClick={handleAdClick}
+              className="cursor-pointer hover:opacity-90 transition-opacity"
+            >
+              <AdContent />
+            </div>
+          ) : (
+            <AdContent />
           )}
-
-          <div className="p-6">
-            <h3 className="text-xl font-bold mb-2">{currentAd.title}</h3>
-            {currentAd.content && (
-              <p className="text-muted-foreground whitespace-pre-wrap">
-                {currentAd.content}
-              </p>
-            )}
-          </div>
         </div>
       </DialogContent>
     </Dialog>
