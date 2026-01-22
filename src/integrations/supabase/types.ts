@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      ad_clicks: {
+        Row: {
+          advertisement_id: string
+          created_at: string
+          id: string
+          session_id: string
+          user_id: string | null
+        }
+        Insert: {
+          advertisement_id: string
+          created_at?: string
+          id?: string
+          session_id: string
+          user_id?: string | null
+        }
+        Update: {
+          advertisement_id?: string
+          created_at?: string
+          id?: string
+          session_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_clicks_advertisement_id_fkey"
+            columns: ["advertisement_id"]
+            isOneToOne: false
+            referencedRelation: "advertisements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       admin_credentials: {
         Row: {
           created_at: string
@@ -40,6 +72,7 @@ export type Database = {
       }
       advertisements: {
         Row: {
+          click_count: number
           content: string | null
           created_at: string
           created_by: string | null
@@ -51,6 +84,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          click_count?: number
           content?: string | null
           created_at?: string
           created_by?: string | null
@@ -62,6 +96,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          click_count?: number
           content?: string | null
           created_at?: string
           created_by?: string | null
@@ -195,6 +230,36 @@ export type Database = {
           id?: string
           is_exam_mode?: boolean
           updated_at?: string
+        }
+        Relationships: []
+      }
+      page_views: {
+        Row: {
+          created_at: string
+          id: string
+          page_path: string
+          referrer: string | null
+          session_id: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          page_path: string
+          referrer?: string | null
+          session_id: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          page_path?: string
+          referrer?: string | null
+          session_id?: string
+          user_agent?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -480,6 +545,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_ad_click: { Args: { ad_id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "student"
