@@ -11,9 +11,18 @@ interface Advertisement {
   image_url: string | null;
 }
 
-const POPUP_INTERVAL = 90000; // 90 seconds (1:30)
+interface AdvertisementPopupProps {
+  intervalMs?: number; // Custom interval in milliseconds
+  initialDelayMs?: number; // Custom initial delay in milliseconds
+}
 
-export const AdvertisementPopup = () => {
+const DEFAULT_POPUP_INTERVAL = 90000; // 90 seconds (1:30)
+const DEFAULT_INITIAL_DELAY = 10000; // 10 seconds
+
+export const AdvertisementPopup = ({ 
+  intervalMs = DEFAULT_POPUP_INTERVAL,
+  initialDelayMs = DEFAULT_INITIAL_DELAY 
+}: AdvertisementPopupProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [currentAd, setCurrentAd] = useState<Advertisement | null>(null);
   const [ads, setAds] = useState<Advertisement[]>([]);
@@ -26,21 +35,21 @@ export const AdvertisementPopup = () => {
   useEffect(() => {
     if (ads.length === 0) return;
 
-    // Show first ad after 10 seconds
+    // Show first ad after initial delay
     const initialTimeout = setTimeout(() => {
       showNextAd();
-    }, 10000);
+    }, initialDelayMs);
 
-    // Then show ads every 60 seconds
+    // Then show ads at configured interval
     const interval = setInterval(() => {
       showNextAd();
-    }, POPUP_INTERVAL);
+    }, intervalMs);
 
     return () => {
       clearTimeout(initialTimeout);
       clearInterval(interval);
     };
-  }, [ads, adIndex]);
+  }, [ads, adIndex, intervalMs, initialDelayMs]);
 
   const fetchAds = async () => {
     const { data, error } = await supabase
