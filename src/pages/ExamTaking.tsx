@@ -20,6 +20,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { FounderWelcomePopup } from "@/components/FounderWelcomePopup";
+import { AdvertisementPopup } from "@/components/AdvertisementPopup";
 
 // Question interface WITHOUT correct_answer and explanation (security: hidden from client)
 interface Question {
@@ -314,6 +315,14 @@ const ExamTaking = () => {
         isOpen={showFounderPopup && !loading}
         onClose={handleCloseFounderPopup}
       />
+      
+      {/* Advertisement Popup - Shows every 7 minutes during exam */}
+      {examStarted && (
+        <AdvertisementPopup 
+          intervalMs={420000} // 7 minutes
+          initialDelayMs={420000} // First ad after 7 minutes
+        />
+      )}
       <div className="bg-gradient-to-br from-primary to-secondary text-primary-foreground py-4 px-4 sticky top-0 z-10 shadow-md">
         <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           <div>
