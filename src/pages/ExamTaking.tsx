@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { FounderWelcomePopup } from "@/components/FounderWelcomePopup";
 import { AdvertisementPopup } from "@/components/AdvertisementPopup";
+import { ExamLockedScreen } from "@/components/ExamLockedScreen";
+import { UserRestrictedScreen } from "@/components/UserRestrictedScreen";
 
 // Question interface WITHOUT correct_answer and explanation (security: hidden from client)
 interface Question {
@@ -44,6 +46,12 @@ const getQuestionLimit = (subjectName: string): number => {
   return isLimitedSubject ? 40 : 100;
 };
 
+interface UserRestriction {
+  restriction_type: "paused" | "suspended" | "banned";
+  reason: string | null;
+  expires_at: string | null;
+}
+
 const ExamTaking = () => {
   const { subjectSlug } = useParams();
   const navigate = useNavigate();
@@ -62,6 +70,12 @@ const ExamTaking = () => {
   const [showFounderPopup, setShowFounderPopup] = useState(true);
   const [examStarted, setExamStarted] = useState(false);
   const [isExamMode, setIsExamMode] = useState(false);
+  
+  // Access control state
+  const [isExamsLocked, setIsExamsLocked] = useState(false);
+  const [lockMessage, setLockMessage] = useState<string | null>(null);
+  const [userRestriction, setUserRestriction] = useState<UserRestriction | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Pagination for question navigator
   const currentPage = Math.floor(currentQuestionIndex / QUESTIONS_PER_PAGE);
@@ -71,9 +85,53 @@ const ExamTaking = () => {
   const visibleQuestions = questions.slice(startIndex, endIndex);
 
   useEffect(() => {
+    checkAccessControl();
     fetchExamSettings();
     fetchQuestionsAndSubject();
   }, [subjectSlug]);
+
+  const checkAccessControl = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate("/auth");
+        return;
+      }
+
+      // Check if user is admin
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      setIsAdmin(!!roleData);
+
+      // Check user restrictions
+      const { data: restrictionData } = await supabase
+        .from("user_restrictions")
+        .select("restriction_type, reason, expires_at")
+        .eq("user_id", session.user.id)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (restrictionData) {
+        // Check if restriction has expired
+        if (restrictionData.expires_at && new Date(restrictionData.expires_at) < new Date()) {
+          await supabase
+            .from("user_restrictions")
+            .update({ is_active: false })
+            .eq("user_id", session.user.id)
+            .eq("is_active", true);
+        } else {
+          setUserRestriction(restrictionData as UserRestriction);
+        }
+      }
+    } catch (error) {
+      console.error("Error checking access control:", error);
+    }
+  };
 
   const fetchExamSettings = async () => {
     try {
@@ -90,6 +148,9 @@ const ExamTaking = () => {
 
       if (data) {
         setIsExamMode(data.is_exam_mode);
+        setIsExamsLocked(data.is_exams_locked || false);
+        setLockMessage(data.lock_message);
+        
         if (data.is_exam_mode && data.exam_duration_minutes) {
           const durationSeconds = data.exam_duration_minutes * 60;
           setTimeLeft(durationSeconds);
@@ -304,6 +365,22 @@ const ExamTaking = () => {
         </div>
       </div>
     );
+  }
+
+  // Show restriction screen if user is restricted
+  if (userRestriction) {
+    return (
+      <UserRestrictedScreen
+        restrictionType={userRestriction.restriction_type}
+        reason={userRestriction.reason}
+        expiresAt={userRestriction.expires_at}
+      />
+    );
+  }
+
+  // Show lock screen if exams are locked (except for admins)
+  if (isExamsLocked && !isAdmin) {
+    return <ExamLockedScreen message={lockMessage} />;
   }
 
   const currentQuestion = questions[currentQuestionIndex];

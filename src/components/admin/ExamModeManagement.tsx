@@ -5,11 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Download, FileText, Clock, Users, Trophy, AlertCircle, RefreshCw, Trash2, Calendar, Filter } from "lucide-react";
+import { Loader2, Download, FileText, Clock, Users, Trophy, AlertCircle, RefreshCw, Trash2, Calendar, Filter, Lock } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import jsPDF from "jspdf";
 
@@ -19,6 +20,8 @@ interface ExamSettings {
   exam_duration_minutes: number;
   exam_start_time: string | null;
   exam_end_time: string | null;
+  is_exams_locked: boolean;
+  lock_message: string | null;
 }
 
 interface ExamAttemptWithProfile {
@@ -59,6 +62,9 @@ export const ExamModeManagement = () => {
   const [selectedSubject, setSelectedSubject] = useState<string>("all");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+  
+  // Lock message state
+  const [lockMessage, setLockMessage] = useState<string>("");
 
   useEffect(() => {
     fetchSettings();
@@ -109,7 +115,12 @@ export const ExamModeManagement = () => {
       if (error) throw error;
       
       if (data) {
-        setSettings(data);
+        setSettings({
+          ...data,
+          is_exams_locked: data.is_exams_locked || false,
+          lock_message: data.lock_message || null,
+        });
+        setLockMessage(data.lock_message || "");
         if (data.is_exam_mode) {
           fetchExamAttempts();
         }
@@ -122,6 +133,69 @@ export const ExamModeManagement = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleExamLock = async (checked: boolean) => {
+    if (!settings) return;
+    
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("exam_settings")
+        .update({ 
+          is_exams_locked: checked,
+          lock_message: lockMessage || null,
+        })
+        .eq("id", settings.id);
+
+      if (error) throw error;
+
+      setSettings(prev => prev ? { ...prev, is_exams_locked: checked } : null);
+
+      toast({
+        title: checked ? "Exams Locked" : "Exams Unlocked",
+        description: checked 
+          ? "All students are now blocked from accessing exams"
+          : "Students can now access exams normally",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to update exam lock",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveLockMessage = async () => {
+    if (!settings) return;
+    
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("exam_settings")
+        .update({ lock_message: lockMessage || null })
+        .eq("id", settings.id);
+
+      if (error) throw error;
+
+      setSettings(prev => prev ? { ...prev, lock_message: lockMessage || null } : null);
+
+      toast({
+        title: "Message Saved",
+        description: "Lock message has been updated",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to save message",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -557,6 +631,59 @@ export const ExamModeManagement = () => {
 
   return (
     <div className="space-y-6">
+      {/* Global Exam Lock Card */}
+      <Card className={settings?.is_exams_locked ? "border-destructive" : ""}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Lock className="h-5 w-5" />
+            Global Exam Lock
+          </CardTitle>
+          <CardDescription>
+            Lock the entire exam section to prevent all students from accessing exams
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/50">
+            <div className="space-y-1">
+              <Label htmlFor="exam-lock" className="text-base font-semibold">
+                {settings?.is_exams_locked ? "Exams are LOCKED" : "Exams are OPEN"}
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                {settings?.is_exams_locked 
+                  ? "No students can access the exam section (except admins)"
+                  : "Students can access exams normally"}
+              </p>
+            </div>
+            <Switch
+              id="exam-lock"
+              checked={settings?.is_exams_locked || false}
+              onCheckedChange={handleToggleExamLock}
+              disabled={saving}
+            />
+          </div>
+
+          {settings?.is_exams_locked && (
+            <div className="space-y-3">
+              <Label>Lock Message (shown to students)</Label>
+              <Textarea
+                placeholder="Enter a message to explain why exams are locked..."
+                value={lockMessage}
+                onChange={(e) => setLockMessage(e.target.value)}
+                rows={2}
+              />
+              <Button 
+                onClick={handleSaveLockMessage} 
+                disabled={saving}
+                variant="outline"
+                size="sm"
+              >
+                Save Message
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Exam Mode Toggle Card */}
       <Card>
         <CardHeader>
