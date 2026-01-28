@@ -211,6 +211,8 @@ export type Database = {
           exam_start_time: string | null
           id: string
           is_exam_mode: boolean
+          is_exams_locked: boolean | null
+          lock_message: string | null
           updated_at: string
         }
         Insert: {
@@ -220,6 +222,8 @@ export type Database = {
           exam_start_time?: string | null
           id?: string
           is_exam_mode?: boolean
+          is_exams_locked?: boolean | null
+          lock_message?: string | null
           updated_at?: string
         }
         Update: {
@@ -229,6 +233,8 @@ export type Database = {
           exam_start_time?: string | null
           id?: string
           is_exam_mode?: boolean
+          is_exams_locked?: boolean | null
+          lock_message?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -463,6 +469,42 @@ export type Database = {
           name?: string
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      user_restrictions: {
+        Row: {
+          created_at: string | null
+          email: string
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          reason: string | null
+          restricted_by: string
+          restriction_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          reason?: string | null
+          restricted_by: string
+          restriction_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          reason?: string | null
+          restricted_by?: string
+          restriction_type?: string
+          user_id?: string
         }
         Relationships: []
       }

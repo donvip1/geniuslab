@@ -8,12 +8,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { BookOpen, Clock, User, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ExamLockedScreen } from "@/components/ExamLockedScreen";
+import { UserRestrictedScreen } from "@/components/UserRestrictedScreen";
 
 interface Subject {
   id: string;
   name: string;
   description: string;
   level: string;
+}
+
+interface UserRestriction {
+  restriction_type: "paused" | "suspended" | "banned";
+  reason: string | null;
+  expires_at: string | null;
 }
 
 const Exam = () => {
@@ -23,11 +31,60 @@ const Exam = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedLevel, setSelectedLevel] = useState<string>("100L");
+  const [isExamsLocked, setIsExamsLocked] = useState(false);
+  const [lockMessage, setLockMessage] = useState<string | null>(null);
+  const [userRestriction, setUserRestriction] = useState<UserRestriction | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     checkUser();
     fetchSubjects();
+    checkExamLock();
   }, []);
+
+  const checkExamLock = async () => {
+    try {
+      const { data } = await supabase
+        .from("exam_settings")
+        .select("is_exams_locked, lock_message")
+        .limit(1)
+        .maybeSingle();
+
+      if (data) {
+        setIsExamsLocked(data.is_exams_locked || false);
+        setLockMessage(data.lock_message);
+      }
+    } catch (error) {
+      console.error("Error checking exam lock:", error);
+    }
+  };
+
+  const checkUserRestriction = async (userId: string) => {
+    try {
+      const { data } = await supabase
+        .from("user_restrictions")
+        .select("restriction_type, reason, expires_at")
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (data) {
+        // Check if restriction has expired
+        if (data.expires_at && new Date(data.expires_at) < new Date()) {
+          // Restriction expired, mark as inactive
+          await supabase
+            .from("user_restrictions")
+            .update({ is_active: false })
+            .eq("user_id", userId)
+            .eq("is_active", true);
+          return;
+        }
+        setUserRestriction(data as UserRestriction);
+      }
+    } catch (error) {
+      console.error("Error checking user restriction:", error);
+    }
+  };
 
   const checkUser = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -38,6 +95,20 @@ const Exam = () => {
     }
     
     setUser(session.user);
+
+    // Check if user is admin
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .eq("role", "admin")
+      .maybeSingle();
+
+    setIsAdmin(!!roleData);
+
+    // Check user restrictions
+    await checkUserRestriction(session.user.id);
+    
     setLoading(false);
   };
 
@@ -94,6 +165,22 @@ const Exam = () => {
         </div>
       </div>
     );
+  }
+
+  // Show restriction screen if user is restricted
+  if (userRestriction) {
+    return (
+      <UserRestrictedScreen
+        restrictionType={userRestriction.restriction_type}
+        reason={userRestriction.reason}
+        expiresAt={userRestriction.expires_at}
+      />
+    );
+  }
+
+  // Show lock screen if exams are locked (except for admins)
+  if (isExamsLocked && !isAdmin) {
+    return <ExamLockedScreen message={lockMessage} />;
   }
 
   return (

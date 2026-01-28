@@ -10,11 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, FileText, BookOpen, Loader2, Pencil, Trash2, X, Check, ChevronDown, ChevronUp, ClipboardPaste, Megaphone, Users, Star, Clock, BarChart3 } from "lucide-react";
+import { Upload, FileText, BookOpen, Loader2, Pencil, Trash2, X, Check, ChevronDown, ChevronUp, ClipboardPaste, Megaphone, Users, Star, Clock, BarChart3, UserX } from "lucide-react";
 import { TeamExpertManagement } from "@/components/admin/TeamExpertManagement";
 import { SuccessStoryManagement } from "@/components/admin/SuccessStoryManagement";
 import { ExamModeManagement } from "@/components/admin/ExamModeManagement";
 import { AnalyticsDashboard } from "@/components/admin/AnalyticsDashboard";
+import { UserManagement } from "@/components/admin/UserManagement";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -916,7 +917,7 @@ const Admin = () => {
           </div>
 
           <Tabs defaultValue="subjects" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-8 max-w-5xl">
+            <TabsList className="grid w-full grid-cols-9 max-w-6xl">
               <TabsTrigger value="subjects">
                 <BookOpen className="h-4 w-4 mr-1" />
                 <span className="hidden sm:inline">Subjects</span>
@@ -932,6 +933,10 @@ const Admin = () => {
               <TabsTrigger value="exammode">
                 <Clock className="h-4 w-4 mr-1" />
                 <span className="hidden sm:inline">Exam Mode</span>
+              </TabsTrigger>
+              <TabsTrigger value="users">
+                <UserX className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Users</span>
               </TabsTrigger>
               <TabsTrigger value="ads">
                 <Megaphone className="h-4 w-4 mr-1" />
@@ -2024,6 +2029,11 @@ Or any other format - our AI will parse it automatically!`}
             {/* Exam Mode Tab */}
             <TabsContent value="exammode">
               <ExamModeManagement />
+            </TabsContent>
+
+            {/* User Management Tab */}
+            <TabsContent value="users">
+              <UserManagement />
             </TabsContent>
 
             {/* Team Experts Tab */}
