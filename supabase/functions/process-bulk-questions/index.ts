@@ -98,17 +98,42 @@ serve(async (req) => {
     }
 
     if (allQuestions.length === 0) {
-      const errorMsg = chunkErrors.length > 0 
-        ? `Failed to extract questions. Errors: ${chunkErrors.join("; ")}`
-        : "No questions could be extracted from the text. Please check the format and ensure questions are clearly numbered or structured.";
+      // Check for specific error types
+      const quotaError = chunkErrors.find(e => e.includes("QUOTA_EXCEEDED"));
+      const rateLimitError = chunkErrors.find(e => e.includes("RATE_LIMITED"));
+      const authError = chunkErrors.find(e => e.includes("invalid") || e.includes("unauthorized"));
       
-      console.error("process-bulk-questions: No questions extracted");
+      let errorMsg: string;
+      let errorCode: string;
+      let statusCode = 400;
+      
+      if (quotaError) {
+        errorMsg = "Your Gemini API quota has been exhausted. Please check your Google AI Studio billing settings at https://aistudio.google.com/ or wait for your daily quota to reset.";
+        errorCode = "QUOTA_EXCEEDED";
+        statusCode = 429;
+      } else if (rateLimitError) {
+        errorMsg = "Too many requests. Please wait 30-60 seconds and try again.";
+        errorCode = "RATE_LIMITED";
+        statusCode = 429;
+      } else if (authError) {
+        errorMsg = "Gemini API key issue. Please verify your API key is valid and has the correct permissions.";
+        errorCode = "AUTH_ERROR";
+        statusCode = 401;
+      } else if (chunkErrors.length > 0) {
+        errorMsg = `Failed to extract questions: ${chunkErrors.join("; ")}`;
+        errorCode = "EXTRACTION_FAILED";
+      } else {
+        errorMsg = "No questions could be extracted from the text. Please check the format and ensure questions are clearly numbered or structured.";
+        errorCode = "NO_QUESTIONS_FOUND";
+      }
+      
+      console.error("process-bulk-questions: No questions extracted, code:", errorCode);
       return new Response(
         JSON.stringify({ 
           error: errorMsg,
-          code: "NO_QUESTIONS_FOUND" 
+          code: errorCode 
         }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: statusCode, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -370,7 +395,15 @@ Output JSON format:
     console.error("process-bulk-questions: Gemini API error:", response.status, errorText);
     
     if (response.status === 429) {
-      throw new Error("Gemini rate limit reached. Please try again in a few moments.");
+      // Check if it's a quota exceeded vs rate limit
+      if (errorText.includes("quota") || errorText.includes("RESOURCE_EXHAUSTED")) {
+        throw new Error("QUOTA_EXCEEDED: Your Gemini API quota has been exhausted. Please check your Google AI Studio billing settings or wait for your quota to reset.");
+      }
+      throw new Error("RATE_LIMITED: Gemini rate limit reached. Please wait a moment and try again.");
+    } else if (response.status === 400) {
+      throw new Error("Invalid request to Gemini. Please check your API key configuration.");
+    } else if (response.status === 401 || response.status === 403) {
+      throw new Error("Gemini API key is invalid or unauthorized. Please check your API key in backend secrets.");
     } else if (response.status === 413) {
       throw new Error("Text is too large for processing. Please try with fewer questions.");
     } else if (response.status >= 500) {
