@@ -169,89 +169,95 @@ serve(async (req) => {
 });
 
 async function extractTextFromImage(base64Image: string): Promise<string> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
-  console.log("Extracting text from image using AI vision...");
+  if (!GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY is not configured");
+  }
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Extract all text from this image. This may contain handwritten notes or printed exam questions. Please transcribe everything you see accurately, maintaining the structure, question numbers, options (A, B, C, D), and formatting as much as possible. Include all mathematical formulas, symbols, and expressions.",
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`,
+  console.log("Extracting text from image using Gemini vision...");
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: "Extract all text from this image. This may contain handwritten notes or printed exam questions. Please transcribe everything you see accurately, maintaining the structure, question numbers, options (A, B, C, D), and formatting as much as possible. Include all mathematical formulas, symbols, and expressions.",
               },
-            },
-          ],
-        },
-      ],
-    }),
-  });
+              {
+                inline_data: {
+                  mime_type: "image/jpeg",
+                  data: base64Image,
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    }
+  );
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("AI vision error:", errorText);
-    throw new Error(`AI API error: ${errorText}`);
+    console.error("Gemini vision error:", errorText);
+    throw new Error(`Gemini API error: ${errorText}`);
   }
 
   const result = await response.json();
-  return result.choices[0].message.content;
+  return result.candidates[0].content.parts[0].text;
 }
 
 async function extractTextFromPDF(base64PDF: string): Promise<string> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
-  console.log("Extracting text from PDF using AI...");
+  if (!GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY is not configured");
+  }
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Extract all text from this PDF document. This contains exam questions. Please transcribe everything you see accurately, maintaining the structure, question numbers, options (A, B, C, D), and formatting. Include all mathematical formulas, symbols, and expressions. If there are multiple pages, extract text from all pages.",
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:application/pdf;base64,${base64PDF}`,
+  console.log("Extracting text from PDF using Gemini...");
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: "Extract all text from this PDF document. This contains exam questions. Please transcribe everything you see accurately, maintaining the structure, question numbers, options (A, B, C, D), and formatting. Include all mathematical formulas, symbols, and expressions. If there are multiple pages, extract text from all pages.",
               },
-            },
-          ],
-        },
-      ],
-    }),
-  });
+              {
+                inline_data: {
+                  mime_type: "application/pdf",
+                  data: base64PDF,
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    }
+  );
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("AI PDF extraction error:", errorText);
-    throw new Error(`AI API error: ${errorText}`);
+    console.error("Gemini PDF extraction error:", errorText);
+    throw new Error(`Gemini API error: ${errorText}`);
   }
 
   const result = await response.json();
-  return result.choices[0].message.content;
+  return result.candidates[0].content.parts[0].text;
 }
 
 function extractTextFromRTF(rtfContent: string): string {
@@ -315,22 +321,15 @@ async function extractTextFromDocx(arrayBuffer: ArrayBuffer): Promise<string> {
 }
 
 async function extractQuestions(text: string, subjectId: string): Promise<any[]> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
-  console.log("Extracting questions from text using AI...");
+  if (!GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY is not configured");
+  }
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        {
-          role: "system",
-          content: `You are an expert at extracting exam questions from educational documents. Your job is to EXTRACT the EXACT questions from the document - DO NOT create new questions or modify the existing ones.
+  console.log("Extracting questions from text using Gemini...");
+
+  const systemPrompt = `You are an expert at extracting exam questions from educational documents. Your job is to EXTRACT the EXACT questions from the document - DO NOT create new questions or modify the existing ones.
 
 CRITICAL RULES:
 1. Extract questions EXACTLY as they appear in the document
@@ -355,27 +354,42 @@ Output format - return a JSON object with a "questions" array:
 
 Rules for correct_answer:
 - Must be exactly "A", "B", "C", or "D"
-- Match it to the correct option in the options array`,
+- Match it to the correct option in the options array`;
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `${systemPrompt}\n\nExtract ALL exam questions from this document. Keep them EXACTLY as written. Do not skip any questions:\n\n${text}`,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          responseMimeType: "application/json",
         },
-        {
-          role: "user",
-          content: `Extract ALL exam questions from this document. Keep them EXACTLY as written. Do not skip any questions:\n\n${text}`,
-        },
-      ],
-      response_format: { type: "json_object" },
-    }),
-  });
+      }),
+    }
+  );
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("AI question extraction error:", errorText);
-    throw new Error(`AI API error: ${errorText}`);
+    console.error("Gemini question extraction error:", errorText);
+    throw new Error(`Gemini API error: ${errorText}`);
   }
 
   const result = await response.json();
-  const content = result.choices[0].message.content;
+  const content = result.candidates[0].content.parts[0].text;
   
-  console.log("AI response for questions:", content.substring(0, 500));
+  console.log("Gemini response for questions:", content.substring(0, 500));
   
   try {
     const parsed = JSON.parse(content);
