@@ -302,29 +302,17 @@ function validateAnswer(answer: string | undefined): string {
 }
 
 async function extractQuestions(text: string, chunkNum: number, totalChunks: number): Promise<any[]> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
   
-  if (!LOVABLE_API_KEY) {
-    console.error("process-bulk-questions: Missing LOVABLE_API_KEY");
-    throw new Error("AI service not configured. Please contact support.");
+  if (!GEMINI_API_KEY) {
+    console.error("process-bulk-questions: Missing GEMINI_API_KEY");
+    throw new Error("AI service not configured. Please add your Gemini API key.");
   }
 
-  console.log(`process-bulk-questions: Calling AI for chunk ${chunkNum}/${totalChunks}...`);
+  console.log(`process-bulk-questions: Calling Gemini for chunk ${chunkNum}/${totalChunks}...`);
   const aiStartTime = Date.now();
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      max_tokens: 16000,
-      messages: [
-        {
-          role: "system",
-          content: `You are an expert at extracting exam questions from text. Your CRITICAL job is to EXTRACT ALL questions - never skip or truncate.
+  const systemPrompt = `You are an expert at extracting exam questions from text. Your CRITICAL job is to EXTRACT ALL questions - never skip or truncate.
 
 ABSOLUTE RULES:
 1. Extract EVERY SINGLE QUESTION - there is NO limit on output
@@ -348,44 +336,59 @@ Output JSON format:
       "explanation": ""
     }
   ]
-}`,
+}`;
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `${systemPrompt}\n\nIMPORTANT: Extract EVERY question from this text without skipping any. Count them first, then return ALL of them:\n\n${text}`,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          responseMimeType: "application/json",
         },
-        {
-          role: "user",
-          content: `IMPORTANT: Extract EVERY question from this text without skipping any. Count them first, then return ALL of them:\n\n${text}`,
-        },
-      ],
-      response_format: { type: "json_object" },
-    }),
-  });
+      }),
+    }
+  );
 
   const aiDuration = Date.now() - aiStartTime;
-  console.log(`process-bulk-questions: AI response received in ${aiDuration}ms, status: ${response.status}`);
+  console.log(`process-bulk-questions: Gemini response received in ${aiDuration}ms, status: ${response.status}`);
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("process-bulk-questions: AI API error:", response.status, errorText);
+    console.error("process-bulk-questions: Gemini API error:", response.status, errorText);
     
     if (response.status === 429) {
-      throw new Error("AI service is temporarily busy. Please try again in a few moments.");
+      throw new Error("Gemini rate limit reached. Please try again in a few moments.");
     } else if (response.status === 413) {
       throw new Error("Text is too large for processing. Please try with fewer questions.");
     } else if (response.status >= 500) {
-      throw new Error("AI service is temporarily unavailable. Please try again later.");
+      throw new Error("Gemini service is temporarily unavailable. Please try again later.");
     }
     
-    throw new Error(`AI extraction failed (${response.status}): ${errorText.substring(0, 100)}`);
+    throw new Error(`Gemini extraction failed (${response.status}): ${errorText.substring(0, 100)}`);
   }
 
   const result = await response.json();
   
-  if (!result.choices?.[0]?.message?.content) {
-    console.error("process-bulk-questions: Invalid AI response structure:", JSON.stringify(result).substring(0, 200));
-    throw new Error("AI returned an invalid response. Please try again.");
+  if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
+    console.error("process-bulk-questions: Invalid Gemini response structure:", JSON.stringify(result).substring(0, 200));
+    throw new Error("Gemini returned an invalid response. Please try again.");
   }
   
-  const content = result.choices[0].message.content;
-  console.log("process-bulk-questions: AI response preview:", content.substring(0, 300));
+  const content = result.candidates[0].content.parts[0].text;
+  console.log("process-bulk-questions: Gemini response preview:", content.substring(0, 300));
 
   try {
     const parsed = JSON.parse(content);
@@ -393,7 +396,7 @@ Output JSON format:
     
     if (!Array.isArray(questions)) {
       console.error("process-bulk-questions: Parsed result is not an array:", typeof questions);
-      throw new Error("AI returned questions in an unexpected format.");
+      throw new Error("Gemini returned questions in an unexpected format.");
     }
     
     console.log(`process-bulk-questions: Chunk ${chunkNum} parsed ${questions.length} questions`);
@@ -401,6 +404,6 @@ Output JSON format:
   } catch (e: any) {
     console.error("process-bulk-questions: JSON parse error:", e.message);
     console.error("process-bulk-questions: Failed content preview:", content.substring(0, 500));
-    throw new Error("Failed to parse AI response. The text format may not be supported.");
+    throw new Error("Failed to parse Gemini response. The text format may not be supported.");
   }
 }
