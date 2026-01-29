@@ -46,17 +46,31 @@ const Auth = () => {
     confirmPassword: "" 
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [existingSession, setExistingSession] = useState<{ email: string } | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
     // Check if user is already logged in
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/exam");
+        setExistingSession({ email: session.user.email || "Unknown" });
       }
+      setCheckingSession(false);
     };
     checkUser();
-  }, [navigate]);
+  }, []);
+
+  const handleLogout = async () => {
+    setLoading(true);
+    await supabase.auth.signOut();
+    setExistingSession(null);
+    setLoading(false);
+    toast({
+      title: "Logged out",
+      description: "You have been signed out successfully.",
+    });
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -212,6 +226,69 @@ const Auth = () => {
       setLoading(false);
     }
   };
+
+  // Show loading while checking session
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-primary/90 to-secondary p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show "already logged in" UI if session exists
+  if (existingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-primary/90 to-secondary p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <img src={gecLogo} alt="GeniusLab" className="h-16 w-auto" />
+            </div>
+            <CardTitle className="text-2xl">Already Logged In</CardTitle>
+            <CardDescription>
+              You are currently signed in as <span className="font-medium">{existingSession.email}</span>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button 
+              onClick={() => navigate("/exam")} 
+              className="w-full"
+            >
+              <GraduationCap className="mr-2 h-4 w-4" />
+              Go to Exams
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={handleLogout} 
+              className="w-full"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Logging out...
+                </>
+              ) : (
+                "Logout"
+              )}
+            </Button>
+            <Button
+              variant="link"
+              onClick={() => navigate("/")}
+              className="w-full text-sm"
+            >
+              Back to Home
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-primary/90 to-secondary p-4">
