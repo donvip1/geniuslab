@@ -1,90 +1,40 @@
 
-# Plan: Fix Login Flow - Ensure Proper Authentication Sequence
 
-## The Problem
-When you click "Login", you're being redirected straight to the Exam page. This happens because:
-1. You're already logged in from a previous session
-2. The Auth page detects your existing session and automatically sends you to Exam
-3. This is confusing because you expect to see the login form
+# Plan: Fix Profiles Table Security (Prevent Email Harvesting)
 
-## The Solution
-**Remove the automatic redirect from the Auth page**. Instead:
-- If a user is already logged in and visits the Auth page, show a message like "You're already logged in" with options to go to Exam or Logout
-- This gives users control and makes it clear what's happening
+## The Problem Explained Simply
 
----
+Right now, your `profiles` table has a security rule that says "anyone who is logged in can see everyone's profile." This is dangerous because:
 
-## Technical Changes
+1. A student creates an account
+2. They can now see the email addresses of ALL students
+3. They could collect these emails for spam or sell them
 
-### File: `src/pages/Auth.tsx`
+## What We'll Change
 
-**Current Behavior (lines 50-59):**
-```tsx
-useEffect(() => {
-  const checkUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      navigate("/exam");  // Auto-redirect - confusing!
-    }
-  };
-  checkUser();
-}, [navigate]);
+### Database Change
+Remove the overly permissive policy and keep only the necessary ones:
+
+| Before (Current) | After (Fixed) |
+|------------------|---------------|
+| Anyone logged in can see all profiles | Only you see your own profile |
+| Admins can see all profiles | Admins can see all profiles (unchanged) |
+
+### SQL Migration
+```sql
+-- Remove the broad authentication policy that allows email harvesting
+DROP POLICY IF EXISTS "Require authentication for profiles" ON profiles;
 ```
 
-**New Behavior:**
-- Add a state to track if user is already logged in
-- Instead of auto-redirecting, show a "You're already logged in" card with:
-  - Message explaining they're logged in
-  - Button: "Go to Exams" → navigates to /exam
-  - Button: "Logout" → signs out and shows login form
+## Impact on Your App
 
----
+| Feature | Will it still work? |
+|---------|---------------------|
+| User Management (admin search by email) | ✅ Yes - admin policy remains |
+| Students viewing their own profile | ✅ Yes - own profile policy remains |
+| Students seeing other students' emails | ❌ No - this is the security hole we're closing |
 
-## User Experience After Fix
+## Summary
 
-### Scenario 1: Not logged in, clicks Login
-1. User clicks "Login" button
-2. Auth page shows login/signup form
-3. User logs in
-4. Redirected to Exam page (or Admin if admin)
+This is a simple one-line fix that removes the security vulnerability while keeping all your admin features working.
 
-### Scenario 2: Already logged in, clicks Login
-1. User clicks "Login" button
-2. Auth page shows: "You're already logged in as [email]"
-3. Two options:
-   - "Go to Exams" → takes them to exam page
-   - "Logout" → signs them out, shows login form
-
-### Scenario 3: Not logged in, clicks Take Exam
-1. User clicks "Take Exam" 
-2. Exam page detects no session → redirects to Auth
-3. User logs in
-4. Redirected to Exam page → PIN entry (if required)
-
----
-
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/pages/Auth.tsx` | Replace auto-redirect with "already logged in" UI |
-
----
-
-## Visual Flow After Fix
-
-```text
-User clicks "Login"
-      |
-      v
-Is user logged in?
-      |
-  +---+---+
-  |       |
-  No     Yes
-  |       |
-  v       v
-Show     Show "Already logged in"
-Login    with options:
-Form     [Go to Exams] [Logout]
-```
