@@ -1,40 +1,65 @@
 
+# Plan: Fix Login Flow - Ensure Proper Authentication Sequence
 
-# Plan: Fix PIN Entry Flow
+## The Problem
+When you click "Login", you're being redirected straight to the Exam page. This happens because:
+1. You're already logged in from a previous session
+2. The Auth page detects your existing session and automatically sends you to Exam
+3. This is confusing because you expect to see the login form
 
-## Issues Identified
-
-### Issue 1: User Login Before PIN Entry
-The code already redirects to `/auth` if not logged in (line 122-124 in Exam.tsx). But there might be a race condition or the loading state isn't being shown correctly. I'll verify this is working properly.
-
-### Issue 2: Generated PINs Not Recognized (Root Cause)
-**This is the main bug!** The RLS policies on `access_pins` table are too restrictive:
-- Users can only SELECT pins where `auth.uid() = used_by`
-- But for UNUSED pins, `used_by` is NULL
-- So students cannot verify if a PIN exists before activating it!
-
-The PIN validation in `PinEntryScreen.tsx` (line 91-107) queries for the PIN but gets no results because the RLS policy blocks the SELECT.
+## The Solution
+**Remove the automatic redirect from the Auth page**. Instead:
+- If a user is already logged in and visits the Auth page, show a message like "You're already logged in" with options to go to Exam or Logout
+- This gives users control and makes it clear what's happening
 
 ---
 
-## Solution
+## Technical Changes
 
-### Database Fix: Add RLS Policy for PIN Lookup
-Add a new SELECT policy that allows authenticated users to check if an **unused** PIN exists (without revealing all PIN details):
+### File: `src/pages/Auth.tsx`
 
-```sql
--- Allow authenticated users to check if an unused PIN exists
-CREATE POLICY "Users can check unused pins" 
-ON access_pins FOR SELECT
-USING (
-  auth.uid() IS NOT NULL 
-  AND is_used = false
-);
+**Current Behavior (lines 50-59):**
+```tsx
+useEffect(() => {
+  const checkUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      navigate("/exam");  // Auto-redirect - confusing!
+    }
+  };
+  checkUser();
+}, [navigate]);
 ```
 
-This allows:
-- Authenticated users to SELECT unused PINs (to verify they exist)
-- Still protects used PINs (only the owner can see those)
+**New Behavior:**
+- Add a state to track if user is already logged in
+- Instead of auto-redirecting, show a "You're already logged in" card with:
+  - Message explaining they're logged in
+  - Button: "Go to Exams" → navigates to /exam
+  - Button: "Logout" → signs out and shows login form
+
+---
+
+## User Experience After Fix
+
+### Scenario 1: Not logged in, clicks Login
+1. User clicks "Login" button
+2. Auth page shows login/signup form
+3. User logs in
+4. Redirected to Exam page (or Admin if admin)
+
+### Scenario 2: Already logged in, clicks Login
+1. User clicks "Login" button
+2. Auth page shows: "You're already logged in as [email]"
+3. Two options:
+   - "Go to Exams" → takes them to exam page
+   - "Logout" → signs them out, shows login form
+
+### Scenario 3: Not logged in, clicks Take Exam
+1. User clicks "Take Exam" 
+2. Exam page detects no session → redirects to Auth
+3. User logs in
+4. Redirected to Exam page → PIN entry (if required)
 
 ---
 
@@ -42,14 +67,24 @@ This allows:
 
 | File | Changes |
 |------|---------|
-| Database Migration | Add new RLS policy for unused PIN lookup |
+| `src/pages/Auth.tsx` | Replace auto-redirect with "already logged in" UI |
 
 ---
 
-## Security Note
-This is safe because:
-1. Only authenticated users can check PINs
-2. They still need to know the exact 8-character PIN code
-3. The policy only allows checking unused PINs
-4. Once used, pins are only visible to the owner
+## Visual Flow After Fix
 
+```text
+User clicks "Login"
+      |
+      v
+Is user logged in?
+      |
+  +---+---+
+  |       |
+  No     Yes
+  |       |
+  v       v
+Show     Show "Already logged in"
+Login    with options:
+Form     [Go to Exams] [Logout]
+```
