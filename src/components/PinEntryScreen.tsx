@@ -323,7 +323,7 @@ export const PinEntryScreen = ({ onSuccess, userEmail }: PinEntryScreenProps) =>
                 {/* Instructions */}
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
                   <p className="text-amber-800">
-                    <strong>Instructions:</strong> Pay to the account above, then send proof of payment via WhatsApp to receive your PIN instantly.
+                    <strong>Instructions:</strong> Pay to the account above, then send proof of payment via WhatsApp or via SMS to receive your PIN instantly to the provided Phone no.
                   </p>
                 </div>
 
