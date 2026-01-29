@@ -1,0 +1,659 @@
+import { useState, useEffect, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { Key, Printer, Loader2, RefreshCw, Search, Filter } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+interface AccessPin {
+  id: string;
+  pin_code: string;
+  batch_id: string;
+  is_used: boolean;
+  used_by: string | null;
+  used_by_email: string | null;
+  used_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
+interface PinBatch {
+  id: string;
+  batch_name: string | null;
+  pin_count: number;
+  created_at: string;
+}
+
+interface PinStats {
+  total: number;
+  unused: number;
+  used: number;
+  expired: number;
+  active: number;
+}
+
+export const AccessPinManagement = () => {
+  const { toast } = useToast();
+  const printRef = useRef<HTMLDivElement>(null);
+  
+  // Settings state
+  const [isPinRequired, setIsPinRequired] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  
+  // Generator state
+  const [pinCount, setPinCount] = useState("100");
+  const [batchName, setBatchName] = useState("");
+  const [generating, setGenerating] = useState(false);
+  
+  // Pins list state
+  const [pins, setPins] = useState<AccessPin[]>([]);
+  const [batches, setBatches] = useState<PinBatch[]>([]);
+  const [pinsLoading, setPinsLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [batchFilter, setBatchFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pinsPerPage = 50;
+  
+  // Stats
+  const [stats, setStats] = useState<PinStats>({ total: 0, unused: 0, used: 0, expired: 0, active: 0 });
+
+  useEffect(() => {
+    fetchSettings();
+    fetchPins();
+    fetchBatches();
+  }, []);
+
+  useEffect(() => {
+    calculateStats();
+  }, [pins]);
+
+  const fetchSettings = async () => {
+    try {
+      const { data } = await supabase
+        .from("exam_settings")
+        .select("is_pin_required")
+        .limit(1)
+        .maybeSingle();
+
+      if (data) {
+        setIsPinRequired(data.is_pin_required || false);
+      }
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const fetchPins = async () => {
+    setPinsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("access_pins")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setPins(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to load PINs",
+        variant: "destructive",
+      });
+    } finally {
+      setPinsLoading(false);
+    }
+  };
+
+  const fetchBatches = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("pin_batches")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setBatches(data || []);
+    } catch (error) {
+      console.error("Error fetching batches:", error);
+    }
+  };
+
+  const calculateStats = () => {
+    const now = new Date();
+    const newStats: PinStats = {
+      total: pins.length,
+      unused: 0,
+      used: 0,
+      expired: 0,
+      active: 0,
+    };
+
+    pins.forEach(pin => {
+      if (!pin.is_used) {
+        newStats.unused++;
+      } else {
+        newStats.used++;
+        if (pin.expires_at && new Date(pin.expires_at) > now) {
+          newStats.active++;
+        } else if (pin.expires_at && new Date(pin.expires_at) <= now) {
+          newStats.expired++;
+        }
+      }
+    });
+
+    setStats(newStats);
+  };
+
+  const togglePinRequired = async () => {
+    try {
+      const newValue = !isPinRequired;
+      
+      const { error } = await supabase
+        .from("exam_settings")
+        .update({ is_pin_required: newValue })
+        .neq("id", "00000000-0000-0000-0000-000000000000"); // Update all rows
+
+      if (error) throw error;
+
+      setIsPinRequired(newValue);
+      toast({
+        title: "Success",
+        description: `PIN requirement ${newValue ? "enabled" : "disabled"}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to update setting",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const generatePin = (): string => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Removed confusing chars (0, O, 1, I)
+    let pin = "";
+    for (let i = 0; i < 8; i++) {
+      pin += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return pin;
+  };
+
+  const handleGeneratePins = async () => {
+    const count = parseInt(pinCount);
+    if (isNaN(count) || count < 1 || count > 1000) {
+      toast({
+        title: "Invalid Count",
+        description: "Please enter a number between 1 and 1000",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setGenerating(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      // Create batch first
+      const { data: batchData, error: batchError } = await supabase
+        .from("pin_batches")
+        .insert({
+          batch_name: batchName || `Batch ${new Date().toLocaleDateString()}`,
+          pin_count: count,
+          created_by: session.user.id,
+        })
+        .select()
+        .single();
+
+      if (batchError) throw batchError;
+
+      // Generate unique PINs
+      const generatedPins: Set<string> = new Set();
+      while (generatedPins.size < count) {
+        generatedPins.add(generatePin());
+      }
+
+      // Insert PINs in batches of 100
+      const pinArray = Array.from(generatedPins).map(pin => ({
+        pin_code: pin,
+        batch_id: batchData.id,
+        created_by: session.user.id,
+      }));
+
+      const batchSize = 100;
+      for (let i = 0; i < pinArray.length; i += batchSize) {
+        const batch = pinArray.slice(i, i + batchSize);
+        const { error } = await supabase.from("access_pins").insert(batch);
+        if (error) throw error;
+      }
+
+      toast({
+        title: "Success",
+        description: `Generated ${count} PINs successfully`,
+      });
+
+      setBatchName("");
+      setPinCount("100");
+      fetchPins();
+      fetchBatches();
+    } catch (error: any) {
+      console.error("Error generating PINs:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate PINs",
+        variant: "destructive",
+      });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const getFilteredPins = () => {
+    const now = new Date();
+    
+    return pins.filter(pin => {
+      // Status filter
+      if (statusFilter === "unused" && pin.is_used) return false;
+      if (statusFilter === "used" && !pin.is_used) return false;
+      if (statusFilter === "expired" && (!pin.expires_at || new Date(pin.expires_at) > now)) return false;
+      if (statusFilter === "active" && (!pin.is_used || !pin.expires_at || new Date(pin.expires_at) <= now)) return false;
+      
+      // Batch filter
+      if (batchFilter !== "all" && pin.batch_id !== batchFilter) return false;
+      
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return (
+          pin.pin_code.toLowerCase().includes(query) ||
+          (pin.used_by_email && pin.used_by_email.toLowerCase().includes(query))
+        );
+      }
+      
+      return true;
+    });
+  };
+
+  const filteredPins = getFilteredPins();
+  const totalPages = Math.ceil(filteredPins.length / pinsPerPage);
+  const paginatedPins = filteredPins.slice(
+    (currentPage - 1) * pinsPerPage,
+    currentPage * pinsPerPage
+  );
+
+  const getPinStatus = (pin: AccessPin) => {
+    const now = new Date();
+    if (!pin.is_used) return { label: "Unused", variant: "secondary" as const };
+    if (pin.expires_at && new Date(pin.expires_at) <= now) return { label: "Expired", variant: "destructive" as const };
+    return { label: "Active", variant: "default" as const };
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "-";
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const handlePrint = () => {
+    const pinsForPrint = batchFilter !== "all" 
+      ? pins.filter(p => p.batch_id === batchFilter && !p.is_used)
+      : pins.filter(p => !p.is_used);
+    
+    if (pinsForPrint.length === 0) {
+      toast({
+        title: "No PINs to Print",
+        description: "Select a batch with unused PINs to print",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    const pinsPerPage = 20; // 4 columns x 5 rows
+    const pages: string[] = [];
+
+    for (let i = 0; i < pinsForPrint.length; i += pinsPerPage) {
+      const pagePins = pinsForPrint.slice(i, i + pinsPerPage);
+      const pinCards = pagePins.map(pin => `
+        <div style="
+          border: 1px dashed #ccc;
+          padding: 16px;
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          gap: 8px;
+          background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        ">
+          <div style="font-weight: bold; font-size: 12px; color: #2563eb;">GENIUSLAB</div>
+          <div style="font-size: 24px; font-weight: bold; letter-spacing: 2px; color: #1e293b;">${pin.pin_code}</div>
+          <div style="font-size: 10px; color: #64748b;">Valid for 1 month after activation</div>
+          <div style="font-size: 10px; color: #64748b;">Single use only</div>
+        </div>
+      `).join("");
+
+      pages.push(`
+        <div style="
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          grid-template-rows: repeat(5, 1fr);
+          gap: 0;
+          width: 210mm;
+          height: 297mm;
+          page-break-after: always;
+          box-sizing: border-box;
+          padding: 10mm;
+        ">
+          ${pinCards}
+        </div>
+      `);
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>GENIUSLAB Access PINs</title>
+          <style>
+            @page { size: A4; margin: 0; }
+            body { margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+            @media print {
+              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            }
+          </style>
+        </head>
+        <body>
+          ${pages.join("")}
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.print();
+  };
+
+  if (settingsLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Global Toggle */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Key className="h-5 w-5" />
+            PIN Access Control
+          </CardTitle>
+          <CardDescription>
+            When enabled, students must enter a valid PIN to access exams
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">Require PIN for Exam Access</p>
+              <p className="text-sm text-muted-foreground">
+                {isPinRequired ? "Students must have a valid PIN to take exams" : "Students can take exams without a PIN"}
+              </p>
+            </div>
+            <Switch checked={isPinRequired} onCheckedChange={togglePinRequired} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Statistics */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold">{stats.total}</div>
+            <p className="text-xs text-muted-foreground">Total PINs</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-green-600">{stats.unused}</div>
+            <p className="text-xs text-muted-foreground">Available</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-blue-600">{stats.active}</div>
+            <p className="text-xs text-muted-foreground">Active</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-orange-600">{stats.used}</div>
+            <p className="text-xs text-muted-foreground">Used</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-red-600">{stats.expired}</div>
+            <p className="text-xs text-muted-foreground">Expired</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* PIN Generator */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Generate New PINs</CardTitle>
+          <CardDescription>
+            Create a batch of new access PINs (max 1,000 per batch)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="pinCount">Number of PINs</Label>
+              <Input
+                id="pinCount"
+                type="number"
+                min="1"
+                max="1000"
+                value={pinCount}
+                onChange={(e) => setPinCount(e.target.value)}
+                placeholder="100"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="batchName">Batch Name (Optional)</Label>
+              <Input
+                id="batchName"
+                value={batchName}
+                onChange={(e) => setBatchName(e.target.value)}
+                placeholder="e.g., January 2026 Batch"
+              />
+            </div>
+            <div className="flex items-end">
+              <Button 
+                onClick={handleGeneratePins} 
+                disabled={generating}
+                className="w-full"
+              >
+                {generating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Key className="mr-2 h-4 w-4" />
+                    Generate PINs
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* PIN List */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <CardTitle>PIN List</CardTitle>
+              <CardDescription>
+                View and manage all generated PINs
+              </CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={fetchPins} disabled={pinsLoading}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${pinsLoading ? "animate-spin" : ""}`} />
+                Refresh
+              </Button>
+              <Button onClick={handlePrint}>
+                <Printer className="h-4 w-4 mr-2" />
+                Print PINs
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* Filters */}
+          <div className="flex flex-col md:flex-row gap-4 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by PIN or email..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="pl-10"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}>
+              <SelectTrigger className="w-[150px]">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="unused">Unused</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="expired">Expired</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={batchFilter} onValueChange={(v) => { setBatchFilter(v); setCurrentPage(1); }}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filter by Batch" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Batches</SelectItem>
+                {batches.map((batch) => (
+                  <SelectItem key={batch.id} value={batch.id}>
+                    {batch.batch_name || `Batch ${formatDate(batch.created_at)}`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Table */}
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>PIN Code</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Used By</TableHead>
+                  <TableHead>Activated</TableHead>
+                  <TableHead>Expires</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedPins.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      No PINs found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  paginatedPins.map((pin) => {
+                    const status = getPinStatus(pin);
+                    return (
+                      <TableRow key={pin.id}>
+                        <TableCell className="font-mono font-bold">{pin.pin_code}</TableCell>
+                        <TableCell>
+                          <Badge variant={status.variant}>{status.label}</Badge>
+                        </TableCell>
+                        <TableCell>{pin.used_by_email || "-"}</TableCell>
+                        <TableCell>{formatDate(pin.used_at)}</TableCell>
+                        <TableCell>{formatDate(pin.expires_at)}</TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <p className="text-sm text-muted-foreground">
+                Showing {(currentPage - 1) * pinsPerPage + 1} to {Math.min(currentPage * pinsPerPage, filteredPins.length)} of {filteredPins.length} PINs
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};

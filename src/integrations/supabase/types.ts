@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_pins: {
+        Row: {
+          batch_id: string
+          created_at: string | null
+          created_by: string
+          expires_at: string | null
+          id: string
+          is_used: boolean | null
+          pin_code: string
+          used_at: string | null
+          used_by: string | null
+          used_by_email: string | null
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string | null
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          is_used?: boolean | null
+          pin_code: string
+          used_at?: string | null
+          used_by?: string | null
+          used_by_email?: string | null
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string | null
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          is_used?: boolean | null
+          pin_code?: string
+          used_at?: string | null
+          used_by?: string | null
+          used_by_email?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "access_pins_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "pin_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ad_clicks: {
         Row: {
           advertisement_id: string
@@ -212,6 +259,7 @@ export type Database = {
           id: string
           is_exam_mode: boolean
           is_exams_locked: boolean | null
+          is_pin_required: boolean | null
           lock_message: string | null
           updated_at: string
         }
@@ -223,6 +271,7 @@ export type Database = {
           id?: string
           is_exam_mode?: boolean
           is_exams_locked?: boolean | null
+          is_pin_required?: boolean | null
           lock_message?: string | null
           updated_at?: string
         }
@@ -234,6 +283,7 @@ export type Database = {
           id?: string
           is_exam_mode?: boolean
           is_exams_locked?: boolean | null
+          is_pin_required?: boolean | null
           lock_message?: string | null
           updated_at?: string
         }
@@ -266,6 +316,30 @@ export type Database = {
           session_id?: string
           user_agent?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      pin_batches: {
+        Row: {
+          batch_name: string | null
+          created_at: string | null
+          created_by: string
+          id: string
+          pin_count: number
+        }
+        Insert: {
+          batch_name?: string | null
+          created_at?: string | null
+          created_by: string
+          id?: string
+          pin_count: number
+        }
+        Update: {
+          batch_name?: string | null
+          created_at?: string | null
+          created_by?: string
+          id?: string
+          pin_count?: number
         }
         Relationships: []
       }
