@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Key, Loader2, ArrowLeft, CheckCircle } from "lucide-react";
+import { Key, Loader2, ArrowLeft, CheckCircle, MessageCircle, CreditCard, Copy } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 
@@ -14,15 +14,55 @@ interface PinEntryScreenProps {
   userEmail: string;
 }
 
+interface PaymentInfo {
+  contact: string;
+  accountNumber: string;
+  bankName: string;
+  accountHolder: string;
+  amount: number;
+}
+
 export const PinEntryScreen = ({ onSuccess, userEmail }: PinEntryScreenProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({
+    contact: "08124269495",
+    accountNumber: "8124269495",
+    bankName: "Opay",
+    accountHolder: "Nsisong Etim",
+    amount: 1000,
+  });
+
+  useEffect(() => {
+    fetchPaymentInfo();
+  }, []);
+
+  const fetchPaymentInfo = async () => {
+    try {
+      const { data } = await supabase
+        .from("exam_settings")
+        .select("payment_contact, payment_account_number, payment_bank_name, payment_account_holder, payment_amount")
+        .limit(1)
+        .maybeSingle();
+
+      if (data) {
+        setPaymentInfo({
+          contact: data.payment_contact || "08124269495",
+          accountNumber: data.payment_account_number || "8124269495",
+          bankName: data.payment_bank_name || "Opay",
+          accountHolder: data.payment_account_holder || "Nsisong Etim",
+          amount: data.payment_amount || 1000,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching payment info:", error);
+    }
+  };
 
   const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Only allow alphanumeric characters, max 8
     const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
     setPin(value);
   };
@@ -48,7 +88,6 @@ export const PinEntryScreen = ({ onSuccess, userEmail }: PinEntryScreenProps) =>
         return;
       }
 
-      // Check if PIN exists and is unused
       const { data: pinData, error: fetchError } = await supabase
         .from("access_pins")
         .select("*")
@@ -77,7 +116,6 @@ export const PinEntryScreen = ({ onSuccess, userEmail }: PinEntryScreenProps) =>
         return;
       }
 
-      // Activate the PIN
       const expiresAt = new Date();
       expiresAt.setMonth(expiresAt.getMonth() + 1);
 
@@ -91,7 +129,7 @@ export const PinEntryScreen = ({ onSuccess, userEmail }: PinEntryScreenProps) =>
           expires_at: expiresAt.toISOString(),
         })
         .eq("id", pinData.id)
-        .eq("is_used", false); // Extra safety check
+        .eq("is_used", false);
 
       if (updateError) throw updateError;
 
@@ -101,7 +139,6 @@ export const PinEntryScreen = ({ onSuccess, userEmail }: PinEntryScreenProps) =>
         description: "You now have exam access for 1 month.",
       });
 
-      // Wait a moment before continuing
       setTimeout(() => {
         onSuccess();
       }, 1500);
@@ -115,6 +152,21 @@ export const PinEntryScreen = ({ onSuccess, userEmail }: PinEntryScreenProps) =>
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleWhatsAppClick = () => {
+    const message = encodeURIComponent(
+      `Hi, I want to purchase an exam access PIN for GENIUSLAB.\n\nPayment Details:\nAmount: ₦${paymentInfo.amount.toLocaleString()}\nBank: ${paymentInfo.bankName}\nAccount: ${paymentInfo.accountNumber}\nName: ${paymentInfo.accountHolder}\n\nI will make payment and send proof.`
+    );
+    window.open(`https://wa.me/234${paymentInfo.contact.slice(1)}?text=${message}`, "_blank");
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copied!",
+      description: `${label} copied to clipboard`,
+    });
   };
 
   if (success) {
@@ -145,73 +197,153 @@ export const PinEntryScreen = ({ onSuccess, userEmail }: PinEntryScreenProps) =>
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-      <main className="flex-1 flex items-center justify-center pt-16 bg-gradient-to-br from-primary/5 to-secondary/5">
-        <Card className="w-full max-w-md mx-4">
-          <CardHeader className="text-center">
-            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Key className="h-8 w-8 text-primary" />
-            </div>
-            <CardTitle className="text-2xl">Enter Access PIN</CardTitle>
-            <CardDescription>
-              Enter your 8-character access PIN to take exams
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Input
-                  type="text"
-                  value={pin}
-                  onChange={handlePinChange}
-                  placeholder="XXXXXXXX"
-                  className="text-center text-2xl font-mono tracking-widest h-14"
-                  maxLength={8}
-                  disabled={loading}
-                  autoFocus
-                />
-                <p className="text-xs text-center text-muted-foreground">
-                  {pin.length}/8 characters
-                </p>
-              </div>
+      <main className="flex-1 pt-16 pb-8 bg-gradient-to-br from-primary/5 to-secondary/5">
+        <div className="container max-w-4xl mx-auto px-4 py-8">
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* PIN Entry Card */}
+            <Card>
+              <CardHeader className="text-center">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Key className="h-8 w-8 text-primary" />
+                </div>
+                <CardTitle className="text-2xl">Enter Access PIN</CardTitle>
+                <CardDescription>
+                  Enter your 8-character access PIN to take exams
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="space-y-2">
+                    <Input
+                      type="text"
+                      value={pin}
+                      onChange={handlePinChange}
+                      placeholder="XXXXXXXX"
+                      className="text-center text-2xl font-mono tracking-widest h-14"
+                      maxLength={8}
+                      disabled={loading}
+                      autoFocus
+                    />
+                    <p className="text-xs text-center text-muted-foreground">
+                      {pin.length}/8 characters
+                    </p>
+                  </div>
 
-              <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2">
-                <p className="font-medium">About Access PINs:</p>
-                <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                  <li>Valid for 1 month after first use</li>
-                  <li>Can only be used by one person</li>
-                  <li>Take unlimited exams during the validity period</li>
-                </ul>
-              </div>
+                  <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2">
+                    <p className="font-medium">About Access PINs:</p>
+                    <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                      <li>Valid for 1 month after first use</li>
+                      <li>Can only be used by one person</li>
+                      <li>Take unlimited exams during the validity period</li>
+                    </ul>
+                  </div>
 
-              <div className="space-y-3">
+                  <div className="space-y-3">
+                    <Button 
+                      type="submit" 
+                      className="w-full" 
+                      size="lg"
+                      disabled={loading || pin.length !== 8}
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Verifying...
+                        </>
+                      ) : (
+                        "Activate PIN"
+                      )}
+                    </Button>
+                    <Button 
+                      type="button"
+                      variant="ghost" 
+                      className="w-full"
+                      onClick={() => navigate("/")}
+                    >
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Back to Home
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* Payment Info Card */}
+            <Card className="border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
+              <CardHeader>
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-2">
+                  <CreditCard className="h-6 w-6 text-green-600" />
+                </div>
+                <CardTitle className="text-xl text-green-800">Need to Purchase a PIN?</CardTitle>
+                <CardDescription className="text-green-700">
+                  Get your exam access PIN by making a payment
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Amount */}
+                <div className="bg-white rounded-lg p-4 text-center border border-green-200">
+                  <p className="text-sm text-muted-foreground mb-1">Amount to Pay</p>
+                  <p className="text-3xl font-bold text-green-600">₦{paymentInfo.amount.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground mt-1">per PIN (1 month access)</p>
+                </div>
+
+                {/* Payment Details */}
+                <div className="bg-white rounded-lg p-4 space-y-3 border border-green-200">
+                  <p className="font-medium text-sm text-gray-700">Payment Details:</p>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Bank</p>
+                      <p className="font-medium">{paymentInfo.bankName}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Account Number</p>
+                      <p className="font-mono font-bold text-lg">{paymentInfo.accountNumber}</p>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => copyToClipboard(paymentInfo.accountNumber, "Account number")}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Account Name</p>
+                      <p className="font-medium">{paymentInfo.accountHolder}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Instructions */}
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
+                  <p className="text-amber-800">
+                    <strong>Instructions:</strong> Pay to the account above, then send proof of payment via WhatsApp to receive your PIN instantly.
+                  </p>
+                </div>
+
+                {/* WhatsApp Button */}
                 <Button 
-                  type="submit" 
-                  className="w-full" 
+                  onClick={handleWhatsAppClick}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white"
                   size="lg"
-                  disabled={loading || pin.length !== 8}
                 >
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Verifying...
-                    </>
-                  ) : (
-                    "Activate PIN"
-                  )}
+                  <MessageCircle className="mr-2 h-5 w-5" />
+                  Contact on WhatsApp
                 </Button>
-                <Button 
-                  type="button"
-                  variant="ghost" 
-                  className="w-full"
-                  onClick={() => navigate("/")}
-                >
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to Home
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+
+                <p className="text-xs text-center text-muted-foreground">
+                  Contact: {paymentInfo.contact}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </main>
       <Footer />
     </div>

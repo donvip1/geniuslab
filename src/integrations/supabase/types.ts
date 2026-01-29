@@ -261,6 +261,11 @@ export type Database = {
           is_exams_locked: boolean | null
           is_pin_required: boolean | null
           lock_message: string | null
+          payment_account_holder: string | null
+          payment_account_number: string | null
+          payment_amount: number | null
+          payment_bank_name: string | null
+          payment_contact: string | null
           updated_at: string
         }
         Insert: {
@@ -273,6 +278,11 @@ export type Database = {
           is_exams_locked?: boolean | null
           is_pin_required?: boolean | null
           lock_message?: string | null
+          payment_account_holder?: string | null
+          payment_account_number?: string | null
+          payment_amount?: number | null
+          payment_bank_name?: string | null
+          payment_contact?: string | null
           updated_at?: string
         }
         Update: {
@@ -285,6 +295,11 @@ export type Database = {
           is_exams_locked?: boolean | null
           is_pin_required?: boolean | null
           lock_message?: string | null
+          payment_account_holder?: string | null
+          payment_account_number?: string | null
+          payment_amount?: number | null
+          payment_bank_name?: string | null
+          payment_contact?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -340,6 +355,30 @@ export type Database = {
           created_by?: string
           id?: string
           pin_count?: number
+        }
+        Relationships: []
+      }
+      pin_generator_settings: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          id: string
+          password_hash: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          id?: string
+          password_hash: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          id?: string
+          password_hash?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -662,6 +701,14 @@ export type Database = {
         Returns: boolean
       }
       increment_ad_click: { Args: { ad_id: string }; Returns: undefined }
+      set_pin_generator_password: {
+        Args: { new_password: string; old_password?: string }
+        Returns: boolean
+      }
+      verify_pin_generator_password: {
+        Args: { input_password: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "student"
