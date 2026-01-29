@@ -554,7 +554,8 @@ export const AccessPinManagement = () => {
   const getFilteredPins = () => {
     const now = new Date();
     
-    return pins.filter(pin => {
+    // First filter pins based on criteria
+    const filtered = pins.filter(pin => {
       if (statusFilter === "unused" && pin.is_used) return false;
       if (statusFilter === "used" && !pin.is_used) return false;
       if (statusFilter === "expired" && (!pin.expires_at || new Date(pin.expires_at) > now)) return false;
@@ -571,6 +572,25 @@ export const AccessPinManagement = () => {
       }
       
       return true;
+    });
+
+    // Then sort: used pins first (by used_at desc), then unused (by created_at desc)
+    return filtered.sort((a, b) => {
+      // Used pins come first
+      if (a.is_used && !b.is_used) return -1;
+      if (!a.is_used && b.is_used) return 1;
+      
+      // Among used pins, sort by used_at (most recent first)
+      if (a.is_used && b.is_used) {
+        const aDate = a.used_at ? new Date(a.used_at).getTime() : 0;
+        const bDate = b.used_at ? new Date(b.used_at).getTime() : 0;
+        return bDate - aDate;
+      }
+      
+      // Among unused pins, sort by created_at (most recent first)
+      const aCreated = new Date(a.created_at).getTime();
+      const bCreated = new Date(b.created_at).getTime();
+      return bCreated - aCreated;
     });
   };
 
