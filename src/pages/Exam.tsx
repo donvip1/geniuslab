@@ -10,6 +10,7 @@ import { BookOpen, Clock, User, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ExamLockedScreen } from "@/components/ExamLockedScreen";
 import { UserRestrictedScreen } from "@/components/UserRestrictedScreen";
+import { PinEntryScreen } from "@/components/PinEntryScreen";
 
 interface Subject {
   id: string;
@@ -24,6 +25,10 @@ interface UserRestriction {
   expires_at: string | null;
 }
 
+interface ActiveSubscription {
+  expires_at: string;
+}
+
 const Exam = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -35,6 +40,10 @@ const Exam = () => {
   const [lockMessage, setLockMessage] = useState<string | null>(null);
   const [userRestriction, setUserRestriction] = useState<UserRestriction | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isPinRequired, setIsPinRequired] = useState(false);
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [showPinEntry, setShowPinEntry] = useState(false);
+  const [checkingSubscription, setCheckingSubscription] = useState(true);
 
   useEffect(() => {
     checkUser();
@@ -46,16 +55,37 @@ const Exam = () => {
     try {
       const { data } = await supabase
         .from("exam_settings")
-        .select("is_exams_locked, lock_message")
+        .select("is_exams_locked, lock_message, is_pin_required")
         .limit(1)
         .maybeSingle();
 
       if (data) {
         setIsExamsLocked(data.is_exams_locked || false);
         setLockMessage(data.lock_message);
+        setIsPinRequired(data.is_pin_required || false);
       }
     } catch (error) {
       console.error("Error checking exam lock:", error);
+    }
+  };
+
+  const checkActiveSubscription = async (userId: string) => {
+    try {
+      const now = new Date().toISOString();
+      const { data } = await supabase
+        .from("access_pins")
+        .select("expires_at")
+        .eq("used_by", userId)
+        .eq("is_used", true)
+        .gt("expires_at", now)
+        .limit(1)
+        .maybeSingle();
+
+      setHasActiveSubscription(!!data);
+    } catch (error) {
+      console.error("Error checking subscription:", error);
+    } finally {
+      setCheckingSubscription(false);
     }
   };
 
@@ -109,7 +139,15 @@ const Exam = () => {
     // Check user restrictions
     await checkUserRestriction(session.user.id);
     
+    // Check active subscription
+    await checkActiveSubscription(session.user.id);
+    
     setLoading(false);
+  };
+
+  const handlePinSuccess = () => {
+    setShowPinEntry(false);
+    setHasActiveSubscription(true);
   };
 
   const fetchSubjects = async (level?: string) => {
@@ -156,7 +194,7 @@ const Exam = () => {
     navigate(`/exam/take/${slug}`);
   };
 
-  if (loading) {
+  if (loading || checkingSubscription) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -181,6 +219,16 @@ const Exam = () => {
   // Show lock screen if exams are locked (except for admins)
   if (isExamsLocked && !isAdmin) {
     return <ExamLockedScreen message={lockMessage} />;
+  }
+
+  // Show PIN entry screen if PIN is required and user doesn't have active subscription (except for admins)
+  if (isPinRequired && !hasActiveSubscription && !isAdmin) {
+    return (
+      <PinEntryScreen 
+        onSuccess={handlePinSuccess} 
+        userEmail={user?.email || ""} 
+      />
+    );
   }
 
   return (

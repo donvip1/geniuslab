@@ -52,6 +52,14 @@ interface UserRestriction {
   expires_at: string | null;
 }
 
+interface ExamSettings {
+  is_exam_mode: boolean;
+  exam_duration_minutes: number;
+  is_exams_locked: boolean;
+  lock_message: string | null;
+  is_pin_required: boolean;
+}
+
 const ExamTaking = () => {
   const { subjectSlug } = useParams();
   const navigate = useNavigate();
@@ -76,6 +84,9 @@ const ExamTaking = () => {
   const [lockMessage, setLockMessage] = useState<string | null>(null);
   const [userRestriction, setUserRestriction] = useState<UserRestriction | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isPinRequired, setIsPinRequired] = useState(false);
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [subscriptionChecked, setSubscriptionChecked] = useState(false);
 
   // Pagination for question navigator
   const currentPage = Math.floor(currentQuestionIndex / QUESTIONS_PER_PAGE);
@@ -128,8 +139,23 @@ const ExamTaking = () => {
           setUserRestriction(restrictionData as UserRestriction);
         }
       }
+
+      // Check active subscription if PIN is required
+      const now = new Date().toISOString();
+      const { data: pinData } = await supabase
+        .from("access_pins")
+        .select("expires_at")
+        .eq("used_by", session.user.id)
+        .eq("is_used", true)
+        .gt("expires_at", now)
+        .limit(1)
+        .maybeSingle();
+
+      setHasActiveSubscription(!!pinData);
+      setSubscriptionChecked(true);
     } catch (error) {
       console.error("Error checking access control:", error);
+      setSubscriptionChecked(true);
     }
   };
 
@@ -150,6 +176,7 @@ const ExamTaking = () => {
         setIsExamMode(data.is_exam_mode);
         setIsExamsLocked(data.is_exams_locked || false);
         setLockMessage(data.lock_message);
+        setIsPinRequired(data.is_pin_required || false);
         
         if (data.is_exam_mode && data.exam_duration_minutes) {
           const durationSeconds = data.exam_duration_minutes * 60;
@@ -356,7 +383,7 @@ const ExamTaking = () => {
     }
   };
 
-  if (loading) {
+  if (loading || !subscriptionChecked) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -381,6 +408,12 @@ const ExamTaking = () => {
   // Show lock screen if exams are locked (except for admins)
   if (isExamsLocked && !isAdmin) {
     return <ExamLockedScreen message={lockMessage} />;
+  }
+
+  // Redirect to exam page if PIN is required but user doesn't have active subscription
+  if (isPinRequired && !hasActiveSubscription && !isAdmin) {
+    navigate("/exam");
+    return null;
   }
 
   const currentQuestion = questions[currentQuestionIndex];
