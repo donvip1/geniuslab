@@ -1,40 +1,88 @@
 
+# Plan: Fix PIN List Sorting and Filtering
 
-# Plan: Fix Profiles Table Security (Prevent Email Harvesting)
+## Issues Identified
 
-## The Problem Explained Simply
+### Issue 1: Sorting - Used pins should appear first
+Currently, pins are sorted only by `created_at` (newest first). You want used pins to appear at the top so admins can quickly see which pins are in use.
 
-Right now, your `profiles` table has a security rule that says "anyone who is logged in can see everyone's profile." This is dangerous because:
+### Issue 2: Filter verification
+I checked your database and found 2 active pins (JLJ2DBFY and KJPU543S). The "Active" filter logic looks correct, but let me verify it works after fixing the sorting.
 
-1. A student creates an account
-2. They can now see the email addresses of ALL students
-3. They could collect these emails for spam or sell them
+---
 
-## What We'll Change
+## Solution
 
-### Database Change
-Remove the overly permissive policy and keep only the necessary ones:
+### Change 1: Sort pins with used ones first
+After fetching pins from the database, sort them so:
+1. Used pins come first (sorted by `used_at` date, most recent first)
+2. Unused pins come after (sorted by `created_at` date, newest first)
 
-| Before (Current) | After (Fixed) |
-|------------------|---------------|
-| Anyone logged in can see all profiles | Only you see your own profile |
-| Admins can see all profiles | Admins can see all profiles (unchanged) |
+### Change 2: Keep filter logic the same (it's correct)
+The filter logic for "Active" status is:
+- PIN must be used (`is_used = true`)
+- PIN must have an expiry date
+- Expiry date must be in the future
 
-### SQL Migration
-```sql
--- Remove the broad authentication policy that allows email harvesting
-DROP POLICY IF EXISTS "Require authentication for profiles" ON profiles;
+---
+
+## Technical Changes
+
+| File | Changes |
+|------|---------|
+| `src/components/admin/AccessPinManagement.tsx` | Update `getFilteredPins()` to sort used pins first |
+
+### Code Change
+
+**Before (line 554-582):**
+```tsx
+const getFilteredPins = () => {
+  // ...filter logic...
+  return pins.filter(pin => { ... });
+};
+
+const filteredPins = getFilteredPins();
 ```
 
-## Impact on Your App
+**After:**
+```tsx
+const getFilteredPins = () => {
+  const now = new Date();
+  
+  // First filter
+  const filtered = pins.filter(pin => {
+    // ...existing filter logic...
+  });
+  
+  // Then sort: used pins first (by used_at desc), then unused (by created_at desc)
+  return filtered.sort((a, b) => {
+    // Used pins come first
+    if (a.is_used && !b.is_used) return -1;
+    if (!a.is_used && b.is_used) return 1;
+    
+    // Among used pins, sort by used_at (most recent first)
+    if (a.is_used && b.is_used) {
+      const aDate = a.used_at ? new Date(a.used_at).getTime() : 0;
+      const bDate = b.used_at ? new Date(b.used_at).getTime() : 0;
+      return bDate - aDate;
+    }
+    
+    // Among unused pins, sort by created_at (most recent first)
+    const aCreated = new Date(a.created_at).getTime();
+    const bCreated = new Date(b.created_at).getTime();
+    return bCreated - aCreated;
+  });
+};
+```
 
-| Feature | Will it still work? |
-|---------|---------------------|
-| User Management (admin search by email) | ✅ Yes - admin policy remains |
-| Students viewing their own profile | ✅ Yes - own profile policy remains |
-| Students seeing other students' emails | ❌ No - this is the security hole we're closing |
+---
 
-## Summary
+## Result After Fix
 
-This is a simple one-line fix that removes the security vulnerability while keeping all your admin features working.
-
+| Default View (All Status) | Filtered View |
+|---------------------------|---------------|
+| ✅ JLJ2DBFY (Active) - top | Active filter shows 2 pins |
+| ✅ KJPU543S (Active) | Expired filter shows 0 pins |
+| 8KH45BLK (Unused) | Unused filter shows all unused |
+| VDSPXEJY (Unused) | |
+| ... more unused pins | |
