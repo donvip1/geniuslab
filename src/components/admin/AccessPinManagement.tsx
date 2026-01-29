@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Key, Printer, Loader2, RefreshCw, Search, Filter } from "lucide-react";
+import { Key, Printer, Loader2, RefreshCw, Search, Filter, Lock, CreditCard, Settings } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -23,6 +23,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface AccessPin {
   id: string;
@@ -51,6 +69,14 @@ interface PinStats {
   active: number;
 }
 
+interface PaymentSettings {
+  payment_contact: string;
+  payment_account_number: string;
+  payment_bank_name: string;
+  payment_account_holder: string;
+  payment_amount: number;
+}
+
 export const AccessPinManagement = () => {
   const { toast } = useToast();
   const printRef = useRef<HTMLDivElement>(null);
@@ -58,6 +84,28 @@ export const AccessPinManagement = () => {
   // Settings state
   const [isPinRequired, setIsPinRequired] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(true);
+  
+  // Password state
+  const [hasPassword, setHasPassword] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(true);
+  const [showPasswordSetup, setShowPasswordSetup] = useState(false);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [showPasswordGate, setShowPasswordGate] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [gatePassword, setGatePassword] = useState("");
+  const [passwordActionLoading, setPasswordActionLoading] = useState(false);
+  
+  // Payment settings state
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({
+    payment_contact: "08124269495",
+    payment_account_number: "8124269495",
+    payment_bank_name: "Opay",
+    payment_account_holder: "Nsisong Etim",
+    payment_amount: 1000,
+  });
+  const [paymentLoading, setPaymentLoading] = useState(false);
   
   // Generator state
   const [pinCount, setPinCount] = useState("100");
@@ -81,11 +129,51 @@ export const AccessPinManagement = () => {
     fetchSettings();
     fetchPins();
     fetchBatches();
+    checkPasswordExists();
+    fetchPaymentSettings();
   }, []);
 
   useEffect(() => {
     calculateStats();
   }, [pins]);
+
+  const checkPasswordExists = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("pin_generator_settings")
+        .select("id")
+        .limit(1)
+        .maybeSingle();
+      
+      setHasPassword(!!data);
+    } catch (error) {
+      console.error("Error checking password:", error);
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const fetchPaymentSettings = async () => {
+    try {
+      const { data } = await supabase
+        .from("exam_settings")
+        .select("payment_contact, payment_account_number, payment_bank_name, payment_account_holder, payment_amount")
+        .limit(1)
+        .maybeSingle();
+
+      if (data) {
+        setPaymentSettings({
+          payment_contact: data.payment_contact || "08124269495",
+          payment_account_number: data.payment_account_number || "8124269495",
+          payment_bank_name: data.payment_bank_name || "Opay",
+          payment_account_holder: data.payment_account_holder || "Nsisong Etim",
+          payment_amount: data.payment_amount || 1000,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching payment settings:", error);
+    }
+  };
 
   const fetchSettings = async () => {
     try {
@@ -173,7 +261,7 @@ export const AccessPinManagement = () => {
       const { error } = await supabase
         .from("exam_settings")
         .update({ is_pin_required: newValue })
-        .neq("id", "00000000-0000-0000-0000-000000000000"); // Update all rows
+        .neq("id", "00000000-0000-0000-0000-000000000000");
 
       if (error) throw error;
 
@@ -191,8 +279,194 @@ export const AccessPinManagement = () => {
     }
   };
 
+  const handleSetPassword = async () => {
+    if (newPassword.length !== 4 || !/^\d{4}$/.test(newPassword)) {
+      toast({
+        title: "Invalid Password",
+        description: "Password must be exactly 4 digits",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Passwords Don't Match",
+        description: "Please make sure both passwords match",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPasswordActionLoading(true);
+    try {
+      const { data, error } = await supabase.rpc("set_pin_generator_password", {
+        new_password: newPassword,
+        old_password: null,
+      });
+
+      if (error) throw error;
+      if (!data) throw new Error("Failed to set password");
+
+      setHasPassword(true);
+      setShowPasswordSetup(false);
+      setNewPassword("");
+      setConfirmPassword("");
+      
+      toast({
+        title: "Success",
+        description: "Generation password has been set",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to set password",
+        variant: "destructive",
+      });
+    } finally {
+      setPasswordActionLoading(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (currentPassword.length !== 4 || !/^\d{4}$/.test(currentPassword)) {
+      toast({
+        title: "Invalid Current Password",
+        description: "Current password must be exactly 4 digits",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword.length !== 4 || !/^\d{4}$/.test(newPassword)) {
+      toast({
+        title: "Invalid New Password",
+        description: "New password must be exactly 4 digits",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Passwords Don't Match",
+        description: "Please make sure new passwords match",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPasswordActionLoading(true);
+    try {
+      const { data, error } = await supabase.rpc("set_pin_generator_password", {
+        new_password: newPassword,
+        old_password: currentPassword,
+      });
+
+      if (error) throw error;
+      if (!data) {
+        toast({
+          title: "Incorrect Password",
+          description: "The current password you entered is incorrect",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setShowPasswordChange(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      
+      toast({
+        title: "Success",
+        description: "Generation password has been updated",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to change password",
+        variant: "destructive",
+      });
+    } finally {
+      setPasswordActionLoading(false);
+    }
+  };
+
+  const handlePasswordGateSubmit = async () => {
+    if (gatePassword.length !== 4 || !/^\d{4}$/.test(gatePassword)) {
+      toast({
+        title: "Invalid Password",
+        description: "Please enter a 4-digit password",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPasswordActionLoading(true);
+    try {
+      const { data, error } = await supabase.rpc("verify_pin_generator_password", {
+        input_password: gatePassword,
+      });
+
+      if (error) throw error;
+      if (!data) {
+        toast({
+          title: "Incorrect Password",
+          description: "The password you entered is incorrect",
+          variant: "destructive",
+        });
+        setPasswordActionLoading(false);
+        return;
+      }
+
+      setShowPasswordGate(false);
+      setGatePassword("");
+      await executeGeneratePins();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to verify password",
+        variant: "destructive",
+      });
+    } finally {
+      setPasswordActionLoading(false);
+    }
+  };
+
+  const handleUpdatePaymentSettings = async () => {
+    setPaymentLoading(true);
+    try {
+      const { error } = await supabase
+        .from("exam_settings")
+        .update({
+          payment_contact: paymentSettings.payment_contact,
+          payment_account_number: paymentSettings.payment_account_number,
+          payment_bank_name: paymentSettings.payment_bank_name,
+          payment_account_holder: paymentSettings.payment_account_holder,
+          payment_amount: paymentSettings.payment_amount,
+        })
+        .neq("id", "00000000-0000-0000-0000-000000000000");
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Payment settings updated",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to update payment settings",
+        variant: "destructive",
+      });
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
   const generatePin = (): string => {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Removed confusing chars (0, O, 1, I)
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     let pin = "";
     for (let i = 0; i < 8; i++) {
       pin += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -211,13 +485,21 @@ export const AccessPinManagement = () => {
       return;
     }
 
+    if (hasPassword) {
+      setShowPasswordGate(true);
+    } else {
+      await executeGeneratePins();
+    }
+  };
+
+  const executeGeneratePins = async () => {
+    const count = parseInt(pinCount);
     setGenerating(true);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
 
-      // Create batch first
       const { data: batchData, error: batchError } = await supabase
         .from("pin_batches")
         .insert({
@@ -230,13 +512,11 @@ export const AccessPinManagement = () => {
 
       if (batchError) throw batchError;
 
-      // Generate unique PINs
       const generatedPins: Set<string> = new Set();
       while (generatedPins.size < count) {
         generatedPins.add(generatePin());
       }
 
-      // Insert PINs in batches of 100
       const pinArray = Array.from(generatedPins).map(pin => ({
         pin_code: pin,
         batch_id: batchData.id,
@@ -275,16 +555,13 @@ export const AccessPinManagement = () => {
     const now = new Date();
     
     return pins.filter(pin => {
-      // Status filter
       if (statusFilter === "unused" && pin.is_used) return false;
       if (statusFilter === "used" && !pin.is_used) return false;
       if (statusFilter === "expired" && (!pin.expires_at || new Date(pin.expires_at) > now)) return false;
       if (statusFilter === "active" && (!pin.is_used || !pin.expires_at || new Date(pin.expires_at) <= now)) return false;
       
-      // Batch filter
       if (batchFilter !== "all" && pin.batch_id !== batchFilter) return false;
       
-      // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         return (
@@ -337,7 +614,7 @@ export const AccessPinManagement = () => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
-    const pinsPerPage = 20; // 4 columns x 5 rows
+    const pinsPerPage = 20;
     const pages: string[] = [];
 
     for (let i = 0; i < pinsForPrint.length; i += pinsPerPage) {
@@ -401,7 +678,7 @@ export const AccessPinManagement = () => {
     printWindow.print();
   };
 
-  if (settingsLoading) {
+  if (settingsLoading || passwordLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -411,6 +688,27 @@ export const AccessPinManagement = () => {
 
   return (
     <div className="space-y-6">
+      {/* Password Setup Alert */}
+      {!hasPassword && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-700">
+              <Lock className="h-5 w-5" />
+              Set Up Generation Password
+            </CardTitle>
+            <CardDescription className="text-orange-600">
+              Create a 4-digit password to secure PIN generation. Only those with the password can generate new PINs.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => setShowPasswordSetup(true)} className="bg-orange-600 hover:bg-orange-700">
+              <Lock className="mr-2 h-4 w-4" />
+              Set Password
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Global Toggle */}
       <Card>
         <CardHeader>
@@ -422,7 +720,7 @@ export const AccessPinManagement = () => {
             When enabled, students must enter a valid PIN to access exams
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium">Require PIN for Exam Access</p>
@@ -431,6 +729,93 @@ export const AccessPinManagement = () => {
               </p>
             </div>
             <Switch checked={isPinRequired} onCheckedChange={togglePinRequired} />
+          </div>
+          
+          {hasPassword && (
+            <div className="pt-4 border-t">
+              <Button variant="outline" onClick={() => setShowPasswordChange(true)}>
+                <Lock className="mr-2 h-4 w-4" />
+                Change Generation Password
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Payment Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Payment Information
+          </CardTitle>
+          <CardDescription>
+            Configure payment details shown to students when they need to purchase a PIN
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="paymentContact">WhatsApp Contact Number</Label>
+              <Input
+                id="paymentContact"
+                value={paymentSettings.payment_contact}
+                onChange={(e) => setPaymentSettings(prev => ({ ...prev, payment_contact: e.target.value }))}
+                placeholder="08124269495"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="paymentBank">Bank Name</Label>
+              <Input
+                id="paymentBank"
+                value={paymentSettings.payment_bank_name}
+                onChange={(e) => setPaymentSettings(prev => ({ ...prev, payment_bank_name: e.target.value }))}
+                placeholder="Opay"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="paymentAccount">Account Number</Label>
+              <Input
+                id="paymentAccount"
+                value={paymentSettings.payment_account_number}
+                onChange={(e) => setPaymentSettings(prev => ({ ...prev, payment_account_number: e.target.value }))}
+                placeholder="8124269495"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="paymentHolder">Account Holder Name</Label>
+              <Input
+                id="paymentHolder"
+                value={paymentSettings.payment_account_holder}
+                onChange={(e) => setPaymentSettings(prev => ({ ...prev, payment_account_holder: e.target.value }))}
+                placeholder="Nsisong Etim"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="paymentAmount">Amount (₦)</Label>
+              <Input
+                id="paymentAmount"
+                type="number"
+                value={paymentSettings.payment_amount}
+                onChange={(e) => setPaymentSettings(prev => ({ ...prev, payment_amount: parseInt(e.target.value) || 0 }))}
+                placeholder="1000"
+              />
+            </div>
+          </div>
+          <div className="mt-4">
+            <Button onClick={handleUpdatePaymentSettings} disabled={paymentLoading}>
+              {paymentLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Settings className="mr-2 h-4 w-4" />
+                  Update Payment Info
+                </>
+              )}
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -475,6 +860,7 @@ export const AccessPinManagement = () => {
           <CardTitle>Generate New PINs</CardTitle>
           <CardDescription>
             Create a batch of new access PINs (max 1,000 per batch)
+            {hasPassword && " - Password required"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -654,6 +1040,163 @@ export const AccessPinManagement = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Password Setup Dialog */}
+      <Dialog open={showPasswordSetup} onOpenChange={setShowPasswordSetup}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set Generation Password</DialogTitle>
+            <DialogDescription>
+              Create a 4-digit password that will be required to generate new PINs
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">New 4-Digit Password</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                maxLength={4}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                placeholder="••••"
+                className="text-center text-2xl tracking-widest"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                maxLength={4}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                placeholder="••••"
+                className="text-center text-2xl tracking-widest"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPasswordSetup(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSetPassword} disabled={passwordActionLoading}>
+              {passwordActionLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Set Password"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Password Change Dialog */}
+      <Dialog open={showPasswordChange} onOpenChange={setShowPasswordChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Generation Password</DialogTitle>
+            <DialogDescription>
+              Enter your current password and new password
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="currentPassword">Current Password</Label>
+              <Input
+                id="currentPassword"
+                type="password"
+                maxLength={4}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                placeholder="••••"
+                className="text-center text-2xl tracking-widest"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="newPasswordChange">New 4-Digit Password</Label>
+              <Input
+                id="newPasswordChange"
+                type="password"
+                maxLength={4}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                placeholder="••••"
+                className="text-center text-2xl tracking-widest"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPasswordChange">Confirm New Password</Label>
+              <Input
+                id="confirmPasswordChange"
+                type="password"
+                maxLength={4}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                placeholder="••••"
+                className="text-center text-2xl tracking-widest"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowPasswordChange(false);
+              setCurrentPassword("");
+              setNewPassword("");
+              setConfirmPassword("");
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleChangePassword} disabled={passwordActionLoading}>
+              {passwordActionLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Change Password"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Password Gate Dialog */}
+      <AlertDialog open={showPasswordGate} onOpenChange={setShowPasswordGate}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5" />
+              Enter Generation Password
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Enter the 4-digit password to generate PINs
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Input
+              type="password"
+              maxLength={4}
+              value={gatePassword}
+              onChange={(e) => setGatePassword(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              placeholder="••••"
+              className="text-center text-3xl tracking-widest h-16"
+              autoFocus
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setGatePassword("");
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handlePasswordGateSubmit} disabled={passwordActionLoading || gatePassword.length !== 4}>
+              {passwordActionLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Confirm & Generate"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
