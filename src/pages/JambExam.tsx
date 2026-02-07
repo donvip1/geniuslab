@@ -68,12 +68,19 @@ const JambExam = () => {
 
         if (error) throw error;
 
-        if (!data || !Array.isArray(data)) {
+        // API returns { questions: [], status: "VERIFIED_NODE", ... }
+        const questionsArray = data?.questions || data;
+        
+        if (!questionsArray || !Array.isArray(questionsArray)) {
           throw new Error("Invalid response format");
         }
 
+        if (questionsArray.length === 0) {
+          throw new Error("No questions available from the question bank");
+        }
+
         // Shuffle and take 40 questions
-        const shuffled = [...data].sort(() => Math.random() - 0.5);
+        const shuffled = [...questionsArray].sort(() => Math.random() - 0.5);
         const selected = shuffled.slice(0, TOTAL_QUESTIONS);
         setQuestions(selected);
         setExamStarted(true);
@@ -152,7 +159,11 @@ const JambExam = () => {
       try {
         const { data, error } = await supabase.functions.invoke("jamb-questions");
         if (error) throw error;
-        const shuffled = [...data].sort(() => Math.random() - 0.5);
+        const questionsArray = data?.questions || data;
+        if (!questionsArray || !Array.isArray(questionsArray) || questionsArray.length === 0) {
+          throw new Error("No questions available");
+        }
+        const shuffled = [...questionsArray].sort(() => Math.random() - 0.5);
         const selected = shuffled.slice(0, TOTAL_QUESTIONS);
         setQuestions(selected);
       } catch (error: any) {
