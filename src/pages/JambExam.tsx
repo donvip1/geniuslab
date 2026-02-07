@@ -349,59 +349,63 @@ const JambExam = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex flex-col">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-4 px-4 sticky top-0 z-20 shadow-lg">
-        <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-3">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold">JAMB CBT Practice</h1>
-            <p className="text-sm opacity-90">
-              Question {currentQuestionIndex + 1} of {questions.length}
-            </p>
-          </div>
-          <div className="flex items-center gap-4 md:gap-6">
-            <div className="flex items-center gap-2 bg-white/20 px-3 py-1.5 rounded-full">
-              <CheckCircle className="h-4 w-4" />
-              <span className="font-medium text-sm">
-                {getAnsweredCount()}/{questions.length}
-              </span>
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-3 px-3 md:py-4 md:px-4 sticky top-0 z-20 shadow-lg">
+        <div className="container mx-auto">
+          {/* Mobile: Compact header */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-shrink">
+              <h1 className="text-base md:text-2xl font-bold truncate">JAMB CBT Practice</h1>
+              <p className="text-xs md:text-sm opacity-90">
+                Question {currentQuestionIndex + 1} of {questions.length}
+              </p>
             </div>
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${timeLeft < 600 ? "bg-red-500 animate-pulse" : "bg-white/20"}`}>
-              <Clock className="h-4 w-4" />
-              <span className="font-bold">{formatTime(timeLeft)}</span>
+            <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+              <div className="flex items-center gap-1 md:gap-2 bg-white/20 px-2 md:px-3 py-1 md:py-1.5 rounded-full">
+                <CheckCircle className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="font-medium text-xs md:text-sm">
+                  {getAnsweredCount()}/{questions.length}
+                </span>
+              </div>
+              <div className={`flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-full ${timeLeft < 600 ? "bg-red-500 animate-pulse" : "bg-white/20"}`}>
+                <Clock className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="font-bold text-xs md:text-sm">{formatTime(timeLeft)}</span>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="secondary" size="sm" className="bg-white text-blue-700 hover:bg-blue-50 text-xs md:text-sm px-2 md:px-3 h-7 md:h-9">
+                    <Send className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                    <span className="hidden xs:inline">Finalize</span>
+                    <span className="xs:hidden">End</span>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="max-w-[90vw] md:max-w-lg">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Finalize Exam?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      You have answered {getAnsweredCount()} out of {questions.length} questions.
+                      {getAnsweredCount() < questions.length && (
+                        <span className="block mt-2 text-yellow-600 font-medium">
+                          ⚠️ Warning: You have {questions.length - getAnsweredCount()} unanswered questions!
+                        </span>
+                      )}
+                      <span className="block mt-2">Are you sure you want to submit?</span>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                    <AlertDialogCancel className="w-full sm:w-auto">Continue Exam</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleFinalize} className="w-full sm:w-auto">Submit Exam</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="secondary" size="sm" className="bg-white text-blue-700 hover:bg-blue-50">
-                  <Send className="h-4 w-4 mr-2" />
-                  Finalize
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Finalize Exam?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    You have answered {getAnsweredCount()} out of {questions.length} questions.
-                    {getAnsweredCount() < questions.length && (
-                      <span className="block mt-2 text-yellow-600 font-medium">
-                        ⚠️ Warning: You have {questions.length - getAnsweredCount()} unanswered questions!
-                      </span>
-                    )}
-                    <span className="block mt-2">Are you sure you want to submit?</span>
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Continue Exam</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleFinalize}>Submit Exam</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex">
-        {/* Side Navigation */}
-        <div className={`${showSideNav ? "w-64" : "w-0"} transition-all duration-300 bg-white dark:bg-gray-800 border-r shadow-lg overflow-hidden`}>
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        {/* Side Navigation - Hidden on mobile, shown on desktop */}
+        <div className={`hidden md:block ${showSideNav ? "w-64" : "w-0"} transition-all duration-300 bg-white dark:bg-gray-800 border-r shadow-lg overflow-hidden flex-shrink-0`}>
           <div className="p-4 h-full">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-700 dark:text-gray-200">Questions</h3>
@@ -436,12 +440,12 @@ const JambExam = () => {
           </div>
         </div>
 
-        {/* Toggle Side Nav Button */}
+        {/* Toggle Side Nav Button - Only on desktop */}
         {!showSideNav && (
           <Button
             variant="ghost"
             size="sm"
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-gray-800 shadow-md rounded-l-none"
+            className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-gray-800 shadow-md rounded-l-none"
             onClick={() => setShowSideNav(true)}
           >
             <ChevronRight className="h-4 w-4" />
@@ -449,26 +453,26 @@ const JambExam = () => {
         )}
 
         {/* Question Content */}
-        <div className="flex-1 p-4 md:p-8 overflow-y-auto">
-          <div className="max-w-3xl mx-auto">
+        <div className="flex-1 p-3 md:p-8 overflow-y-auto">
+          <div className="max-w-3xl mx-auto w-full">
             <Card className="shadow-xl">
-              <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-750">
+              <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-750 p-3 md:p-6">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm">
+                  <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                    <span className="bg-blue-600 text-white px-2 md:px-3 py-1 rounded-full text-xs md:text-sm">
                       Q{currentQuestionIndex + 1}
                     </span>
                   </CardTitle>
                   {currentQuestion.year && (
-                    <span className="text-sm text-muted-foreground bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">
+                    <span className="text-xs md:text-sm text-muted-foreground bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">
                       {currentQuestion.year}
                     </span>
                   )}
                 </div>
               </CardHeader>
-              <CardContent className="pt-6">
+              <CardContent className="p-3 md:p-6 pt-4 md:pt-6">
                 {/* Question Text with LaTeX support */}
-                <div className="prose dark:prose-invert max-w-none mb-6 text-lg">
+                <div className="prose dark:prose-invert max-w-none mb-4 md:mb-6 text-sm md:text-lg break-words">
                   <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                     {currentQuestion.text}
                   </ReactMarkdown>
@@ -479,11 +483,11 @@ const JambExam = () => {
                   value={answers[currentQuestionIndex]?.toString() || ""}
                   onValueChange={(value) => handleAnswerChange(currentQuestionIndex, parseInt(value))}
                 >
-                  <div className="space-y-3">
+                  <div className="space-y-2 md:space-y-3">
                     {currentQuestion.options.map((option, optIndex) => (
                       <div
                         key={optIndex}
-                        className={`flex items-start space-x-3 p-4 rounded-xl border-2 transition-all cursor-pointer hover:border-blue-300 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 ${
+                        className={`flex items-start space-x-2 md:space-x-3 p-3 md:p-4 rounded-lg md:rounded-xl border-2 transition-all cursor-pointer hover:border-blue-300 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 ${
                           answers[currentQuestionIndex] === optIndex
                             ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30"
                             : "border-gray-200 dark:border-gray-700"
@@ -493,16 +497,16 @@ const JambExam = () => {
                         <RadioGroupItem
                           value={optIndex.toString()}
                           id={`option-${optIndex}`}
-                          className="mt-1"
+                          className="mt-0.5 md:mt-1 flex-shrink-0"
                         />
                         <Label
                           htmlFor={`option-${optIndex}`}
-                          className="flex-1 cursor-pointer"
+                          className="flex-1 cursor-pointer min-w-0"
                         >
-                          <span className="font-bold text-blue-600 dark:text-blue-400 mr-2">
+                          <span className="font-bold text-blue-600 dark:text-blue-400 mr-1 md:mr-2 text-sm md:text-base">
                             {getOptionLabel(optIndex)}.
                           </span>
-                          <span className="prose dark:prose-invert prose-sm inline">
+                          <span className="prose dark:prose-invert prose-sm md:prose-base inline break-words">
                             <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                               {option}
                             </ReactMarkdown>
@@ -513,29 +517,62 @@ const JambExam = () => {
                   </div>
                 </RadioGroup>
 
+                {/* Mobile Question Navigator */}
+                <div className="md:hidden mt-4 pt-4 border-t">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-muted-foreground font-medium">Jump to question:</span>
+                  </div>
+                  <ScrollArea className="w-full">
+                    <div className="flex gap-1.5 pb-2">
+                      {questions.map((_, index) => {
+                        const isAnswered = answers[index] !== undefined;
+                        const isCurrent = index === currentQuestionIndex;
+                        
+                        return (
+                          <button
+                            key={index}
+                            onClick={() => setCurrentQuestionIndex(index)}
+                            className={`w-8 h-8 rounded-md font-semibold text-xs transition-all flex-shrink-0 ${
+                              isCurrent
+                                ? "bg-blue-600 text-white ring-2 ring-blue-400"
+                                : isAnswered
+                                ? "bg-green-500 text-white"
+                                : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                            }`}
+                          >
+                            {index + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                </div>
+
                 {/* Navigation Buttons */}
-                <div className="flex justify-between items-center mt-8 pt-6 border-t">
+                <div className="flex justify-between items-center mt-4 md:mt-8 pt-4 md:pt-6 border-t">
                   <Button
                     variant="outline"
                     onClick={() => setCurrentQuestionIndex((prev) => Math.max(0, prev - 1))}
                     disabled={currentQuestionIndex === 0}
-                    size="lg"
+                    size="default"
+                    className="text-xs md:text-sm px-3 md:px-4"
                   >
-                    <ChevronLeft className="mr-2 h-4 w-4" />
-                    Previous
+                    <ChevronLeft className="mr-1 md:mr-2 h-4 w-4" />
+                    Prev
                   </Button>
 
-                  <span className="text-sm text-muted-foreground hidden md:block">
-                    Click on question numbers in the sidebar to navigate
+                  <span className="text-xs text-muted-foreground hidden md:block">
+                    Click on question numbers to navigate
                   </span>
 
                   <Button
                     onClick={() => setCurrentQuestionIndex((prev) => Math.min(questions.length - 1, prev + 1))}
                     disabled={currentQuestionIndex === questions.length - 1}
-                    size="lg"
+                    size="default"
+                    className="text-xs md:text-sm px-3 md:px-4"
                   >
                     Next
-                    <ChevronRight className="ml-2 h-4 w-4" />
+                    <ChevronRight className="ml-1 md:ml-2 h-4 w-4" />
                   </Button>
                 </div>
               </CardContent>
