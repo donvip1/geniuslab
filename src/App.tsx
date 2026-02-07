@@ -12,6 +12,7 @@ import Auth from "./pages/Auth";
 import Exam from "./pages/Exam";
 import ExamTaking from "./pages/ExamTaking";
 import ExamResults from "./pages/ExamResults";
+import JambExam from "./pages/JambExam";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/exam" element={<Exam />} />
           <Route path="/exam/take/:subjectSlug" element={<ExamTaking />} />
           <Route path="/exam-results/:subjectSlug" element={<ExamResults />} />
+          <Route path="/jamb-exam" element={<JambExam />} />
           <Route path="/admin" element={<Admin />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
