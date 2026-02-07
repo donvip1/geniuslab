@@ -20,8 +20,8 @@ serve(async (req) => {
 
     console.log("API Key configured:", VEEZEE_API_KEY.substring(0, 10) + "...");
 
-    // Correct endpoint with level parameter
-    const apiUrl = "https://studio--studio-6583429608-f6a92.us-central1.hosted.app/api/bank?level=" + encodeURIComponent("JAMB / UTME");
+    // Test without level parameter first
+    const apiUrl = "https://studio--studio-6583429608-f6a92.us-central1.hosted.app/api/bank";
     
     console.log("Fetching from URL:", apiUrl);
 
