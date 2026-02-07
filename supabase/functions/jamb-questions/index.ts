@@ -20,8 +20,8 @@ serve(async (req) => {
 
     console.log("API Key configured:", VEEZEE_API_KEY.substring(0, 10) + "...");
 
-    // Try the URL with proper encoding - the slash in "JAMB / UTME" needs to be encoded
-    const apiUrl = "https://studio--studio-6583429608-f6a92.us-central1.hosted.app/api/bank?level=JAMB%20%2F%20UTME";
+    // Correct endpoint with level parameter
+    const apiUrl = "https://studio--studio-6583429608-f6a92.us-central1.hosted.app/api/bank?level=" + encodeURIComponent("JAMB / UTME");
     
     console.log("Fetching from URL:", apiUrl);
 
