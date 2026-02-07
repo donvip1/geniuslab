@@ -14,18 +14,28 @@ serve(async (req) => {
     const VEEZEE_API_KEY = Deno.env.get("VEEZEE_API_KEY");
     
     if (!VEEZEE_API_KEY) {
+      console.error("VEEZEE_API_KEY is not configured");
       throw new Error("VEEZEE_API_KEY is not configured");
     }
 
-    const apiUrl = "https://studio--studio-6583429608-f6a92.us-central1.hosted.app/api/bank?level=JAMB%20/%20UTME";
+    console.log("API Key configured:", VEEZEE_API_KEY.substring(0, 10) + "...");
+
+    // Try the URL with proper encoding - the slash in "JAMB / UTME" needs to be encoded
+    const apiUrl = "https://studio--studio-6583429608-f6a92.us-central1.hosted.app/api/bank?level=JAMB%20%2F%20UTME";
     
+    console.log("Fetching from URL:", apiUrl);
+
     const response = await fetch(apiUrl, {
       method: "GET",
       headers: {
         "X-API-KEY": VEEZEE_API_KEY,
         "Content-Type": "application/json",
+        "Accept": "application/json",
       },
     });
+
+    console.log("Response status:", response.status);
+    console.log("Response headers:", JSON.stringify(Object.fromEntries(response.headers.entries())));
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -34,6 +44,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
+    console.log("Successfully fetched", Array.isArray(data) ? data.length : 0, "questions");
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
