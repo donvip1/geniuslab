@@ -6,7 +6,17 @@ import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { BookOpen, Clock, User, LogOut } from "lucide-react";
+import { 
+  BookOpen, 
+  Clock, 
+  User, 
+  LogOut, 
+  GraduationCap, 
+  FileText, 
+  ChevronRight,
+  ArrowLeft,
+  Sparkles
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ExamLockedScreen } from "@/components/ExamLockedScreen";
 import { UserRestrictedScreen } from "@/components/UserRestrictedScreen";
@@ -25,9 +35,41 @@ interface UserRestriction {
   expires_at: string | null;
 }
 
-interface ActiveSubscription {
-  expires_at: string;
-}
+type ExamCategory = "select" | "jamb" | "department";
+
+const examCategories = [
+  {
+    id: "jamb" as ExamCategory,
+    title: "JAMB UTME CBT",
+    description: "Practice with real JAMB past questions. 40 questions, 2 hours.",
+    icon: GraduationCap,
+    color: "from-blue-500 to-indigo-600",
+    bgColor: "bg-blue-50 dark:bg-blue-950/30",
+    borderColor: "border-blue-200 dark:border-blue-800",
+    badge: "Popular",
+  },
+  {
+    id: "department" as ExamCategory,
+    title: "Department Exams",
+    description: "Practice exams for your specific courses and subjects.",
+    icon: BookOpen,
+    color: "from-emerald-500 to-teal-600",
+    bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
+    borderColor: "border-emerald-200 dark:border-emerald-800",
+    badge: null,
+  },
+  {
+    id: "coming-soon" as ExamCategory,
+    title: "More Exams Coming Soon",
+    description: "POST-UTME, Professional Exams, and more will be added.",
+    icon: Sparkles,
+    color: "from-gray-400 to-gray-500",
+    bgColor: "bg-gray-50 dark:bg-gray-900/30",
+    borderColor: "border-gray-200 dark:border-gray-700",
+    badge: "Coming Soon",
+    disabled: true,
+  },
+];
 
 const Exam = () => {
   const navigate = useNavigate();
@@ -36,6 +78,7 @@ const Exam = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedLevel, setSelectedLevel] = useState<string>("100L");
+  const [selectedCategory, setSelectedCategory] = useState<ExamCategory>("select");
   const [isExamsLocked, setIsExamsLocked] = useState(false);
   const [lockMessage, setLockMessage] = useState<string | null>(null);
   const [userRestriction, setUserRestriction] = useState<UserRestriction | null>(null);
@@ -99,9 +142,7 @@ const Exam = () => {
         .maybeSingle();
 
       if (data) {
-        // Check if restriction has expired
         if (data.expires_at && new Date(data.expires_at) < new Date()) {
-          // Restriction expired, mark as inactive
           await supabase
             .from("user_restrictions")
             .update({ is_active: false })
@@ -126,7 +167,6 @@ const Exam = () => {
     
     setUser(session.user);
 
-    // Check if user is admin
     const { data: roleData } = await supabase
       .from("user_roles")
       .select("role")
@@ -136,10 +176,7 @@ const Exam = () => {
 
     setIsAdmin(!!roleData);
 
-    // Check user restrictions
     await checkUserRestriction(session.user.id);
-    
-    // Check active subscription
     await checkActiveSubscription(session.user.id);
     
     setLoading(false);
@@ -194,6 +231,14 @@ const Exam = () => {
     navigate(`/exam/take/${slug}`);
   };
 
+  const handleCategorySelect = (categoryId: ExamCategory) => {
+    if (categoryId === "jamb") {
+      navigate("/jamb-exam");
+    } else if (categoryId === "department") {
+      setSelectedCategory("department");
+    }
+  };
+
   if (loading || checkingSubscription) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -205,7 +250,6 @@ const Exam = () => {
     );
   }
 
-  // Show restriction screen if user is restricted
   if (userRestriction) {
     return (
       <UserRestrictedScreen
@@ -216,12 +260,10 @@ const Exam = () => {
     );
   }
 
-  // Show lock screen if exams are locked (except for admins)
   if (isExamsLocked && !isAdmin) {
     return <ExamLockedScreen message={lockMessage} />;
   }
 
-  // Show PIN entry screen if PIN is required and user doesn't have active subscription (except for admins)
   if (isPinRequired && !hasActiveSubscription && !isAdmin) {
     return (
       <PinEntryScreen 
@@ -241,84 +283,154 @@ const Exam = () => {
           <div className="container mx-auto px-4">
             <div className="flex flex-col md:flex-row justify-between items-center max-w-4xl mx-auto gap-4">
               <div>
-                <h1 className="text-3xl md:text-4xl font-bold mb-2">FUOYE CBT EXAMS MODE</h1>
+                <h1 className="text-3xl md:text-4xl font-bold mb-2">
+                  {selectedCategory === "select" ? "CBT Examination Center" : "Department Exams"}
+                </h1>
                 <p className="opacity-90 flex items-center gap-2">
                   <User className="h-4 w-4" />
                   Welcome, {user?.email}
                 </p>
               </div>
-              <Button variant="secondary" onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
-              </Button>
+              <div className="flex gap-3">
+                {selectedCategory !== "select" && (
+                  <Button variant="outline" onClick={() => setSelectedCategory("select")} className="bg-white/10 border-white/20 hover:bg-white/20">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Categories
+                  </Button>
+                )}
+                <Button variant="secondary" onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </Button>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Subjects Selection */}
-        <section className="py-16">
-          <div className="container mx-auto px-4">
-            <div className="max-w-4xl mx-auto">
-              {/* Level Filter */}
-              <div className="mb-8">
-                <Label className="text-base font-semibold mb-3 block">Select Your Level</Label>
-                <div className="flex flex-wrap gap-3">
-                  {["100L", "200L", "300L", "400L", "500L"].map((level) => (
-                    <Button
-                      key={level}
-                      variant={selectedLevel === level ? "default" : "outline"}
-                      onClick={() => setSelectedLevel(level)}
-                      className="font-semibold"
-                    >
-                      {level}
-                    </Button>
-                  ))}
+        {/* Category Selection or Subject List */}
+        {selectedCategory === "select" ? (
+          <section className="py-16">
+            <div className="container mx-auto px-4">
+              <div className="max-w-4xl mx-auto">
+                <div className="text-center mb-12">
+                  <h2 className="text-2xl md:text-3xl font-bold mb-3">Choose Your Exam Type</h2>
+                  <p className="text-muted-foreground">Select a category to start practicing</p>
+                </div>
+
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {examCategories.map((category) => {
+                    const IconComponent = category.icon;
+                    const isDisabled = category.disabled;
+                    
+                    return (
+                      <Card 
+                        key={category.id}
+                        className={`relative overflow-hidden transition-all cursor-pointer group ${
+                          isDisabled 
+                            ? "opacity-60 cursor-not-allowed" 
+                            : "hover:shadow-xl hover:-translate-y-2"
+                        } ${category.bgColor} ${category.borderColor} border-2`}
+                        onClick={() => !isDisabled && handleCategorySelect(category.id)}
+                      >
+                        {category.badge && (
+                          <div className={`absolute top-3 right-3 px-2 py-1 rounded-full text-xs font-semibold ${
+                            category.badge === "Popular" 
+                              ? "bg-blue-600 text-white" 
+                              : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                          }`}>
+                            {category.badge}
+                          </div>
+                        )}
+                        <CardHeader className="pb-4">
+                          <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${category.color} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform`}>
+                            <IconComponent className="h-7 w-7 text-white" />
+                          </div>
+                          <CardTitle className="text-xl">{category.title}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <CardDescription className="text-sm mb-4">
+                            {category.description}
+                          </CardDescription>
+                          {!isDisabled && (
+                            <div className="flex items-center text-primary font-medium text-sm group-hover:gap-2 transition-all">
+                              Start Now
+                              <ChevronRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               </div>
-
-              <h2 className="text-2xl font-bold mb-8 text-center">Select a Subject to Practice</h2>
-
-              {subjects.length === 0 ? (
-                <Card>
-                  <CardContent className="pt-6 text-center">
-                    <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">
-                      No subjects available at the moment. Please check back later.
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="grid md:grid-cols-2 gap-6">
-                  {subjects.map((subject) => (
-                    <Card key={subject.id} className="hover:shadow-lg transition-all hover:-translate-y-1">
-                      <CardHeader>
-                        <div className="flex items-start justify-between mb-2">
-                          <CardTitle className="flex items-center gap-2">
-                            <BookOpen className="h-5 w-5 text-primary" />
-                            {subject.name}
-                          </CardTitle>
-                          <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-1 rounded">
-                            {subject.level}
-                          </span>
-                        </div>
-                        <CardDescription>{subject.description || "Practice exam available"}</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <Button 
-                          onClick={() => startExam(subject.name)}
-                          className="w-full"
-                        >
-                          <Clock className="mr-2 h-4 w-4" />
-                          Start Exam
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
             </div>
-          </div>
-        </section>
+          </section>
+        ) : (
+          /* Department Subjects Selection */
+          <section className="py-16">
+            <div className="container mx-auto px-4">
+              <div className="max-w-4xl mx-auto">
+                {/* Level Filter */}
+                <div className="mb-8">
+                  <Label className="text-base font-semibold mb-3 block">Select Your Level</Label>
+                  <div className="flex flex-wrap gap-3">
+                    {["100L", "200L", "300L", "400L", "500L"].map((level) => (
+                      <Button
+                        key={level}
+                        variant={selectedLevel === level ? "default" : "outline"}
+                        onClick={() => setSelectedLevel(level)}
+                        className="font-semibold"
+                      >
+                        {level}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <h2 className="text-2xl font-bold mb-8 text-center">Select a Subject to Practice</h2>
+
+                {subjects.length === 0 ? (
+                  <Card>
+                    <CardContent className="pt-6 text-center">
+                      <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">
+                        No subjects available for this level. Please check back later.
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid md:grid-cols-2 gap-6">
+                    {subjects.map((subject) => (
+                      <Card key={subject.id} className="hover:shadow-lg transition-all hover:-translate-y-1">
+                        <CardHeader>
+                          <div className="flex items-start justify-between mb-2">
+                            <CardTitle className="flex items-center gap-2">
+                              <BookOpen className="h-5 w-5 text-primary" />
+                              {subject.name}
+                            </CardTitle>
+                            <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-1 rounded">
+                              {subject.level}
+                            </span>
+                          </div>
+                          <CardDescription>{subject.description || "Practice exam available"}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <Button 
+                            onClick={() => startExam(subject.name)}
+                            className="w-full"
+                          >
+                            <Clock className="mr-2 h-4 w-4" />
+                            Start Exam
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Instructions */}
         <section className="py-16 bg-muted/50">
@@ -348,7 +460,7 @@ const Exam = () => {
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-primary font-bold">5.</span>
-                      <span>After submission, you'll see your score, correct answers, and personalized study recommendations.</span>
+                      <span>After submission, you'll see your score, correct answers, and detailed explanations.</span>
                     </li>
                   </ul>
                 </CardContent>
