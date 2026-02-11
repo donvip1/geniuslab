@@ -50,7 +50,7 @@ const examCategories = [
   },
   {
     id: "department" as ExamCategory,
-    title: "Department Exams",
+    title: "FUOYE CBT Exams",
     description: "Practice exams for your specific courses and subjects.",
     icon: BookOpen,
     color: "from-emerald-500 to-teal-600",
@@ -284,7 +284,7 @@ const Exam = () => {
             <div className="flex flex-col md:flex-row justify-between items-center max-w-4xl mx-auto gap-4">
               <div>
                 <h1 className="text-3xl md:text-4xl font-bold mb-2">
-                  {selectedCategory === "select" ? "CBT Examination Center" : "Department Exams"}
+                  {selectedCategory === "select" ? "CBT Examination Center" : "FUOYE CBT Exams"}
                 </h1>
                 <p className="opacity-90 flex items-center gap-2">
                   <User className="h-4 w-4" />
