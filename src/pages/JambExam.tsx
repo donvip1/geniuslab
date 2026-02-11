@@ -403,7 +403,7 @@ const JambExam = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row md:overflow-hidden overflow-x-hidden">
         {/* Side Navigation - Hidden on mobile, shown on desktop */}
         <div className={`hidden md:block ${showSideNav ? "w-64" : "w-0"} transition-all duration-300 bg-white dark:bg-gray-800 border-r shadow-lg overflow-hidden flex-shrink-0`}>
           <div className="p-4 h-full">
@@ -453,9 +453,9 @@ const JambExam = () => {
         )}
 
         {/* Question Content */}
-        <div className="flex-1 p-3 md:p-8 overflow-y-auto">
-          <div className="max-w-3xl mx-auto w-full">
-            <Card className="shadow-xl">
+        <div className="flex-1 p-2 sm:p-3 md:p-8 overflow-y-auto overflow-x-hidden">
+          <div className="max-w-3xl mx-auto w-full min-w-0">
+            <Card className="shadow-xl overflow-hidden">
               <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-750 p-3 md:p-6">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base md:text-lg flex items-center gap-2">
@@ -470,9 +470,9 @@ const JambExam = () => {
                   )}
                 </div>
               </CardHeader>
-              <CardContent className="p-3 md:p-6 pt-4 md:pt-6">
+              <CardContent className="p-3 md:p-6 pt-4 md:pt-6 min-w-0 overflow-x-hidden">
                 {/* Question Text with LaTeX support */}
-                <div className="prose dark:prose-invert max-w-none mb-4 md:mb-6 text-sm md:text-lg break-words">
+                <div className="prose dark:prose-invert max-w-none mb-4 md:mb-6 text-sm md:text-lg break-words overflow-wrap-anywhere [word-break:break-word] [overflow-wrap:anywhere] min-w-0">
                   <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                     {currentQuestion.text}
                   </ReactMarkdown>
@@ -501,12 +501,12 @@ const JambExam = () => {
                         />
                         <Label
                           htmlFor={`option-${optIndex}`}
-                          className="flex-1 cursor-pointer min-w-0"
+                          className="flex-1 cursor-pointer min-w-0 [word-break:break-word] [overflow-wrap:anywhere]"
                         >
                           <span className="font-bold text-blue-600 dark:text-blue-400 mr-1 md:mr-2 text-sm md:text-base">
                             {getOptionLabel(optIndex)}.
                           </span>
-                          <span className="prose dark:prose-invert prose-sm md:prose-base inline break-words">
+                          <span className="prose dark:prose-invert prose-sm md:prose-base inline break-words min-w-0 [word-break:break-word] [overflow-wrap:anywhere]">
                             <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                               {option}
                             </ReactMarkdown>
