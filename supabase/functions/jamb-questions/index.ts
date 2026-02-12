@@ -18,7 +18,19 @@ serve(async (req) => {
       throw new Error("VEEZEE_API_KEY is not configured");
     }
 
+    // Parse subjects from request body (optional)
+    let subjects: string[] = [];
+    if (req.method === "POST") {
+      try {
+        const body = await req.json();
+        subjects = body.subjects || [];
+      } catch {
+        // ignore parse errors, proceed without subjects filter
+      }
+    }
+
     console.log("API Key configured:", VEEZEE_API_KEY.substring(0, 10) + "...");
+    console.log("Requested subjects:", subjects);
 
     // Fetch JAMB/UTME questions with level parameter
     const apiUrl = "https://studio--studio-6583429608-f6a92.us-central1.hosted.app/api/bank?level=" + encodeURIComponent("JAMB / UTME");
@@ -35,7 +47,6 @@ serve(async (req) => {
     });
 
     console.log("Response status:", response.status);
-    console.log("Response headers:", JSON.stringify(Object.fromEntries(response.headers.entries())));
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -44,9 +55,26 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log("Successfully fetched", Array.isArray(data) ? data.length : 0, "questions");
+    
+    // Extract questions array
+    let questionsArray = data?.questions || data;
+    
+    if (!Array.isArray(questionsArray)) {
+      questionsArray = [];
+    }
 
-    return new Response(JSON.stringify(data), {
+    // Filter by subjects if provided
+    if (subjects.length > 0 && questionsArray.length > 0) {
+      const subjectsLower = subjects.map((s: string) => s.toLowerCase());
+      questionsArray = questionsArray.filter((q: any) => {
+        const qSubject = (q.subject || "").toLowerCase();
+        return subjectsLower.some((s: string) => qSubject.includes(s) || s.includes(qSubject));
+      });
+    }
+
+    console.log("Successfully fetched", questionsArray.length, "questions");
+
+    return new Response(JSON.stringify({ questions: questionsArray, status: data?.status || "OK" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
