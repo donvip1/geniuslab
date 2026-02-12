@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Clock, 
   ChevronLeft, 
@@ -16,7 +17,9 @@ import {
   AlertTriangle,
   Send,
   Home,
-  RotateCcw
+  RotateCcw,
+  BookOpen,
+  ArrowLeft
 } from "lucide-react";
 import {
   AlertDialog,
@@ -34,6 +37,7 @@ import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
+import jambLogo from "@/assets/jamb-logo.webp";
 
 interface JambQuestion {
   text: string;
@@ -41,63 +45,121 @@ interface JambQuestion {
   correctAnswerIndex: number;
   year: string;
   explanation: string;
+  subject?: string;
 }
 
 const EXAM_DURATION_SECONDS = 2 * 60 * 60; // 2 hours
-const TOTAL_QUESTIONS = 40;
+const TOTAL_QUESTIONS = 40; // 10 per subject × 4 subjects
+const REQUIRED_SUBJECTS = 4;
+
+// Common JAMB UTME subjects
+const JAMB_SUBJECTS = [
+  { id: "english", name: "English Language", category: "Compulsory", compulsory: true },
+  { id: "mathematics", name: "Mathematics", category: "Science/Commercial" },
+  { id: "physics", name: "Physics", category: "Science" },
+  { id: "chemistry", name: "Chemistry", category: "Science" },
+  { id: "biology", name: "Biology", category: "Science" },
+  { id: "agricultural-science", name: "Agricultural Science", category: "Science" },
+  { id: "economics", name: "Economics", category: "Commercial/Arts" },
+  { id: "commerce", name: "Commerce", category: "Commercial" },
+  { id: "accounting", name: "Accounting", category: "Commercial" },
+  { id: "government", name: "Government", category: "Arts" },
+  { id: "literature", name: "Literature in English", category: "Arts" },
+  { id: "crk", name: "Christian Religious Knowledge", category: "Arts" },
+  { id: "irk", name: "Islamic Religious Knowledge", category: "Arts" },
+  { id: "history", name: "History", category: "Arts" },
+  { id: "geography", name: "Geography", category: "Arts/Science" },
+  { id: "civic-education", name: "Civic Education", category: "General" },
+  { id: "computer-studies", name: "Computer Studies", category: "Science" },
+];
 
 const JambExam = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(["english"]); // English is compulsory
+  const [subjectsConfirmed, setSubjectsConfirmed] = useState(false);
   const [questions, setQuestions] = useState<JambQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, number>>({});
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState(EXAM_DURATION_SECONDS);
   const [examStarted, setExamStarted] = useState(false);
   const [examFinished, setExamFinished] = useState(false);
   const [score, setScore] = useState(0);
   const [showSideNav, setShowSideNav] = useState(true);
 
-  // Fetch questions from edge function
-  useEffect(() => {
-    const fetchQuestions = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke("jamb-questions");
+  const fetchQuestions = async (subjects: string[]) => {
+    setLoading(true);
+    try {
+      const subjectNames = subjects.map(id => 
+        JAMB_SUBJECTS.find(s => s.id === id)?.name || id
+      );
+      
+      const { data, error } = await supabase.functions.invoke("jamb-questions", {
+        body: { subjects: subjectNames },
+      });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        // API returns { questions: [], status: "VERIFIED_NODE", ... }
-        const questionsArray = data?.questions || data;
-        
-        if (!questionsArray || !Array.isArray(questionsArray)) {
-          throw new Error("Invalid response format");
-        }
+      const questionsArray = data?.questions || data;
+      
+      if (!questionsArray || !Array.isArray(questionsArray)) {
+        throw new Error("Invalid response format");
+      }
 
-        if (questionsArray.length === 0) {
-          throw new Error("No questions available from the question bank");
-        }
+      if (questionsArray.length === 0) {
+        throw new Error("No questions available from the question bank for the selected subjects");
+      }
 
-        // Shuffle and take 40 questions
-        const shuffled = [...questionsArray].sort(() => Math.random() - 0.5);
-        const selected = shuffled.slice(0, TOTAL_QUESTIONS);
-        setQuestions(selected);
-        setExamStarted(true);
-      } catch (error: any) {
-        console.error("Error fetching questions:", error);
+      // Shuffle and take 40 questions (10 per subject ideally)
+      const shuffled = [...questionsArray].sort(() => Math.random() - 0.5);
+      const selected = shuffled.slice(0, TOTAL_QUESTIONS);
+      setQuestions(selected);
+      setExamStarted(true);
+    } catch (error: any) {
+      console.error("Error fetching questions:", error);
+      toast({
+        title: "Error Loading Questions",
+        description: error.message || "Failed to load JAMB questions. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubjectToggle = (subjectId: string) => {
+    if (subjectId === "english") return; // English is compulsory
+    
+    setSelectedSubjects(prev => {
+      if (prev.includes(subjectId)) {
+        return prev.filter(id => id !== subjectId);
+      }
+      if (prev.length >= REQUIRED_SUBJECTS) {
         toast({
-          title: "Error Loading Questions",
-          description: error.message || "Failed to load JAMB questions. Please try again.",
+          title: "Maximum subjects reached",
+          description: "You can only select 4 subjects. Deselect one to choose another.",
           variant: "destructive",
         });
-      } finally {
-        setLoading(false);
+        return prev;
       }
-    };
+      return [...prev, subjectId];
+    });
+  };
 
-    fetchQuestions();
-  }, [toast]);
+  const handleStartExam = () => {
+    if (selectedSubjects.length !== REQUIRED_SUBJECTS) {
+      toast({
+        title: "Select 4 subjects",
+        description: `You've selected ${selectedSubjects.length} subject(s). Please select exactly 4.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    setSubjectsConfirmed(true);
+    fetchQuestions(selectedSubjects);
+  };
 
   // Timer countdown
   useEffect(() => {
@@ -152,32 +214,149 @@ const JambExam = () => {
     setCurrentQuestionIndex(0);
     setTimeLeft(EXAM_DURATION_SECONDS);
     setExamFinished(false);
-    setLoading(true);
-    
-    // Refetch questions
-    const fetchQuestions = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke("jamb-questions");
-        if (error) throw error;
-        const questionsArray = data?.questions || data;
-        if (!questionsArray || !Array.isArray(questionsArray) || questionsArray.length === 0) {
-          throw new Error("No questions available");
-        }
-        const shuffled = [...questionsArray].sort(() => Math.random() - 0.5);
-        const selected = shuffled.slice(0, TOTAL_QUESTIONS);
-        setQuestions(selected);
-      } catch (error: any) {
-        toast({
-          title: "Error",
-          description: "Failed to reload questions",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchQuestions();
+    setSubjectsConfirmed(false);
+    setExamStarted(false);
+    setQuestions([]);
   };
+
+  // Subject Selection Screen
+  if (!subjectsConfirmed) {
+    const categories = [...new Set(JAMB_SUBJECTS.map(s => s.category))];
+    
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-6 px-3 md:px-4">
+        <div className="max-w-3xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-6 md:mb-8">
+            <img src={jambLogo} alt="JAMB Logo" className="w-20 h-20 md:w-24 md:h-24 mx-auto mb-4 rounded-full shadow-lg object-cover" />
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white mb-2">
+              JAMB UTME CBT Practice
+            </h1>
+            <p className="text-muted-foreground text-sm md:text-base">
+              Select your 4 subject combination to begin the exam
+            </p>
+          </div>
+
+          {/* Selected subjects count */}
+          <div className="flex items-center justify-between mb-4 bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border">
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-primary" />
+              <span className="font-medium text-sm md:text-base">
+                {selectedSubjects.length} of {REQUIRED_SUBJECTS} subjects selected
+              </span>
+            </div>
+            <div className={`text-xs font-semibold px-2 py-1 rounded-full ${
+              selectedSubjects.length === REQUIRED_SUBJECTS
+                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+            }`}>
+              {selectedSubjects.length === REQUIRED_SUBJECTS ? "Ready!" : `${REQUIRED_SUBJECTS - selectedSubjects.length} more needed`}
+            </div>
+          </div>
+
+          {/* Selected subjects pills */}
+          {selectedSubjects.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {selectedSubjects.map(id => {
+                const subject = JAMB_SUBJECTS.find(s => s.id === id);
+                return (
+                  <span key={id} className="inline-flex items-center gap-1 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs md:text-sm font-medium">
+                    <CheckCircle className="h-3 w-3" />
+                    {subject?.name}
+                    {subject?.compulsory && <span className="text-[10px] opacity-70">(Compulsory)</span>}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Subject Grid */}
+          <Card className="shadow-lg mb-6">
+            <CardContent className="p-3 md:p-6">
+              <div className="space-y-6">
+                {categories.map(category => {
+                  const categorySubjects = JAMB_SUBJECTS.filter(s => s.category === category);
+                  return (
+                    <div key={category}>
+                      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 md:mb-3">
+                        {category}
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {categorySubjects.map(subject => {
+                          const isSelected = selectedSubjects.includes(subject.id);
+                          const isCompulsory = subject.compulsory;
+                          const isDisabled = !isSelected && selectedSubjects.length >= REQUIRED_SUBJECTS;
+                          
+                          return (
+                            <div
+                              key={subject.id}
+                              onClick={() => !isCompulsory && !isDisabled && handleSubjectToggle(subject.id)}
+                              className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
+                                isCompulsory
+                                  ? "border-primary bg-primary/5 cursor-default"
+                                  : isSelected
+                                  ? "border-primary bg-primary/5 cursor-pointer hover:bg-primary/10"
+                                  : isDisabled
+                                  ? "border-border opacity-50 cursor-not-allowed"
+                                  : "border-border cursor-pointer hover:border-primary/50 hover:bg-accent"
+                              }`}
+                            >
+                              <Checkbox
+                                checked={isSelected}
+                                disabled={isCompulsory || isDisabled}
+                                className="flex-shrink-0"
+                              />
+                              <div className="min-w-0">
+                                <span className="text-sm font-medium block truncate">{subject.name}</span>
+                                {isCompulsory && (
+                                  <span className="text-[10px] text-muted-foreground">Compulsory</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Exam Info & Start Button */}
+          <Card className="shadow-lg">
+            <CardContent className="p-4 md:p-6">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="text-sm text-muted-foreground text-center md:text-left">
+                  <p className="flex items-center gap-1 justify-center md:justify-start">
+                    <Clock className="h-4 w-4" /> Duration: <strong>2 Hours</strong>
+                  </p>
+                  <p className="flex items-center gap-1 justify-center md:justify-start mt-1">
+                    <BookOpen className="h-4 w-4" /> Questions: <strong>40 (10 per subject)</strong>
+                  </p>
+                </div>
+                <div className="flex gap-3 w-full md:w-auto">
+                  <Button variant="outline" onClick={() => navigate("/exam")} className="flex-1 md:flex-none">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back
+                  </Button>
+                  <Button
+                    onClick={handleStartExam}
+                    disabled={selectedSubjects.length !== REQUIRED_SUBJECTS}
+                    className="flex-1 md:flex-none"
+                    size="lg"
+                  >
+                    Start Exam
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -185,26 +364,32 @@ const JambExam = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary border-t-transparent mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-200">Loading JAMB Questions...</h2>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">Please wait while we prepare your exam</p>
+          <p className="text-gray-500 dark:text-gray-400 mt-2">Preparing questions for your selected subjects</p>
         </div>
       </div>
     );
   }
 
-  if (questions.length === 0) {
+  if (subjectsConfirmed && questions.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <Card className="max-w-md">
+        <Card className="max-w-md mx-4">
           <CardContent className="pt-6 text-center">
             <AlertTriangle className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">No Questions Available</h2>
             <p className="text-muted-foreground mb-4">
-              Unable to load JAMB questions. Please check your connection and try again.
+              No questions found for the selected subjects. Try different subjects or check back later.
             </p>
-            <Button onClick={() => window.location.reload()}>
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Retry
-            </Button>
+            <div className="flex gap-3 justify-center">
+              <Button variant="outline" onClick={restartExam}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Change Subjects
+              </Button>
+              <Button onClick={() => fetchQuestions(selectedSubjects)}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Retry
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
