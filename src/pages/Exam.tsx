@@ -11,7 +11,6 @@ import {
   Clock, 
   User, 
   LogOut, 
-  GraduationCap, 
   FileText, 
   ChevronRight,
   ArrowLeft,
@@ -21,6 +20,8 @@ import { useToast } from "@/hooks/use-toast";
 import { ExamLockedScreen } from "@/components/ExamLockedScreen";
 import { UserRestrictedScreen } from "@/components/UserRestrictedScreen";
 import { PinEntryScreen } from "@/components/PinEntryScreen";
+import jambLogo from "@/assets/jamb-logo.webp";
+import fuoyeLogo from "@/assets/fuoye-logo.jpeg";
 
 interface Subject {
   id: string;
@@ -42,7 +43,7 @@ const examCategories = [
     id: "jamb" as ExamCategory,
     title: "JAMB UTME CBT",
     description: "Practice with real JAMB past questions. 40 questions, 2 hours.",
-    icon: GraduationCap,
+    logo: jambLogo,
     color: "from-blue-500 to-indigo-600",
     bgColor: "bg-blue-50 dark:bg-blue-950/30",
     borderColor: "border-blue-200 dark:border-blue-800",
@@ -52,7 +53,7 @@ const examCategories = [
     id: "department" as ExamCategory,
     title: "FUOYE CBT Exams",
     description: "Practice exams for your specific courses and subjects.",
-    icon: BookOpen,
+    logo: fuoyeLogo,
     color: "from-emerald-500 to-teal-600",
     bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
     borderColor: "border-emerald-200 dark:border-emerald-800",
@@ -62,7 +63,7 @@ const examCategories = [
     id: "coming-soon" as ExamCategory,
     title: "More Exams Coming Soon",
     description: "POST-UTME, Professional Exams, and more will be added.",
-    icon: Sparkles,
+    logo: null,
     color: "from-gray-400 to-gray-500",
     bgColor: "bg-gray-50 dark:bg-gray-900/30",
     borderColor: "border-gray-200 dark:border-gray-700",
@@ -319,7 +320,6 @@ const Exam = () => {
 
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {examCategories.map((category) => {
-                    const IconComponent = category.icon;
                     const isDisabled = category.disabled;
                     
                     return (
@@ -342,9 +342,15 @@ const Exam = () => {
                           </div>
                         )}
                         <CardHeader className="pb-4">
-                          <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${category.color} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform`}>
-                            <IconComponent className="h-7 w-7 text-white" />
-                          </div>
+                          {category.logo ? (
+                            <div className="w-16 h-16 rounded-xl overflow-hidden mb-4 shadow-lg group-hover:scale-110 transition-transform">
+                              <img src={category.logo} alt={category.title} className="w-full h-full object-cover" />
+                            </div>
+                          ) : (
+                            <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${category.color} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform`}>
+                              <Sparkles className="h-7 w-7 text-white" />
+                            </div>
+                          )}
                           <CardTitle className="text-xl">{category.title}</CardTitle>
                         </CardHeader>
                         <CardContent>
