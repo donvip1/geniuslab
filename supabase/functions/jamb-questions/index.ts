@@ -18,63 +18,71 @@ serve(async (req) => {
       throw new Error("VEEZEE_API_KEY is not configured");
     }
 
-    // Parse subjects from request body (optional)
+    // Parse subjects from request body
     let subjects: string[] = [];
+    let questionsPerSubject = 10;
     if (req.method === "POST") {
       try {
         const body = await req.json();
         subjects = body.subjects || [];
+        questionsPerSubject = body.questionsPerSubject || 10;
       } catch {
-        // ignore parse errors, proceed without subjects filter
+        // ignore parse errors
       }
     }
 
-    console.log("API Key configured:", VEEZEE_API_KEY.substring(0, 10) + "...");
     console.log("Requested subjects:", subjects);
+    console.log("Questions per subject:", questionsPerSubject);
 
-    // Fetch JAMB/UTME questions with level parameter
-    const apiUrl = "https://studio--studio-6583429608-f6a92.us-central1.hosted.app/api/bank?level=" + encodeURIComponent("JAMB / UTME");
-    
-    console.log("Fetching from URL:", apiUrl);
+    const baseUrl = "https://studio--studio-6583429608-f6a92.us-central1.hosted.app/api/bank";
+    const allQuestions: any[] = [];
 
-    const response = await fetch(apiUrl, {
-      method: "GET",
-      headers: {
-        "X-API-KEY": VEEZEE_API_KEY,
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-      },
-    });
+    // Make separate API calls per subject to get tagged questions
+    const subjectsToFetch = subjects.length > 0 ? subjects : ["English Language"];
 
-    console.log("Response status:", response.status);
+    for (const subject of subjectsToFetch) {
+      const apiUrl = `${baseUrl}?level=${encodeURIComponent("JAMB / UTME")}&subject=${encodeURIComponent(subject)}&count=${questionsPerSubject}`;
+      
+      console.log(`Fetching ${subject} from: ${apiUrl}`);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("API Error:", response.status, errorText);
-      throw new Error(`API returned ${response.status}: ${errorText}`);
-    }
-
-    const data = await response.json();
-    
-    // Extract questions array
-    let questionsArray = data?.questions || data;
-    
-    if (!Array.isArray(questionsArray)) {
-      questionsArray = [];
-    }
-
-    // Filter by subjects if provided
-    if (subjects.length > 0 && questionsArray.length > 0) {
-      const subjectsLower = subjects.map((s: string) => s.toLowerCase());
-      questionsArray = questionsArray.filter((q: any) => {
-        const qSubject = (q.subject || "").toLowerCase();
-        return subjectsLower.some((s: string) => qSubject.includes(s) || s.includes(qSubject));
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          "X-API-KEY": VEEZEE_API_KEY,
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
       });
+
+      console.log(`${subject} response status:`, response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`API Error for ${subject}:`, response.status, errorText);
+        continue; // Skip this subject but try others
+      }
+
+      const rawText = await response.text();
+      const data = JSON.parse(rawText);
+      
+      let questionsArray = data?.questions || data?.data || data;
+      
+      if (Array.isArray(questionsArray)) {
+        // Tag each question with its subject
+        const taggedQuestions = questionsArray.map((q: any) => ({
+          ...q,
+          subject: q.subject || subject,
+        }));
+        console.log(`Got ${taggedQuestions.length} questions for ${subject}`);
+        allQuestions.push(...taggedQuestions);
+      } else {
+        console.log(`No valid questions array for ${subject}`);
+      }
     }
 
-    console.log("Successfully fetched", questionsArray.length, "questions");
+    console.log("Total questions fetched:", allQuestions.length);
 
-    return new Response(JSON.stringify({ questions: questionsArray, status: data?.status || "OK" }), {
+    return new Response(JSON.stringify({ questions: allQuestions, status: "OK" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
