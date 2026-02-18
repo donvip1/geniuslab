@@ -138,43 +138,19 @@ const JambExam = () => {
       );
       
       const { data, error } = await supabase.functions.invoke("jamb-questions", {
-        body: { subjects: subjectNames },
+        body: { subjects: subjectNames, questionsPerSubject: QUESTIONS_PER_SUBJECT },
       });
 
       if (error) throw error;
 
       const questionsArray = data?.questions || data;
       
-      if (!questionsArray || !Array.isArray(questionsArray)) {
-        throw new Error("Invalid response format");
-      }
-
-      if (questionsArray.length === 0) {
+      if (!questionsArray || !Array.isArray(questionsArray) || questionsArray.length === 0) {
         throw new Error("No questions available from the question bank for the selected subjects");
       }
 
-      // Distribute questions per subject
-      const allQuestions: JambQuestion[] = [];
-      for (const subId of subjects) {
-        const subName = (JAMB_SUBJECTS.find(s => s.id === subId)?.name || "").toLowerCase();
-        const subjectQs = questionsArray.filter((q: any) => {
-          const qSub = (q.subject || "").toLowerCase();
-          return qSub.includes(subName) || subName.includes(qSub);
-        });
-        const shuffled = [...subjectQs].sort(() => Math.random() - 0.5);
-        allQuestions.push(...shuffled.slice(0, QUESTIONS_PER_SUBJECT));
-      }
-
-      // If we didn't get enough per-subject, fill from remaining
-      if (allQuestions.length < QUESTIONS_PER_SUBJECT * subjects.length) {
-        const usedTexts = new Set(allQuestions.map(q => q.text));
-        const remaining = questionsArray.filter((q: any) => !usedTexts.has(q.text));
-        const shuffledRemaining = [...remaining].sort(() => Math.random() - 0.5);
-        const needed = (QUESTIONS_PER_SUBJECT * subjects.length) - allQuestions.length;
-        allQuestions.push(...shuffledRemaining.slice(0, needed));
-      }
-
-      setQuestions(allQuestions);
+      // Questions are already tagged with subjects from the edge function
+      setQuestions(questionsArray);
       setExamStarted(true);
       setTimeLeft(examDuration);
     } catch (error: any) {
