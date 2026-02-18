@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Clock, 
   ChevronLeft, 
@@ -19,7 +20,9 @@ import {
   Home,
   RotateCcw,
   BookOpen,
-  ArrowLeft
+  ArrowLeft,
+  Shield,
+  Zap
 } from "lucide-react";
 import {
   AlertDialog,
@@ -48,9 +51,12 @@ interface JambQuestion {
   subject?: string;
 }
 
-const EXAM_DURATION_SECONDS = 2 * 60 * 60; // 2 hours
-const TOTAL_QUESTIONS = 40; // 10 per subject × 4 subjects
+type ExamMode = "select" | "standard" | "mock";
+
 const REQUIRED_SUBJECTS = 4;
+const QUESTIONS_PER_SUBJECT = 10;
+const STANDARD_DURATION = 2 * 60 * 60; // 2 hours
+const MOCK_DURATION = 2 * 60 * 60; // 2 hours (locked)
 
 // Common JAMB UTME subjects
 const JAMB_SUBJECTS = [
@@ -77,17 +83,52 @@ const JambExam = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(["english"]); // English is compulsory
+  // Mode & subject selection
+  const [examMode, setExamMode] = useState<ExamMode>("select");
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(["english"]);
   const [subjectsConfirmed, setSubjectsConfirmed] = useState(false);
+
+  // Exam state
   const [questions, setQuestions] = useState<JambQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(EXAM_DURATION_SECONDS);
+  const [timeLeft, setTimeLeft] = useState(STANDARD_DURATION);
   const [examStarted, setExamStarted] = useState(false);
   const [examFinished, setExamFinished] = useState(false);
   const [score, setScore] = useState(0);
   const [showSideNav, setShowSideNav] = useState(true);
+  const [activeSubjectTab, setActiveSubjectTab] = useState("english");
+
+  const examDuration = examMode === "mock" ? MOCK_DURATION : STANDARD_DURATION;
+
+  // Group questions by subject for tabs
+  const questionsBySubject = useMemo(() => {
+    const grouped: Record<string, { questions: JambQuestion[]; globalIndices: number[] }> = {};
+    selectedSubjects.forEach(subId => {
+      grouped[subId] = { questions: [], globalIndices: [] };
+    });
+    questions.forEach((q, globalIdx) => {
+      const subjectName = (q.subject || "").toLowerCase();
+      const matchedSubject = selectedSubjects.find(subId => {
+        const subName = JAMB_SUBJECTS.find(s => s.id === subId)?.name.toLowerCase() || "";
+        return subjectName.includes(subName) || subName.includes(subjectName);
+      });
+      const key = matchedSubject || selectedSubjects[0];
+      if (grouped[key]) {
+        grouped[key].questions.push(q);
+        grouped[key].globalIndices.push(globalIdx);
+      }
+    });
+    return grouped;
+  }, [questions, selectedSubjects]);
+
+  // Get subject display label for tab
+  const getSubjectTabLabel = (subId: string, index: number) => {
+    const subject = JAMB_SUBJECTS.find(s => s.id === subId);
+    if (subject?.compulsory) return "English";
+    return `Elective ${index}`;
+  };
 
   const fetchQuestions = async (subjects: string[]) => {
     setLoading(true);
@@ -112,11 +153,30 @@ const JambExam = () => {
         throw new Error("No questions available from the question bank for the selected subjects");
       }
 
-      // Shuffle and take 40 questions (10 per subject ideally)
-      const shuffled = [...questionsArray].sort(() => Math.random() - 0.5);
-      const selected = shuffled.slice(0, TOTAL_QUESTIONS);
-      setQuestions(selected);
+      // Distribute questions per subject
+      const allQuestions: JambQuestion[] = [];
+      for (const subId of subjects) {
+        const subName = (JAMB_SUBJECTS.find(s => s.id === subId)?.name || "").toLowerCase();
+        const subjectQs = questionsArray.filter((q: any) => {
+          const qSub = (q.subject || "").toLowerCase();
+          return qSub.includes(subName) || subName.includes(qSub);
+        });
+        const shuffled = [...subjectQs].sort(() => Math.random() - 0.5);
+        allQuestions.push(...shuffled.slice(0, QUESTIONS_PER_SUBJECT));
+      }
+
+      // If we didn't get enough per-subject, fill from remaining
+      if (allQuestions.length < QUESTIONS_PER_SUBJECT * subjects.length) {
+        const usedTexts = new Set(allQuestions.map(q => q.text));
+        const remaining = questionsArray.filter((q: any) => !usedTexts.has(q.text));
+        const shuffledRemaining = [...remaining].sort(() => Math.random() - 0.5);
+        const needed = (QUESTIONS_PER_SUBJECT * subjects.length) - allQuestions.length;
+        allQuestions.push(...shuffledRemaining.slice(0, needed));
+      }
+
+      setQuestions(allQuestions);
       setExamStarted(true);
+      setTimeLeft(examDuration);
     } catch (error: any) {
       console.error("Error fetching questions:", error);
       toast({
@@ -130,7 +190,7 @@ const JambExam = () => {
   };
 
   const handleSubjectToggle = (subjectId: string) => {
-    if (subjectId === "english") return; // English is compulsory
+    if (subjectId === "english") return;
     
     setSelectedSubjects(prev => {
       if (prev.includes(subjectId)) {
@@ -158,6 +218,7 @@ const JambExam = () => {
       return;
     }
     setSubjectsConfirmed(true);
+    setActiveSubjectTab(selectedSubjects[0]);
     fetchQuestions(selectedSubjects);
   };
 
@@ -205,23 +266,122 @@ const JambExam = () => {
 
   const getAnsweredCount = () => Object.keys(answers).length;
 
-  const getOptionLabel = (index: number) => {
-    return String.fromCharCode(65 + index); // A, B, C, D
-  };
+  const getOptionLabel = (index: number) => String.fromCharCode(65 + index);
 
   const restartExam = () => {
     setAnswers({});
     setCurrentQuestionIndex(0);
-    setTimeLeft(EXAM_DURATION_SECONDS);
+    setTimeLeft(examDuration);
     setExamFinished(false);
     setSubjectsConfirmed(false);
     setExamStarted(false);
     setQuestions([]);
   };
 
-  // Subject Selection Screen
+  // ===== EXAM MODE SELECTION SCREEN =====
+  if (examMode === "select") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-6 px-3 md:px-4">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-8">
+            <img src={jambLogo} alt="JAMB Logo" className="w-20 h-20 md:w-24 md:h-24 mx-auto mb-4 rounded-full shadow-lg object-cover" />
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+              JAMB UTME CBT
+            </h1>
+            <p className="text-muted-foreground text-sm md:text-base">
+              Choose your exam mode to get started
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6 mb-6">
+            {/* Standard Mode */}
+            <Card 
+              className="relative overflow-hidden cursor-pointer group hover:shadow-xl hover:-translate-y-2 transition-all border-2 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30"
+              onClick={() => setExamMode("standard")}
+            >
+              <div className="absolute top-3 right-3 px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+                Practice
+              </div>
+              <CardHeader className="pb-3">
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
+                  <Zap className="h-7 w-7 text-white" />
+                </div>
+                <CardTitle className="text-xl">JAMB / UTME</CardTitle>
+                <CardDescription className="text-xs">Standard Practice Mode</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2 text-sm text-muted-foreground mb-4">
+                  <li className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-blue-500" />
+                    2-hour duration
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <BookOpen className="h-4 w-4 text-blue-500" />
+                    4-subject combination
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-blue-500" />
+                    Flexible practice focus
+                  </li>
+                </ul>
+                <div className="flex items-center text-primary font-medium text-sm group-hover:gap-2 transition-all">
+                  Start Practice
+                  <ChevronRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Mock UTME Mode */}
+            <Card 
+              className="relative overflow-hidden cursor-pointer group hover:shadow-xl hover:-translate-y-2 transition-all border-2 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/30"
+              onClick={() => setExamMode("mock")}
+            >
+              <div className="absolute top-3 right-3 px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">
+                Full Simulation
+              </div>
+              <CardHeader className="pb-3">
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-500 to-red-600 flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
+                  <Shield className="h-7 w-7 text-white" />
+                </div>
+                <CardTitle className="text-xl">JAMB Mock UTME</CardTitle>
+                <CardDescription className="text-xs">Real Exam Simulation</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2 text-sm text-muted-foreground mb-4">
+                  <li className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-amber-500" />
+                    120 minutes (locked)
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <BookOpen className="h-4 w-4 text-amber-500" />
+                    Compulsory 4-subject combo
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-amber-500" />
+                    Neural Proctoring enabled
+                  </li>
+                </ul>
+                <div className="flex items-center text-amber-600 dark:text-amber-400 font-medium text-sm group-hover:gap-2 transition-all">
+                  Start Mock Exam
+                  <ChevronRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Button variant="outline" onClick={() => navigate("/exam")} className="w-full md:w-auto">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Exam Categories
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ===== SUBJECT SELECTION SCREEN =====
   if (!subjectsConfirmed) {
     const categories = [...new Set(JAMB_SUBJECTS.map(s => s.category))];
+    const isMock = examMode === "mock";
     
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-6 px-3 md:px-4">
@@ -229,16 +389,22 @@ const JambExam = () => {
           {/* Header */}
           <div className="text-center mb-6 md:mb-8">
             <img src={jambLogo} alt="JAMB Logo" className="w-20 h-20 md:w-24 md:h-24 mx-auto mb-4 rounded-full shadow-lg object-cover" />
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white mb-2">
-              JAMB UTME CBT Practice
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-1">
+              {isMock ? "JAMB Mock UTME" : "JAMB UTME Practice"}
             </h1>
-            <p className="text-muted-foreground text-sm md:text-base">
-              Select your 4 subject combination to begin the exam
+            {isMock && (
+              <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-3 py-1 rounded-full text-xs font-semibold mb-2">
+                <Shield className="h-3 w-3" />
+                Full Simulation · Neural Proctoring Active
+              </span>
+            )}
+            <p className="text-muted-foreground text-sm md:text-base mt-2">
+              Select your 4 subject combination to begin
             </p>
           </div>
 
           {/* Selected subjects count */}
-          <div className="flex items-center justify-between mb-4 bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border">
+          <div className="flex items-center justify-between mb-4 bg-card rounded-lg p-3 shadow-sm border">
             <div className="flex items-center gap-2">
               <BookOpen className="h-5 w-5 text-primary" />
               <span className="font-medium text-sm md:text-base">
@@ -329,24 +495,29 @@ const JambExam = () => {
               <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="text-sm text-muted-foreground text-center md:text-left">
                   <p className="flex items-center gap-1 justify-center md:justify-start">
-                    <Clock className="h-4 w-4" /> Duration: <strong>2 Hours</strong>
+                    <Clock className="h-4 w-4" /> Duration: <strong>{isMock ? "120 Minutes (Locked)" : "2 Hours"}</strong>
                   </p>
                   <p className="flex items-center gap-1 justify-center md:justify-start mt-1">
-                    <BookOpen className="h-4 w-4" /> Questions: <strong>40 (10 per subject)</strong>
+                    <BookOpen className="h-4 w-4" /> Questions: <strong>{QUESTIONS_PER_SUBJECT * REQUIRED_SUBJECTS} ({QUESTIONS_PER_SUBJECT} per subject)</strong>
                   </p>
+                  {isMock && (
+                    <p className="flex items-center gap-1 justify-center md:justify-start mt-1 text-amber-600 dark:text-amber-400">
+                      <Shield className="h-4 w-4" /> Neural Proctoring: <strong>Enabled</strong>
+                    </p>
+                  )}
                 </div>
                 <div className="flex gap-3 w-full md:w-auto">
-                  <Button variant="outline" onClick={() => navigate("/exam")} className="flex-1 md:flex-none">
+                  <Button variant="outline" onClick={() => setExamMode("select")} className="flex-1 md:flex-none">
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back
                   </Button>
                   <Button
                     onClick={handleStartExam}
                     disabled={selectedSubjects.length !== REQUIRED_SUBJECTS}
-                    className="flex-1 md:flex-none"
+                    className={`flex-1 md:flex-none ${isMock ? "bg-gradient-to-r from-amber-500 to-red-600 hover:from-amber-600 hover:to-red-700" : ""}`}
                     size="lg"
                   >
-                    Start Exam
+                    {isMock ? "Start Mock Exam" : "Start Practice"}
                     <ChevronRight className="ml-2 h-4 w-4" />
                   </Button>
                 </div>
@@ -358,18 +529,20 @@ const JambExam = () => {
     );
   }
 
+  // ===== LOADING SCREEN =====
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary border-t-transparent mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-200">Loading JAMB Questions...</h2>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">Preparing questions for your selected subjects</p>
+          <h2 className="text-xl font-semibold text-foreground">Loading JAMB Questions...</h2>
+          <p className="text-muted-foreground mt-2">Preparing questions for your selected subjects</p>
         </div>
       </div>
     );
   }
 
+  // ===== NO QUESTIONS SCREEN =====
   if (subjectsConfirmed && questions.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
@@ -396,18 +569,21 @@ const JambExam = () => {
     );
   }
 
-  // Results Screen
+  // ===== RESULTS SCREEN =====
   if (examFinished) {
     const wrongAnswers = questions.filter((q, i) => answers[i] !== q.correctAnswerIndex);
     const percentage = Math.round((score / questions.length) * 100);
+    const isMock = examMode === "mock";
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4">
         <div className="max-w-4xl mx-auto">
-          {/* Score Summary Card */}
+          {/* Score Summary */}
           <Card className="mb-8 overflow-hidden">
             <div className={`p-8 text-center text-white ${percentage >= 50 ? 'bg-gradient-to-r from-green-500 to-emerald-600' : 'bg-gradient-to-r from-red-500 to-rose-600'}`}>
-              <h1 className="text-3xl font-bold mb-2">JAMB CBT Results</h1>
+              <h1 className="text-3xl font-bold mb-2">
+                {isMock ? "JAMB Mock UTME Results" : "JAMB CBT Results"}
+              </h1>
               <div className="text-7xl font-bold my-6">{score}/{questions.length}</div>
               <p className="text-2xl">{percentage}%</p>
               <Progress value={percentage} className="mt-4 h-3 bg-white/30" />
@@ -423,10 +599,31 @@ const JambExam = () => {
                   <div className="text-sm text-muted-foreground">Wrong</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-blue-600">{formatTime(EXAM_DURATION_SECONDS - timeLeft)}</div>
+                  <div className="text-3xl font-bold text-blue-600">{formatTime(examDuration - timeLeft)}</div>
                   <div className="text-sm text-muted-foreground">Time Used</div>
                 </div>
               </div>
+
+              {/* Per-subject breakdown */}
+              <div className="mt-6 pt-4 border-t">
+                <h3 className="font-semibold mb-3 text-sm">Subject Breakdown</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {selectedSubjects.map(subId => {
+                    const subData = questionsBySubject[subId];
+                    if (!subData) return null;
+                    const subCorrect = subData.globalIndices.filter(gi => answers[gi] === questions[gi]?.correctAnswerIndex).length;
+                    const subTotal = subData.globalIndices.length;
+                    const subName = JAMB_SUBJECTS.find(s => s.id === subId)?.name || subId;
+                    return (
+                      <div key={subId} className="bg-muted/50 rounded-lg p-3">
+                        <div className="text-xs text-muted-foreground truncate">{subName}</div>
+                        <div className="text-lg font-bold">{subCorrect}/{subTotal}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="flex gap-4 mt-6 justify-center">
                 <Button variant="outline" onClick={() => navigate("/")}>
                   <Home className="mr-2 h-4 w-4" />
@@ -440,7 +637,7 @@ const JambExam = () => {
             </CardContent>
           </Card>
 
-          {/* Wrong Answers with Explanations */}
+          {/* Wrong Answers Review */}
           {wrongAnswers.length > 0 && (
             <Card>
               <CardHeader>
@@ -462,8 +659,13 @@ const JambExam = () => {
                             <span className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-1 rounded text-sm font-medium">
                               Q{originalIndex + 1}
                             </span>
+                            {q.subject && (
+                              <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded text-xs">
+                                {q.subject}
+                              </span>
+                            )}
                             {q.year && (
-                              <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded text-sm">
+                              <span className="bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 px-2 py-1 rounded text-xs">
                                 {q.year}
                               </span>
                             )}
@@ -528,20 +730,34 @@ const JambExam = () => {
     );
   }
 
-  // Exam Taking Screen
+  // ===== EXAM TAKING SCREEN WITH SUBJECT TABS =====
   const currentQuestion = questions[currentQuestionIndex];
+  const isMock = examMode === "mock";
+
+  // Get the active subject's question indices for the tab navigator
+  const activeSubjectData = questionsBySubject[activeSubjectTab];
+  const activeSubjectIndices = activeSubjectData?.globalIndices || [];
+
+  // Compute answered count per subject for tab badges
+  const getSubjectAnsweredCount = (subId: string) => {
+    const data = questionsBySubject[subId];
+    if (!data) return 0;
+    return data.globalIndices.filter(gi => answers[gi] !== undefined).length;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex flex-col">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-3 px-3 md:py-4 md:px-4 sticky top-0 z-20 shadow-lg">
+      <div className={`${isMock ? "bg-gradient-to-r from-amber-600 to-red-700" : "bg-gradient-to-r from-blue-600 to-indigo-700"} text-white py-3 px-3 md:py-4 md:px-4 sticky top-0 z-20 shadow-lg`}>
         <div className="container mx-auto">
-          {/* Mobile: Compact header */}
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 flex-shrink">
-              <h1 className="text-base md:text-2xl font-bold truncate">JAMB CBT Practice</h1>
+              <h1 className="text-base md:text-2xl font-bold truncate">
+                {isMock ? "JAMB Mock UTME" : "JAMB CBT Practice"}
+              </h1>
               <p className="text-xs md:text-sm opacity-90">
-                Question {currentQuestionIndex + 1} of {questions.length}
+                Q{currentQuestionIndex + 1} of {questions.length}
+                {isMock && <span className="ml-2 text-[10px] opacity-75">🔒 Proctored</span>}
               </p>
             </div>
             <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
@@ -587,36 +803,80 @@ const JambExam = () => {
         </div>
       </div>
 
+      {/* Subject Tabs - Horizontal */}
+      <div className="bg-card border-b shadow-sm sticky top-[52px] md:top-[64px] z-10">
+        <div className="container mx-auto px-2 md:px-4">
+          <ScrollArea className="w-full">
+            <div className="flex gap-1 py-2">
+              {selectedSubjects.map((subId, idx) => {
+                const subName = JAMB_SUBJECTS.find(s => s.id === subId)?.name || subId;
+                const isActive = activeSubjectTab === subId;
+                const answeredInSub = getSubjectAnsweredCount(subId);
+                const totalInSub = questionsBySubject[subId]?.globalIndices.length || 0;
+                const electiveIdx = idx; // 0 = English, 1-3 = Electives
+
+                return (
+                  <button
+                    key={subId}
+                    onClick={() => {
+                      setActiveSubjectTab(subId);
+                      // Jump to first question of this subject
+                      const firstIdx = questionsBySubject[subId]?.globalIndices[0];
+                      if (firstIdx !== undefined) setCurrentQuestionIndex(firstIdx);
+                    }}
+                    className={`flex-shrink-0 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap ${
+                      isActive
+                        ? isMock
+                          ? "bg-amber-600 text-white shadow-md"
+                          : "bg-blue-600 text-white shadow-md"
+                        : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <span className="block">{electiveIdx === 0 ? "English" : `Elective ${electiveIdx}`}</span>
+                    <span className={`text-[10px] block ${isActive ? "text-white/80" : "text-muted-foreground"}`}>
+                      {answeredInSub}/{totalInSub}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </ScrollArea>
+        </div>
+      </div>
+
       {/* Main Content */}
       <div className="flex-1 flex flex-col md:flex-row md:overflow-hidden overflow-x-hidden">
-        {/* Side Navigation - Hidden on mobile, shown on desktop */}
-        <div className={`hidden md:block ${showSideNav ? "w-64" : "w-0"} transition-all duration-300 bg-white dark:bg-gray-800 border-r shadow-lg overflow-hidden flex-shrink-0`}>
+        {/* Side Navigation - Desktop */}
+        <div className={`hidden md:block ${showSideNav ? "w-64" : "w-0"} transition-all duration-300 bg-card border-r shadow-lg overflow-hidden flex-shrink-0`}>
           <div className="p-4 h-full">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-700 dark:text-gray-200">Questions</h3>
+              <h3 className="font-semibold text-sm">
+                {JAMB_SUBJECTS.find(s => s.id === activeSubjectTab)?.name || "Questions"}
+              </h3>
               <Button variant="ghost" size="sm" onClick={() => setShowSideNav(false)}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
             </div>
-            <ScrollArea className="h-[calc(100vh-200px)]">
+            <ScrollArea className="h-[calc(100vh-280px)]">
               <div className="grid grid-cols-5 gap-2">
-                {questions.map((_, index) => {
-                  const isAnswered = answers[index] !== undefined;
-                  const isCurrent = index === currentQuestionIndex;
+                {activeSubjectIndices.map((globalIdx) => {
+                  const isAnswered = answers[globalIdx] !== undefined;
+                  const isCurrent = globalIdx === currentQuestionIndex;
+                  const localNum = activeSubjectIndices.indexOf(globalIdx) + 1;
                   
                   return (
                     <button
-                      key={index}
-                      onClick={() => setCurrentQuestionIndex(index)}
+                      key={globalIdx}
+                      onClick={() => setCurrentQuestionIndex(globalIdx)}
                       className={`w-full aspect-square rounded-lg font-semibold text-sm transition-all ${
                         isCurrent
-                          ? "bg-blue-600 text-white ring-2 ring-blue-400 ring-offset-2"
+                          ? isMock ? "bg-amber-600 text-white ring-2 ring-amber-400 ring-offset-2" : "bg-blue-600 text-white ring-2 ring-blue-400 ring-offset-2"
                           : isAnswered
                           ? "bg-green-500 text-white hover:bg-green-600"
-                          : "bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+                          : "bg-muted hover:bg-muted/80"
                       }`}
                     >
-                      {index + 1}
+                      {localNum}
                     </button>
                   );
                 })}
@@ -625,12 +885,12 @@ const JambExam = () => {
           </div>
         </div>
 
-        {/* Toggle Side Nav Button - Only on desktop */}
+        {/* Toggle Side Nav */}
         {!showSideNav && (
           <Button
             variant="ghost"
             size="sm"
-            className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-gray-800 shadow-md rounded-l-none"
+            className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-card shadow-md rounded-l-none"
             onClick={() => setShowSideNav(true)}
           >
             <ChevronRight className="h-4 w-4" />
@@ -641,23 +901,28 @@ const JambExam = () => {
         <div className="flex-1 p-2 sm:p-3 md:p-8 overflow-y-auto overflow-x-hidden">
           <div className="max-w-3xl mx-auto w-full min-w-0">
             <Card className="shadow-xl overflow-hidden">
-              <CardHeader className="border-b bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-750 p-3 md:p-6">
+              <CardHeader className="border-b bg-gradient-to-r from-muted/30 to-muted/50 p-3 md:p-6">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                    <span className="bg-blue-600 text-white px-2 md:px-3 py-1 rounded-full text-xs md:text-sm">
+                    <span className={`${isMock ? "bg-amber-600" : "bg-blue-600"} text-white px-2 md:px-3 py-1 rounded-full text-xs md:text-sm`}>
                       Q{currentQuestionIndex + 1}
                     </span>
+                    {currentQuestion.subject && (
+                      <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                        {currentQuestion.subject}
+                      </span>
+                    )}
                   </CardTitle>
                   {currentQuestion.year && (
-                    <span className="text-xs md:text-sm text-muted-foreground bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">
+                    <span className="text-xs md:text-sm text-muted-foreground bg-muted px-2 py-1 rounded">
                       {currentQuestion.year}
                     </span>
                   )}
                 </div>
               </CardHeader>
               <CardContent className="p-3 md:p-6 pt-4 md:pt-6 min-w-0 overflow-x-hidden">
-                {/* Question Text with LaTeX support */}
-                <div className="prose dark:prose-invert max-w-none mb-4 md:mb-6 text-sm md:text-lg break-words overflow-wrap-anywhere [word-break:break-word] [overflow-wrap:anywhere] min-w-0">
+                {/* Question Text */}
+                <div className="prose dark:prose-invert max-w-none mb-4 md:mb-6 text-sm md:text-lg break-words [word-break:break-word] [overflow-wrap:anywhere] min-w-0">
                   <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                     {currentQuestion.text}
                   </ReactMarkdown>
@@ -674,8 +939,8 @@ const JambExam = () => {
                         key={optIndex}
                         className={`flex items-start space-x-2 md:space-x-3 p-3 md:p-4 rounded-lg md:rounded-xl border-2 transition-all cursor-pointer hover:border-blue-300 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 ${
                           answers[currentQuestionIndex] === optIndex
-                            ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30"
-                            : "border-gray-200 dark:border-gray-700"
+                            ? isMock ? "border-amber-500 bg-amber-50 dark:bg-amber-900/30" : "border-blue-500 bg-blue-50 dark:bg-blue-900/30"
+                            : "border-border"
                         }`}
                         onClick={() => handleAnswerChange(currentQuestionIndex, optIndex)}
                       >
@@ -702,30 +967,33 @@ const JambExam = () => {
                   </div>
                 </RadioGroup>
 
-                {/* Mobile Question Navigator */}
+                {/* Mobile Question Navigator (per subject) */}
                 <div className="md:hidden mt-4 pt-4 border-t">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-muted-foreground font-medium">Jump to question:</span>
+                    <span className="text-xs text-muted-foreground font-medium">
+                      {JAMB_SUBJECTS.find(s => s.id === activeSubjectTab)?.name} questions:
+                    </span>
                   </div>
                   <ScrollArea className="w-full">
                     <div className="flex gap-1.5 pb-2">
-                      {questions.map((_, index) => {
-                        const isAnswered = answers[index] !== undefined;
-                        const isCurrent = index === currentQuestionIndex;
+                      {activeSubjectIndices.map((globalIdx) => {
+                        const isAnswered = answers[globalIdx] !== undefined;
+                        const isCurrent = globalIdx === currentQuestionIndex;
+                        const localNum = activeSubjectIndices.indexOf(globalIdx) + 1;
                         
                         return (
                           <button
-                            key={index}
-                            onClick={() => setCurrentQuestionIndex(index)}
+                            key={globalIdx}
+                            onClick={() => setCurrentQuestionIndex(globalIdx)}
                             className={`w-8 h-8 rounded-md font-semibold text-xs transition-all flex-shrink-0 ${
                               isCurrent
-                                ? "bg-blue-600 text-white ring-2 ring-blue-400"
+                                ? isMock ? "bg-amber-600 text-white ring-2 ring-amber-400" : "bg-blue-600 text-white ring-2 ring-blue-400"
                                 : isAnswered
                                 ? "bg-green-500 text-white"
-                                : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                                : "bg-muted text-muted-foreground"
                             }`}
                           >
-                            {index + 1}
+                            {localNum}
                           </button>
                         );
                       })}
@@ -739,7 +1007,6 @@ const JambExam = () => {
                     variant="outline"
                     onClick={() => setCurrentQuestionIndex((prev) => Math.max(0, prev - 1))}
                     disabled={currentQuestionIndex === 0}
-                    size="default"
                     className="text-xs md:text-sm px-3 md:px-4"
                   >
                     <ChevronLeft className="mr-1 md:mr-2 h-4 w-4" />
@@ -753,7 +1020,6 @@ const JambExam = () => {
                   <Button
                     onClick={() => setCurrentQuestionIndex((prev) => Math.min(questions.length - 1, prev + 1))}
                     disabled={currentQuestionIndex === questions.length - 1}
-                    size="default"
                     className="text-xs md:text-sm px-3 md:px-4"
                   >
                     Next
