@@ -88,6 +88,7 @@ const Exam = () => {
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [showPinEntry, setShowPinEntry] = useState(false);
   const [checkingSubscription, setCheckingSubscription] = useState(true);
+  const [settingsChecked, setSettingsChecked] = useState(false);
 
   useEffect(() => {
     checkUser();
@@ -110,6 +111,8 @@ const Exam = () => {
       }
     } catch (error) {
       console.error("Error checking exam lock:", error);
+    } finally {
+      setSettingsChecked(true);
     }
   };
 
@@ -240,7 +243,7 @@ const Exam = () => {
     }
   };
 
-  if (loading || checkingSubscription) {
+  if (loading || checkingSubscription || !settingsChecked) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

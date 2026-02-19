@@ -107,6 +107,25 @@ export const PinEntryScreen = ({ onSuccess, userEmail }: PinEntryScreenProps) =>
       }
 
       if (pinData.is_used) {
+        // Check if this PIN belongs to the current user and is still valid
+        if (
+          pinData.used_by === session.user.id &&
+          pinData.expires_at &&
+          new Date(pinData.expires_at) > new Date()
+        ) {
+          // User's own active PIN — grant access
+          setSuccess(true);
+          toast({
+            title: "Welcome Back!",
+            description: "Your PIN is still active. Redirecting to exams...",
+          });
+          setTimeout(() => {
+            onSuccess();
+          }, 1500);
+          setLoading(false);
+          return;
+        }
+
         toast({
           title: "PIN Already Used",
           description: "This PIN has already been activated by another user.",

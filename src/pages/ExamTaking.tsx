@@ -87,6 +87,7 @@ const ExamTaking = () => {
   const [isPinRequired, setIsPinRequired] = useState(false);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [subscriptionChecked, setSubscriptionChecked] = useState(false);
+  const [settingsChecked, setSettingsChecked] = useState(false);
 
   // Pagination for question navigator
   const currentPage = Math.floor(currentQuestionIndex / QUESTIONS_PER_PAGE);
@@ -186,6 +187,8 @@ const ExamTaking = () => {
       }
     } catch (error) {
       console.error("Error fetching exam settings:", error);
+    } finally {
+      setSettingsChecked(true);
     }
   };
 
@@ -383,7 +386,7 @@ const ExamTaking = () => {
     }
   };
 
-  if (loading || !subscriptionChecked) {
+  if (loading || !subscriptionChecked || !settingsChecked) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
