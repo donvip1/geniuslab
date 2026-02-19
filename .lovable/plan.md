@@ -1,88 +1,61 @@
 
-# Plan: Fix PIN List Sorting and Filtering
 
-## Issues Identified
+# Fix: PIN Remains Valid After Toggling PIN Mode
 
-### Issue 1: Sorting - Used pins should appear first
-Currently, pins are sorted only by `created_at` (newest first). You want used pins to appear at the top so admins can quickly see which pins are in use.
+## Problem
 
-### Issue 2: Filter verification
-I checked your database and found 2 active pins (JLJ2DBFY and KJPU543S). The "Active" filter logic looks correct, but let me verify it works after fixing the sorting.
+When an admin toggles the "Require PIN for Exam Access" setting off and back on, students who already activated a valid PIN are shown the PIN Entry Screen again. When they try to re-enter their PIN, they see "PIN Already Used" -- making it seem like their PIN is invalid, even though it should still be active.
 
----
+## Root Cause
+
+There are two contributing issues:
+
+1. **Race condition on page load**: The exam settings check (`isPinRequired`) and subscription check (`hasActiveSubscription`) run as separate parallel async calls. The settings can resolve first (setting `isPinRequired = true`) while the subscription check hasn't finished yet -- briefly showing the PIN Entry Screen before the subscription is confirmed.
+
+2. **PinEntryScreen doesn't recognize the user's own active PIN**: When a user with an already-active PIN sees the PIN Entry Screen (due to the race condition or a page refresh), and enters their same PIN again, the code shows "PIN Already Used" without checking whether it belongs to the current user. It should recognize this and grant access automatically.
 
 ## Solution
 
-### Change 1: Sort pins with used ones first
-After fetching pins from the database, sort them so:
-1. Used pins come first (sorted by `used_at` date, most recent first)
-2. Unused pins come after (sorted by `created_at` date, newest first)
+### Change 1: Ensure subscription is checked before rendering PIN gate (Exam.tsx)
 
-### Change 2: Keep filter logic the same (it's correct)
-The filter logic for "Active" status is:
-- PIN must be used (`is_used = true`)
-- PIN must have an expiry date
-- Expiry date must be in the future
+Move the `isPinRequired` state into the same loading flow as subscription checking, so the PIN gate is never shown until BOTH the setting and subscription status are fully resolved.
 
----
+### Change 2: Ensure subscription is checked before rendering PIN gate (ExamTaking.tsx)
 
-## Technical Changes
+Apply the same fix -- wait for both `isPinRequired` and `hasActiveSubscription` to be fully resolved before deciding to redirect.
 
-| File | Changes |
-|------|---------|
-| `src/components/admin/AccessPinManagement.tsx` | Update `getFilteredPins()` to sort used pins first |
+### Change 3: Handle "own PIN re-entry" in PinEntryScreen
 
-### Code Change
-
-**Before (line 554-582):**
-```tsx
-const getFilteredPins = () => {
-  // ...filter logic...
-  return pins.filter(pin => { ... });
-};
-
-const filteredPins = getFilteredPins();
-```
-
-**After:**
-```tsx
-const getFilteredPins = () => {
-  const now = new Date();
-  
-  // First filter
-  const filtered = pins.filter(pin => {
-    // ...existing filter logic...
-  });
-  
-  // Then sort: used pins first (by used_at desc), then unused (by created_at desc)
-  return filtered.sort((a, b) => {
-    // Used pins come first
-    if (a.is_used && !b.is_used) return -1;
-    if (!a.is_used && b.is_used) return 1;
-    
-    // Among used pins, sort by used_at (most recent first)
-    if (a.is_used && b.is_used) {
-      const aDate = a.used_at ? new Date(a.used_at).getTime() : 0;
-      const bDate = b.used_at ? new Date(b.used_at).getTime() : 0;
-      return bDate - aDate;
-    }
-    
-    // Among unused pins, sort by created_at (most recent first)
-    const aCreated = new Date(a.created_at).getTime();
-    const bCreated = new Date(b.created_at).getTime();
-    return bCreated - aCreated;
-  });
-};
-```
+When a user enters a PIN that is already used, check if it was used by the current user and is still valid. If so, grant access instead of showing an error.
 
 ---
 
-## Result After Fix
+## Technical Details
 
-| Default View (All Status) | Filtered View |
-|---------------------------|---------------|
-| ✅ JLJ2DBFY (Active) - top | Active filter shows 2 pins |
-| ✅ KJPU543S (Active) | Expired filter shows 0 pins |
-| 8KH45BLK (Unused) | Unused filter shows all unused |
-| VDSPXEJY (Unused) | |
-| ... more unused pins | |
+### File: `src/pages/Exam.tsx`
+
+- Add a `settingsChecked` state (default `false`) that gets set to `true` after `checkExamLock` completes
+- Update loading condition (line 243) to also wait for `settingsChecked`
+- This prevents rendering the PIN gate before both checks complete
+
+### File: `src/pages/ExamTaking.tsx`
+
+- Add a `settingsChecked` state (default `false`) that gets set to `true` after `fetchExamSettings` completes
+- Update loading condition (line 386) to also wait for `settingsChecked`
+
+### File: `src/components/PinEntryScreen.tsx`
+
+- After finding a used PIN (line 109), check if `pinData.used_by === session.user.id`
+- If it belongs to the current user AND `pinData.expires_at` is in the future, call `onSuccess()` instead of showing an error
+- If it belongs to someone else OR is expired, show the current error message
+
+---
+
+## Summary of Changes
+
+| File | What Changes |
+|------|-------------|
+| `src/pages/Exam.tsx` | Add `settingsChecked` guard so PIN gate only shows after both settings and subscription are loaded |
+| `src/pages/ExamTaking.tsx` | Same `settingsChecked` guard to prevent premature redirect |
+| `src/components/PinEntryScreen.tsx` | Recognize user's own active PIN and auto-grant access instead of showing "Already Used" error |
+
