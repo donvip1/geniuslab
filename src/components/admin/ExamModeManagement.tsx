@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Download, FileText, Clock, Users, Trophy, AlertCircle, RefreshCw, Trash2, Calendar, Filter, Lock } from "lucide-react";
+import { Loader2, Download, FileText, Clock, Users, Trophy, AlertCircle, RefreshCw, Trash2, Calendar, Filter, Lock, BookOpen } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -681,6 +681,60 @@ export const ExamModeManagement = () => {
               </Button>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Semester Selection Toggle */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5" />
+            Semester Selection
+          </CardTitle>
+          <CardDescription>
+            Allow students to choose between 1st and 2nd semester exams
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/50">
+            <div className="space-y-1">
+              <Label htmlFor="semester-toggle" className="text-base font-semibold">
+                {settings && (settings as any).allow_semester_selection !== false ? "Semester Selection Enabled" : "Semester Selection Disabled"}
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                {settings && (settings as any).allow_semester_selection !== false
+                  ? "Students can choose which semester to practice"
+                  : "Semester selection is hidden from students"}
+              </p>
+            </div>
+            <Switch
+              id="semester-toggle"
+              checked={(settings as any)?.allow_semester_selection !== false}
+              onCheckedChange={async (checked) => {
+                if (!settings) return;
+                setSaving(true);
+                try {
+                  const { error } = await supabase
+                    .from("exam_settings")
+                    .update({ allow_semester_selection: checked })
+                    .eq("id", settings.id);
+                  if (error) throw error;
+                  setSettings(prev => prev ? { ...prev, allow_semester_selection: checked } as any : null);
+                  toast({
+                    title: checked ? "Semester Selection Enabled" : "Semester Selection Disabled",
+                    description: checked
+                      ? "Students can now choose their semester"
+                      : "Semester toggle is now hidden from students",
+                  });
+                } catch {
+                  toast({ title: "Error", description: "Failed to update semester setting", variant: "destructive" });
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              disabled={saving}
+            />
+          </div>
         </CardContent>
       </Card>
 
