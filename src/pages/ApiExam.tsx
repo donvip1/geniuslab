@@ -7,11 +7,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Clock, ChevronLeft, ChevronRight, CheckCircle, XCircle,
-  AlertTriangle, Send, Home, RotateCcw, BookOpen, ArrowLeft, Loader2
+  AlertTriangle, Send, Home, RotateCcw, BookOpen, ArrowLeft, Loader2,
+  Beaker, Briefcase, Palette
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -33,8 +33,8 @@ interface ApiQuestion {
   subject?: string;
 }
 
-const EXAM_DURATION = 45 * 60; // 45 minutes
-const QUESTIONS_PER_SUBJECT = 20;
+const EXAM_DURATION = 60 * 60; // 60 minutes
+const QUESTIONS_PER_SUBJECT = 50;
 
 // Level mappings for the Veezee API
 const LEVEL_MAP: Record<string, string> = {
@@ -49,26 +49,53 @@ const CATEGORY_NAMES: Record<string, string> = {
   "nabteb": "NABTEB",
 };
 
-// Subjects available for these exams
-const EXAM_SUBJECTS = [
-  { id: "english", name: "English Language", category: "Compulsory" },
-  { id: "mathematics", name: "Mathematics", category: "Science/Commercial" },
-  { id: "physics", name: "Physics", category: "Science" },
-  { id: "chemistry", name: "Chemistry", category: "Science" },
-  { id: "biology", name: "Biology", category: "Science" },
-  { id: "agricultural-science", name: "Agricultural Science", category: "Science" },
-  { id: "economics", name: "Economics", category: "Commercial/Arts" },
-  { id: "commerce", name: "Commerce", category: "Commercial" },
-  { id: "accounting", name: "Accounting", category: "Commercial" },
-  { id: "government", name: "Government", category: "Arts" },
-  { id: "literature", name: "Literature in English", category: "Arts" },
-  { id: "crk", name: "Christian Religious Knowledge", category: "Arts" },
-  { id: "irk", name: "Islamic Religious Knowledge", category: "Arts" },
-  { id: "history", name: "History", category: "Arts" },
-  { id: "geography", name: "Geography", category: "Arts/Science" },
-  { id: "civic-education", name: "Civic Education", category: "General" },
-  { id: "computer-studies", name: "Computer Studies", category: "Science" },
+// Course tracks for Nigerian secondary school system
+type CourseTrack = "Science" | "Commercial" | "Arts";
+
+const COURSE_TRACKS: { id: CourseTrack; label: string; icon: typeof Beaker; description: string }[] = [
+  { id: "Science", label: "Science", icon: Beaker, description: "Physics, Chemistry, Biology & more" },
+  { id: "Commercial", label: "Commercial", icon: Briefcase, description: "Commerce, Accounting, Economics & more" },
+  { id: "Arts", label: "Arts/Humanities", icon: Palette, description: "Government, Literature, History & more" },
 ];
+
+const TRACK_SUBJECTS: Record<CourseTrack, { id: string; name: string }[]> = {
+  Science: [
+    { id: "physics", name: "Physics" },
+    { id: "chemistry", name: "Chemistry" },
+    { id: "biology", name: "Biology" },
+    { id: "agricultural-science", name: "Agricultural Science" },
+    { id: "further-mathematics", name: "Further Mathematics" },
+    { id: "computer-studies", name: "Computer Studies" },
+    { id: "geography", name: "Geography" },
+    { id: "mathematics", name: "Mathematics" },
+    { id: "english", name: "English Language" },
+  ],
+  Commercial: [
+    { id: "commerce", name: "Commerce" },
+    { id: "accounting", name: "Accounting" },
+    { id: "economics", name: "Economics" },
+    { id: "business-methods", name: "Business Methods" },
+    { id: "insurance", name: "Insurance" },
+    { id: "office-practice", name: "Office Practice" },
+    { id: "marketing", name: "Marketing" },
+    { id: "mathematics", name: "Mathematics" },
+    { id: "english", name: "English Language" },
+  ],
+  Arts: [
+    { id: "government", name: "Government" },
+    { id: "literature", name: "Literature in English" },
+    { id: "history", name: "History" },
+    { id: "crk", name: "Christian Religious Knowledge" },
+    { id: "irk", name: "Islamic Religious Knowledge" },
+    { id: "fine-arts", name: "Fine Arts" },
+    { id: "yoruba", name: "Yoruba" },
+    { id: "igbo", name: "Igbo" },
+    { id: "hausa", name: "Hausa" },
+    { id: "geography", name: "Geography" },
+    { id: "civic-education", name: "Civic Education" },
+    { id: "english", name: "English Language" },
+  ],
+};
 
 const ApiExam = () => {
   const navigate = useNavigate();
@@ -79,7 +106,8 @@ const ApiExam = () => {
   const [user, setUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [examCategoryId, setExamCategoryId] = useState<string | null>(null);
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [selectedTrack, setSelectedTrack] = useState<CourseTrack | null>(null);
+  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [subjectsConfirmed, setSubjectsConfirmed] = useState(false);
   const [questions, setQuestions] = useState<ApiQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -110,22 +138,18 @@ const ApiExam = () => {
     init();
   }, [examType]);
 
-  const fetchQuestions = async (subjects: string[]) => {
+  const fetchQuestions = async (subjectName: string) => {
     setLoading(true);
     try {
-      const subjectNames = subjects.map(id =>
-        EXAM_SUBJECTS.find(s => s.id === id)?.name || id
-      );
-
       const { data, error } = await supabase.functions.invoke("jamb-questions", {
-        body: { subjects: subjectNames, questionsPerSubject: QUESTIONS_PER_SUBJECT, level: apiLevel },
+        body: { subjects: [subjectName], questionsPerSubject: QUESTIONS_PER_SUBJECT, level: apiLevel },
       });
 
       if (error) throw error;
 
       const questionsArray = data?.questions || data;
       if (!questionsArray || !Array.isArray(questionsArray) || questionsArray.length === 0) {
-        throw new Error("No questions available for the selected subjects");
+        throw new Error("No questions available for the selected subject");
       }
 
       setQuestions(questionsArray);
@@ -142,24 +166,15 @@ const ApiExam = () => {
     }
   };
 
-  const handleSubjectToggle = (subjectId: string) => {
-    setSelectedSubjects(prev => {
-      if (prev.includes(subjectId)) return prev.filter(id => id !== subjectId);
-      if (prev.length >= 4) {
-        toast({ title: "Maximum 4 subjects", description: "Deselect one to choose another.", variant: "destructive" });
-        return prev;
-      }
-      return [...prev, subjectId];
-    });
-  };
-
   const handleStartExam = () => {
-    if (selectedSubjects.length === 0) {
-      toast({ title: "Select at least one subject", variant: "destructive" });
+    if (!selectedSubject || !selectedTrack) {
+      toast({ title: "Select a subject", variant: "destructive" });
       return;
     }
+    const subject = TRACK_SUBJECTS[selectedTrack].find(s => s.id === selectedSubject);
+    if (!subject) return;
     setSubjectsConfirmed(true);
-    fetchQuestions(selectedSubjects);
+    fetchQuestions(subject.name);
   };
 
   useEffect(() => {
@@ -203,6 +218,8 @@ const ApiExam = () => {
     setSubjectsConfirmed(false);
     setExamStarted(false);
     setQuestions([]);
+    setSelectedSubject(null);
+    setSelectedTrack(null);
   };
 
   // ===== AUTH LOADING =====
@@ -216,8 +233,6 @@ const ApiExam = () => {
 
   // ===== SUBJECT SELECTION (wrapped in SubscriptionGate) =====
   if (!subjectsConfirmed) {
-    const categories = [...new Set(EXAM_SUBJECTS.map(s => s.category))];
-
     if (!user || !examCategoryId) {
       return (
         <div className="min-h-screen flex items-center justify-center">
@@ -225,6 +240,8 @@ const ApiExam = () => {
         </div>
       );
     }
+
+    const trackSubjects = selectedTrack ? TRACK_SUBJECTS[selectedTrack] : [];
 
     return (
       <SubscriptionGate
@@ -240,82 +257,95 @@ const ApiExam = () => {
               {categoryName} CBT Practice
             </h1>
             <p className="text-muted-foreground text-sm">
-              Select up to 4 subjects to practice
+              Choose your course track, then pick a subject
             </p>
           </div>
 
-          <div className="flex items-center justify-between mb-4 bg-card rounded-lg p-3 shadow-sm border">
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-primary" />
-              <span className="font-medium text-sm">{selectedSubjects.length} subject(s) selected</span>
-            </div>
-          </div>
-
-          {selectedSubjects.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-4">
-              {selectedSubjects.map(id => {
-                const subject = EXAM_SUBJECTS.find(s => s.id === id);
+          {/* Step 1: Course Track Selection */}
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+              Step 1: Select Your Course Track
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {COURSE_TRACKS.map(track => {
+                const Icon = track.icon;
+                const isActive = selectedTrack === track.id;
                 return (
-                  <span key={id} className="inline-flex items-center gap-1 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-medium">
-                    <CheckCircle className="h-3 w-3" />
-                    {subject?.name}
-                  </span>
+                  <button
+                    key={track.id}
+                    onClick={() => { setSelectedTrack(track.id); setSelectedSubject(null); }}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all text-center ${
+                      isActive
+                        ? "border-primary bg-primary/10 shadow-md"
+                        : "border-border hover:border-primary/40 hover:bg-accent/50"
+                    }`}
+                  >
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                      <Icon className="h-6 w-6" />
+                    </div>
+                    <span className="font-semibold text-sm">{track.label}</span>
+                    <span className="text-xs text-muted-foreground">{track.description}</span>
+                  </button>
                 );
               })}
             </div>
+          </div>
+
+          {/* Step 2: Subject Selection */}
+          {selectedTrack && (
+            <Card className="shadow-lg mb-6">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Step 2: Pick a Subject</CardTitle>
+                <CardDescription>Select one subject from {selectedTrack}</CardDescription>
+              </CardHeader>
+              <CardContent className="p-3 md:p-6 pt-0 md:pt-0">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {trackSubjects.map(subject => {
+                    const isSelected = selectedSubject === subject.id;
+                    return (
+                      <div
+                        key={subject.id}
+                        onClick={() => setSelectedSubject(subject.id)}
+                        className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all cursor-pointer ${
+                          isSelected
+                            ? "border-primary bg-primary/5 hover:bg-primary/10"
+                            : "border-border hover:border-primary/50 hover:bg-accent"
+                        }`}
+                      >
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${isSelected ? "border-primary" : "border-muted-foreground/40"}`}>
+                          {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                        </div>
+                        <span className="text-sm font-medium truncate">{subject.name}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
           )}
 
-          <Card className="shadow-lg mb-6">
-            <CardContent className="p-3 md:p-6">
-              <div className="space-y-6">
-                {categories.map(category => {
-                  const categorySubjects = EXAM_SUBJECTS.filter(s => s.category === category);
-                  return (
-                    <div key={category}>
-                      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                        {category}
-                      </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {categorySubjects.map(subject => {
-                          const isSelected = selectedSubjects.includes(subject.id);
-                          const isDisabled = !isSelected && selectedSubjects.length >= 4;
-                          return (
-                            <div
-                              key={subject.id}
-                              onClick={() => !isDisabled && handleSubjectToggle(subject.id)}
-                              className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
-                                isSelected
-                                  ? "border-primary bg-primary/5 cursor-pointer hover:bg-primary/10"
-                                  : isDisabled
-                                  ? "border-border opacity-50 cursor-not-allowed"
-                                  : "border-border cursor-pointer hover:border-primary/50 hover:bg-accent"
-                              }`}
-                            >
-                              <Checkbox checked={isSelected} disabled={isDisabled} className="flex-shrink-0" />
-                              <span className="text-sm font-medium truncate">{subject.name}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Selected Subject Badge */}
+          {selectedSubject && selectedTrack && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              <span className="inline-flex items-center gap-1 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-medium">
+                <CheckCircle className="h-3 w-3" />
+                {TRACK_SUBJECTS[selectedTrack].find(s => s.id === selectedSubject)?.name}
+              </span>
+            </div>
+          )}
 
           <Card className="shadow-lg">
             <CardContent className="p-4 md:p-6">
               <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="text-sm text-muted-foreground">
-                  <p className="flex items-center gap-1"><Clock className="h-4 w-4" /> Duration: <strong>45 Minutes</strong></p>
-                  <p className="flex items-center gap-1 mt-1"><BookOpen className="h-4 w-4" /> {QUESTIONS_PER_SUBJECT} questions per subject</p>
+                  <p className="flex items-center gap-1"><Clock className="h-4 w-4" /> Duration: <strong>60 Minutes</strong></p>
+                  <p className="flex items-center gap-1 mt-1"><BookOpen className="h-4 w-4" /> {QUESTIONS_PER_SUBJECT} questions</p>
                 </div>
                 <div className="flex gap-3 w-full md:w-auto">
                   <Button variant="outline" onClick={() => navigate("/exam")} className="flex-1 md:flex-none">
                     <ArrowLeft className="mr-2 h-4 w-4" /> Back
                   </Button>
-                  <Button onClick={handleStartExam} disabled={selectedSubjects.length === 0} size="lg" className="flex-1 md:flex-none">
+                  <Button onClick={handleStartExam} disabled={!selectedSubject} size="lg" className="flex-1 md:flex-none">
                     Start Exam <ChevronRight className="ml-2 h-4 w-4" />
                   </Button>
                 </div>
@@ -356,7 +386,7 @@ const ApiExam = () => {
               <Button variant="outline" onClick={restartExam}>
                 <ArrowLeft className="mr-2 h-4 w-4" /> Change Subjects
               </Button>
-              <Button onClick={() => fetchQuestions(selectedSubjects)}>
+              <Button onClick={() => { if (selectedSubject && selectedTrack) fetchQuestions(TRACK_SUBJECTS[selectedTrack].find(s => s.id === selectedSubject)?.name || ""); }}>
                 <RotateCcw className="mr-2 h-4 w-4" /> Retry
               </Button>
             </div>
