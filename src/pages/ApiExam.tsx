@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Clock, ChevronLeft, ChevronRight, CheckCircle, XCircle,
-  AlertTriangle, Send, Home, RotateCcw, BookOpen, ArrowLeft
+  AlertTriangle, Send, Home, RotateCcw, BookOpen, ArrowLeft, Loader2
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -22,6 +22,7 @@ import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
+import { SubscriptionGate } from "@/components/SubscriptionGate";
 
 interface ApiQuestion {
   text: string;
@@ -75,6 +76,9 @@ const ApiExam = () => {
   const [searchParams] = useSearchParams();
   const examType = searchParams.get("type") || "waec";
 
+  const [user, setUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [examCategoryId, setExamCategoryId] = useState<string | null>(null);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [subjectsConfirmed, setSubjectsConfirmed] = useState(false);
   const [questions, setQuestions] = useState<ApiQuestion[]>([]);
@@ -88,6 +92,23 @@ const ApiExam = () => {
 
   const categoryName = CATEGORY_NAMES[examType] || "Exam";
   const apiLevel = LEVEL_MAP[examType] || "WAEC / SSCE";
+
+  useEffect(() => {
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { navigate("/auth"); return; }
+      setUser(session.user);
+
+      const { data: cat } = await supabase
+        .from("exam_categories")
+        .select("id")
+        .eq("slug", examType)
+        .maybeSingle();
+      if (cat) setExamCategoryId(cat.id);
+      setAuthLoading(false);
+    };
+    init();
+  }, [examType]);
 
   const fetchQuestions = async (subjects: string[]) => {
     setLoading(true);
@@ -184,11 +205,34 @@ const ApiExam = () => {
     setQuestions([]);
   };
 
-  // ===== SUBJECT SELECTION =====
+  // ===== AUTH LOADING =====
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // ===== SUBJECT SELECTION (wrapped in SubscriptionGate) =====
   if (!subjectsConfirmed) {
     const categories = [...new Set(EXAM_SUBJECTS.map(s => s.category))];
 
+    if (!user || !examCategoryId) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      );
+    }
+
     return (
+      <SubscriptionGate
+        examCategoryId={examCategoryId}
+        examCategoryName={categoryName}
+        userId={user.id}
+        userEmail={user.email || ""}
+      >
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-violet-100 dark:from-gray-900 dark:to-gray-800 py-6 px-3 md:px-4">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-6">
@@ -280,6 +324,7 @@ const ApiExam = () => {
           </Card>
         </div>
       </div>
+      </SubscriptionGate>
     );
   }
 
