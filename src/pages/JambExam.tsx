@@ -41,6 +41,7 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import jambLogo from "@/assets/jamb-logo.webp";
+import { SubscriptionGate } from "@/components/SubscriptionGate";
 
 interface JambQuestion {
   text: string;
@@ -84,6 +85,11 @@ const JambExam = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Auth & subscription state
+  const [user, setUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [examCategoryId, setExamCategoryId] = useState<string | null>(null);
+
   // Mode & subject selection
   const [examMode, setExamMode] = useState<ExamMode>("select");
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
@@ -102,6 +108,24 @@ const JambExam = () => {
   const [activeSubjectTab, setActiveSubjectTab] = useState("english");
 
   const examDuration = examMode === "practice" ? PRACTICE_DURATION : MOCK_DURATION;
+
+  // Auth + category init
+  useEffect(() => {
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { navigate("/auth"); return; }
+      setUser(session.user);
+
+      const { data: cat } = await supabase
+        .from("exam_categories")
+        .select("id")
+        .eq("slug", "jamb-utme")
+        .maybeSingle();
+      if (cat) setExamCategoryId(cat.id);
+      setAuthLoading(false);
+    };
+    init();
+  }, []);
 
   // Group questions by subject for tabs
   const questionsBySubject = useMemo(() => {
@@ -267,9 +291,32 @@ const JambExam = () => {
     setQuestions([]);
   };
 
+  // ===== AUTH LOADING =====
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+      </div>
+    );
+  }
+
   // ===== EXAM MODE SELECTION SCREEN =====
   if (examMode === "select") {
+    if (!user || !examCategoryId) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+        </div>
+      );
+    }
+
     return (
+      <SubscriptionGate
+        examCategoryId={examCategoryId}
+        examCategoryName="JAMB UTME"
+        userId={user.id}
+        userEmail={user.email || ""}
+      >
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-6 px-3 md:px-4">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-8">
@@ -364,6 +411,7 @@ const JambExam = () => {
           </Button>
         </div>
       </div>
+      </SubscriptionGate>
     );
   }
 

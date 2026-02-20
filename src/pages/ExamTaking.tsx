@@ -23,6 +23,7 @@ import { FounderWelcomePopup } from "@/components/FounderWelcomePopup";
 import { AdvertisementPopup } from "@/components/AdvertisementPopup";
 import { ExamLockedScreen } from "@/components/ExamLockedScreen";
 import { UserRestrictedScreen } from "@/components/UserRestrictedScreen";
+import { SubscriptionGate } from "@/components/SubscriptionGate";
 
 // Question interface WITHOUT correct_answer and explanation (security: hidden from client)
 interface Question {
@@ -88,6 +89,9 @@ const ExamTaking = () => {
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [subscriptionChecked, setSubscriptionChecked] = useState(false);
   const [settingsChecked, setSettingsChecked] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState("");
+  const [examCategoryId, setExamCategoryId] = useState<string | null>(null);
 
   // Pagination for question navigator
   const currentPage = Math.floor(currentQuestionIndex / QUESTIONS_PER_PAGE);
@@ -109,6 +113,17 @@ const ExamTaking = () => {
         navigate("/auth");
         return;
       }
+
+      setUserId(session.user.id);
+      setUserEmail(session.user.email || "");
+
+      // Fetch university-cbt category
+      const { data: cat } = await supabase
+        .from("exam_categories")
+        .select("id")
+        .eq("slug", "university-cbt")
+        .maybeSingle();
+      if (cat) setExamCategoryId(cat.id);
 
       // Check if user is admin
       const { data: roleData } = await supabase
@@ -413,15 +428,9 @@ const ExamTaking = () => {
     return <ExamLockedScreen message={lockMessage} />;
   }
 
-  // Redirect to exam page if PIN is required but user doesn't have active subscription
-  if (isPinRequired && !hasActiveSubscription && !isAdmin) {
-    navigate("/exam");
-    return null;
-  }
-
   const currentQuestion = questions[currentQuestionIndex];
 
-  return (
+  const examContent = (
     <div className="min-h-screen bg-muted/30 flex flex-col">
       {/* Founder Welcome Popup */}
       <FounderWelcomePopup
@@ -641,6 +650,22 @@ const ExamTaking = () => {
       </div>
     </div>
   );
+
+  // Wrap in SubscriptionGate for non-admins
+  if (!isAdmin && userId && examCategoryId) {
+    return (
+      <SubscriptionGate
+        examCategoryId={examCategoryId}
+        examCategoryName="University CBT"
+        userId={userId}
+        userEmail={userEmail}
+      >
+        {examContent}
+      </SubscriptionGate>
+    );
+  }
+
+  return examContent;
 };
 
 export default ExamTaking;
