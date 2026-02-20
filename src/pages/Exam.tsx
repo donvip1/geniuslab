@@ -7,21 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { 
-  BookOpen, 
-  Clock, 
-  User, 
-  LogOut, 
-  FileText, 
-  ChevronRight,
-  ArrowLeft,
-  Sparkles
+  BookOpen, Clock, User, LogOut, ChevronRight, ArrowLeft, 
+  GraduationCap, Award, FileText, Wrench
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ExamLockedScreen } from "@/components/ExamLockedScreen";
 import { UserRestrictedScreen } from "@/components/UserRestrictedScreen";
-import { PinEntryScreen } from "@/components/PinEntryScreen";
+import { SubscriptionGate } from "@/components/SubscriptionGate";
+import { UniversitySelector } from "@/components/UniversitySelector";
+import { SemesterToggle } from "@/components/SemesterToggle";
 import jambLogo from "@/assets/jamb-logo.webp";
-import fuoyeLogo from "@/assets/fuoye-logo.jpeg";
 
 interface Subject {
   id: string;
@@ -36,41 +31,38 @@ interface UserRestriction {
   expires_at: string | null;
 }
 
-type ExamCategory = "select" | "jamb" | "department";
+interface ExamCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  icon_name: string;
+  monthly_price: number;
+}
 
-const examCategories = [
-  {
-    id: "jamb" as ExamCategory,
-    title: "JAMB UTME CBT",
-    description: "Practice with real JAMB past questions. 40 questions, 2 hours.",
-    logo: jambLogo,
-    color: "from-blue-500 to-indigo-600",
-    bgColor: "bg-blue-50 dark:bg-blue-950/30",
-    borderColor: "border-blue-200 dark:border-blue-800",
-    badge: "Popular",
-  },
-  {
-    id: "department" as ExamCategory,
-    title: "FUOYE CBT Exams",
-    description: "Practice exams for your specific courses and subjects.",
-    logo: fuoyeLogo,
-    color: "from-emerald-500 to-teal-600",
-    bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
-    borderColor: "border-emerald-200 dark:border-emerald-800",
-    badge: null,
-  },
-  {
-    id: "coming-soon" as ExamCategory,
-    title: "More Exams Coming Soon",
-    description: "POST-UTME, Professional Exams, and more will be added.",
-    logo: null,
-    color: "from-gray-400 to-gray-500",
-    bgColor: "bg-gray-50 dark:bg-gray-900/30",
-    borderColor: "border-gray-200 dark:border-gray-700",
-    badge: "Coming Soon",
-    disabled: true,
-  },
-];
+const iconMap: Record<string, React.ReactNode> = {
+  GraduationCap: <GraduationCap className="h-7 w-7 text-white" />,
+  BookOpen: <BookOpen className="h-7 w-7 text-white" />,
+  Award: <Award className="h-7 w-7 text-white" />,
+  FileText: <FileText className="h-7 w-7 text-white" />,
+  Wrench: <Wrench className="h-7 w-7 text-white" />,
+};
+
+const colorMap: Record<string, string> = {
+  "university-cbt": "from-emerald-500 to-teal-600",
+  "jamb-utme": "from-blue-500 to-indigo-600",
+  "waec": "from-purple-500 to-violet-600",
+  "neco": "from-orange-500 to-amber-600",
+  "nabteb": "from-rose-500 to-red-600",
+};
+
+const bgColorMap: Record<string, string> = {
+  "university-cbt": "bg-emerald-50 dark:bg-emerald-950/30",
+  "jamb-utme": "bg-blue-50 dark:bg-blue-950/30",
+  "waec": "bg-purple-50 dark:bg-purple-950/30",
+  "neco": "bg-orange-50 dark:bg-orange-950/30",
+  "nabteb": "bg-rose-50 dark:bg-rose-950/30",
+};
 
 const Exam = () => {
   const navigate = useNavigate();
@@ -79,60 +71,49 @@ const Exam = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedLevel, setSelectedLevel] = useState<string>("100L");
-  const [selectedCategory, setSelectedCategory] = useState<ExamCategory>("select");
+  const [selectedCategorySlug, setSelectedCategorySlug] = useState<string | null>(null);
+  const [examCategories, setExamCategories] = useState<ExamCategory[]>([]);
   const [isExamsLocked, setIsExamsLocked] = useState(false);
   const [lockMessage, setLockMessage] = useState<string | null>(null);
   const [userRestriction, setUserRestriction] = useState<UserRestriction | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isPinRequired, setIsPinRequired] = useState(false);
-  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
-  const [showPinEntry, setShowPinEntry] = useState(false);
-  const [checkingSubscription, setCheckingSubscription] = useState(true);
   const [settingsChecked, setSettingsChecked] = useState(false);
+  const [selectedUniversity, setSelectedUniversity] = useState<string | null>(null);
+  const [selectedSemester, setSelectedSemester] = useState<"first" | "second">("first");
+  const [allowSemesterSelection, setAllowSemesterSelection] = useState(true);
 
   useEffect(() => {
     checkUser();
-    fetchSubjects();
+    fetchExamCategories();
     checkExamLock();
   }, []);
+
+  const fetchExamCategories = async () => {
+    const { data } = await supabase
+      .from("exam_categories")
+      .select("*")
+      .eq("is_active", true)
+      .order("display_order");
+    if (data) setExamCategories(data as ExamCategory[]);
+  };
 
   const checkExamLock = async () => {
     try {
       const { data } = await supabase
         .from("exam_settings")
-        .select("is_exams_locked, lock_message, is_pin_required")
+        .select("is_exams_locked, lock_message, allow_semester_selection")
         .limit(1)
         .maybeSingle();
 
       if (data) {
         setIsExamsLocked(data.is_exams_locked || false);
         setLockMessage(data.lock_message);
-        setIsPinRequired(data.is_pin_required || false);
+        setAllowSemesterSelection(data.allow_semester_selection ?? true);
       }
     } catch (error) {
       console.error("Error checking exam lock:", error);
     } finally {
       setSettingsChecked(true);
-    }
-  };
-
-  const checkActiveSubscription = async (userId: string) => {
-    try {
-      const now = new Date().toISOString();
-      const { data } = await supabase
-        .from("access_pins")
-        .select("expires_at")
-        .eq("used_by", userId)
-        .eq("is_used", true)
-        .gt("expires_at", now)
-        .limit(1)
-        .maybeSingle();
-
-      setHasActiveSubscription(!!data);
-    } catch (error) {
-      console.error("Error checking subscription:", error);
-    } finally {
-      setCheckingSubscription(false);
     }
   };
 
@@ -179,16 +160,8 @@ const Exam = () => {
       .maybeSingle();
 
     setIsAdmin(!!roleData);
-
     await checkUserRestriction(session.user.id);
-    await checkActiveSubscription(session.user.id);
-    
     setLoading(false);
-  };
-
-  const handlePinSuccess = () => {
-    setShowPinEntry(false);
-    setHasActiveSubscription(true);
   };
 
   const fetchSubjects = async (level?: string) => {
@@ -198,52 +171,47 @@ const Exam = () => {
         .select("*")
         .eq("is_active", true);
       
-      if (level) {
-        query = query.eq("level", level);
-      }
+      if (level) query = query.eq("level", level);
       
       const { data, error } = await query.order("name");
-
       if (error) throw error;
       setSubjects(data || []);
     } catch (error: any) {
-      toast({
-        title: "Error loading subjects",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error loading subjects", description: error.message, variant: "destructive" });
     }
   };
 
   useEffect(() => {
-    if (selectedLevel) {
+    if (selectedLevel && selectedCategorySlug === "university-cbt") {
       fetchSubjects(selectedLevel);
     }
-  }, [selectedLevel]);
+  }, [selectedLevel, selectedCategorySlug]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/");
   };
 
-  const createSlug = (name: string) => {
-    return name.replace(/\s+/g, '-').toLowerCase();
-  };
+  const createSlug = (name: string) => name.replace(/\s+/g, '-').toLowerCase();
 
   const startExam = (subjectName: string) => {
-    const slug = createSlug(subjectName);
-    navigate(`/exam/take/${slug}`);
+    navigate(`/exam/take/${createSlug(subjectName)}`);
   };
 
-  const handleCategorySelect = (categoryId: ExamCategory) => {
-    if (categoryId === "jamb") {
+  const handleCategorySelect = (slug: string) => {
+    if (slug === "jamb-utme") {
       navigate("/jamb-exam");
-    } else if (categoryId === "department") {
-      setSelectedCategory("department");
+      return;
+    }
+    setSelectedCategorySlug(slug);
+    if (slug === "university-cbt") {
+      fetchSubjects(selectedLevel);
     }
   };
 
-  if (loading || checkingSubscription || !settingsChecked) {
+  const selectedCategory = examCategories.find(c => c.slug === selectedCategorySlug);
+
+  if (loading || !settingsChecked) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -268,120 +236,36 @@ const Exam = () => {
     return <ExamLockedScreen message={lockMessage} />;
   }
 
-  if (isPinRequired && !hasActiveSubscription && !isAdmin) {
-    return (
-      <PinEntryScreen 
-        onSuccess={handlePinSuccess} 
-        userEmail={user?.email || ""} 
-      />
-    );
-  }
+  // If a category is selected (not JAMB), wrap content in SubscriptionGate
+  const renderCategoryContent = () => {
+    if (!selectedCategory) return null;
 
-  return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-      
-      <main className="flex-1 pt-16">
-        {/* Header */}
-        <section className="py-12 bg-gradient-to-br from-primary to-secondary text-primary-foreground">
-          <div className="container mx-auto px-4">
-            <div className="flex flex-col md:flex-row justify-between items-center max-w-4xl mx-auto gap-4">
-              <div>
-                <h1 className="text-3xl md:text-4xl font-bold mb-2">
-                  {selectedCategory === "select" ? "CBT Examination Center" : "FUOYE CBT Exams"}
-                </h1>
-                <p className="opacity-90 flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  Welcome, {user?.email}
-                </p>
-              </div>
-              <div className="flex gap-3">
-                {selectedCategory !== "select" && (
-                  <Button variant="outline" onClick={() => setSelectedCategory("select")} className="bg-white/10 border-white/20 hover:bg-white/20">
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Categories
-                  </Button>
+    const innerContent = (
+      <section className="py-8">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto">
+            {/* University Selector for University CBT */}
+            {selectedCategorySlug === "university-cbt" && (
+              <div className="mb-6 space-y-4">
+                <div>
+                  <Label className="text-base font-semibold mb-2 block">Select Your University</Label>
+                  <UniversitySelector
+                    value={selectedUniversity}
+                    onChange={(id) => setSelectedUniversity(id)}
+                  />
+                </div>
+
+                {/* Semester Toggle */}
+                {allowSemesterSelection && (
+                  <div>
+                    <Label className="text-base font-semibold mb-2 block">Semester</Label>
+                    <SemesterToggle value={selectedSemester} onChange={setSelectedSemester} />
+                  </div>
                 )}
-                <Button variant="secondary" onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-                </Button>
-              </div>
-            </div>
-          </div>
-        </section>
 
-        {/* Category Selection or Subject List */}
-        {selectedCategory === "select" ? (
-          <section className="py-16">
-            <div className="container mx-auto px-4">
-              <div className="max-w-4xl mx-auto">
-                <div className="text-center mb-12">
-                  <h2 className="text-2xl md:text-3xl font-bold mb-3">Choose Your Exam Type</h2>
-                  <p className="text-muted-foreground">Select a category to start practicing</p>
-                </div>
-
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {examCategories.map((category) => {
-                    const isDisabled = category.disabled;
-                    
-                    return (
-                      <Card 
-                        key={category.id}
-                        className={`relative overflow-hidden transition-all cursor-pointer group ${
-                          isDisabled 
-                            ? "opacity-60 cursor-not-allowed" 
-                            : "hover:shadow-xl hover:-translate-y-2"
-                        } ${category.bgColor} ${category.borderColor} border-2`}
-                        onClick={() => !isDisabled && handleCategorySelect(category.id)}
-                      >
-                        {category.badge && (
-                          <div className={`absolute top-3 right-3 px-2 py-1 rounded-full text-xs font-semibold ${
-                            category.badge === "Popular" 
-                              ? "bg-blue-600 text-white" 
-                              : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
-                          }`}>
-                            {category.badge}
-                          </div>
-                        )}
-                        <CardHeader className="pb-4">
-                          {category.logo ? (
-                            <div className="w-16 h-16 rounded-xl overflow-hidden mb-4 shadow-lg group-hover:scale-110 transition-transform">
-                              <img src={category.logo} alt={category.title} className="w-full h-full object-cover" />
-                            </div>
-                          ) : (
-                            <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${category.color} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform`}>
-                              <Sparkles className="h-7 w-7 text-white" />
-                            </div>
-                          )}
-                          <CardTitle className="text-xl">{category.title}</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <CardDescription className="text-sm mb-4">
-                            {category.description}
-                          </CardDescription>
-                          {!isDisabled && (
-                            <div className="flex items-center text-primary font-medium text-sm group-hover:gap-2 transition-all">
-                              Start Now
-                              <ChevronRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </section>
-        ) : (
-          /* Department Subjects Selection */
-          <section className="py-16">
-            <div className="container mx-auto px-4">
-              <div className="max-w-4xl mx-auto">
                 {/* Level Filter */}
-                <div className="mb-8">
-                  <Label className="text-base font-semibold mb-3 block">Select Your Level</Label>
+                <div>
+                  <Label className="text-base font-semibold mb-2 block">Select Your Level</Label>
                   <div className="flex flex-wrap gap-3">
                     {["100L", "200L", "300L", "400L", "500L"].map((level) => (
                       <Button
@@ -395,50 +279,154 @@ const Exam = () => {
                     ))}
                   </div>
                 </div>
+              </div>
+            )}
 
-                <h2 className="text-2xl font-bold mb-8 text-center">Select a Subject to Practice</h2>
+            <h2 className="text-2xl font-bold mb-6 text-center">Select a Subject to Practice</h2>
 
-                {subjects.length === 0 ? (
-                  <Card>
-                    <CardContent className="pt-6 text-center">
-                      <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground">
-                        No subjects available for this level. Please check back later.
-                      </p>
+            {subjects.length === 0 ? (
+              <Card>
+                <CardContent className="pt-6 text-center">
+                  <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">
+                    No subjects available for this selection. Please check back later.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid md:grid-cols-2 gap-6">
+                {subjects.map((subject) => (
+                  <Card key={subject.id} className="hover:shadow-lg transition-all hover:-translate-y-1">
+                    <CardHeader>
+                      <div className="flex items-start justify-between mb-2">
+                        <CardTitle className="flex items-center gap-2">
+                          <BookOpen className="h-5 w-5 text-primary" />
+                          {subject.name}
+                        </CardTitle>
+                        <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-1 rounded">
+                          {subject.level}
+                        </span>
+                      </div>
+                      <CardDescription>{subject.description || "Practice exam available"}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Button onClick={() => startExam(subject.name)} className="w-full">
+                        <Clock className="mr-2 h-4 w-4" />
+                        Start Exam
+                      </Button>
                     </CardContent>
                   </Card>
-                ) : (
-                  <div className="grid md:grid-cols-2 gap-6">
-                    {subjects.map((subject) => (
-                      <Card key={subject.id} className="hover:shadow-lg transition-all hover:-translate-y-1">
-                        <CardHeader>
-                          <div className="flex items-start justify-between mb-2">
-                            <CardTitle className="flex items-center gap-2">
-                              <BookOpen className="h-5 w-5 text-primary" />
-                              {subject.name}
-                            </CardTitle>
-                            <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-1 rounded">
-                              {subject.level}
-                            </span>
-                          </div>
-                          <CardDescription>{subject.description || "Practice exam available"}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <Button 
-                            onClick={() => startExam(subject.name)}
-                            className="w-full"
-                          >
-                            <Clock className="mr-2 h-4 w-4" />
-                            Start Exam
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+    );
+
+    // Admins bypass the gate
+    if (isAdmin) return innerContent;
+
+    return (
+      <SubscriptionGate
+        examCategoryId={selectedCategory.id}
+        examCategoryName={selectedCategory.name}
+        userId={user?.id}
+        userEmail={user?.email || ""}
+      >
+        {innerContent}
+      </SubscriptionGate>
+    );
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Navbar />
+      
+      <main className="flex-1 pt-16">
+        {/* Header */}
+        <section className="py-12 bg-gradient-to-br from-primary to-secondary text-primary-foreground">
+          <div className="container mx-auto px-4">
+            <div className="flex flex-col md:flex-row justify-between items-center max-w-4xl mx-auto gap-4">
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold mb-2">
+                  {selectedCategory ? selectedCategory.name : "CBT Examination Center"}
+                </h1>
+                <p className="opacity-90 flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Welcome, {user?.email}
+                </p>
+              </div>
+              <div className="flex gap-3">
+                {selectedCategorySlug && (
+                  <Button variant="outline" onClick={() => setSelectedCategorySlug(null)} className="bg-white/10 border-white/20 hover:bg-white/20">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Categories
+                  </Button>
                 )}
+                <Button variant="secondary" onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </Button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Category Selection or Content */}
+        {!selectedCategorySlug ? (
+          <section className="py-16">
+            <div className="container mx-auto px-4">
+              <div className="max-w-5xl mx-auto">
+                <div className="text-center mb-12">
+                  <h2 className="text-2xl md:text-3xl font-bold mb-3">Choose Your Exam Type</h2>
+                  <p className="text-muted-foreground">Select a category to start practicing</p>
+                </div>
+
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {examCategories.map((category) => (
+                    <Card 
+                      key={category.id}
+                      className={`relative overflow-hidden transition-all cursor-pointer group hover:shadow-xl hover:-translate-y-2 ${bgColorMap[category.slug] || "bg-muted"} border-2`}
+                      onClick={() => handleCategorySelect(category.slug)}
+                    >
+                      {category.slug === "jamb-utme" && (
+                        <div className="absolute top-3 right-3 px-2 py-1 rounded-full text-xs font-semibold bg-blue-600 text-white">
+                          Popular
+                        </div>
+                      )}
+                      <CardHeader className="pb-4">
+                        {category.slug === "jamb-utme" ? (
+                          <div className="w-16 h-16 rounded-xl overflow-hidden mb-4 shadow-lg group-hover:scale-110 transition-transform">
+                            <img src={jambLogo} alt="JAMB" className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${colorMap[category.slug] || "from-gray-500 to-gray-600"} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform`}>
+                            {iconMap[category.icon_name] || <BookOpen className="h-7 w-7 text-white" />}
+                          </div>
+                        )}
+                        <CardTitle className="text-xl">{category.name}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <CardDescription className="text-sm mb-4">
+                          {category.description}
+                        </CardDescription>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">₦{category.monthly_price.toLocaleString()}/month</span>
+                          <div className="flex items-center text-primary font-medium text-sm group-hover:gap-2 transition-all">
+                            Start Now
+                            <ChevronRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               </div>
             </div>
           </section>
+        ) : (
+          renderCategoryContent()
         )}
 
         {/* Instructions */}
@@ -469,7 +457,7 @@ const Exam = () => {
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-primary font-bold">5.</span>
-                      <span>After submission, you'll see your score, correct answers, and detailed explanations.</span>
+                      <span>Free trial: 5 questions per day for 5 days. Subscribe for unlimited access.</span>
                     </li>
                   </ul>
                 </CardContent>

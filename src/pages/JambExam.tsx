@@ -51,11 +51,12 @@ interface JambQuestion {
   subject?: string;
 }
 
-type ExamMode = "select" | "standard" | "mock";
+type ExamMode = "select" | "practice" | "mock";
 
-const REQUIRED_SUBJECTS = 4;
-const QUESTIONS_PER_SUBJECT = 10;
-const STANDARD_DURATION = 2 * 60 * 60; // 2 hours
+const PRACTICE_QUESTIONS = 10;
+const MOCK_QUESTIONS_PER_SUBJECT = 10;
+const MOCK_REQUIRED_SUBJECTS = 4;
+const PRACTICE_DURATION = 30 * 60; // 30 minutes
 const MOCK_DURATION = 2 * 60 * 60; // 2 hours (locked)
 
 // Common JAMB UTME subjects
@@ -85,7 +86,7 @@ const JambExam = () => {
 
   // Mode & subject selection
   const [examMode, setExamMode] = useState<ExamMode>("select");
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(["english"]);
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [subjectsConfirmed, setSubjectsConfirmed] = useState(false);
 
   // Exam state
@@ -93,14 +94,14 @@ const JambExam = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(STANDARD_DURATION);
+  const [timeLeft, setTimeLeft] = useState(MOCK_DURATION);
   const [examStarted, setExamStarted] = useState(false);
   const [examFinished, setExamFinished] = useState(false);
   const [score, setScore] = useState(0);
   const [showSideNav, setShowSideNav] = useState(true);
   const [activeSubjectTab, setActiveSubjectTab] = useState("english");
 
-  const examDuration = examMode === "mock" ? MOCK_DURATION : STANDARD_DURATION;
+  const examDuration = examMode === "practice" ? PRACTICE_DURATION : MOCK_DURATION;
 
   // Group questions by subject for tabs
   const questionsBySubject = useMemo(() => {
@@ -138,7 +139,7 @@ const JambExam = () => {
       );
       
       const { data, error } = await supabase.functions.invoke("jamb-questions", {
-        body: { subjects: subjectNames, questionsPerSubject: QUESTIONS_PER_SUBJECT },
+        body: { subjects: subjectNames, questionsPerSubject: examMode === "practice" ? PRACTICE_QUESTIONS : MOCK_QUESTIONS_PER_SUBJECT },
       });
 
       if (error) throw error;
@@ -168,11 +169,17 @@ const JambExam = () => {
   const handleSubjectToggle = (subjectId: string) => {
     if (subjectId === "english") return;
     
+    if (examMode === "practice") {
+      // Practice mode: single subject only (besides english which is compulsory for practice too? No - practice is single subject)
+      setSelectedSubjects([subjectId]);
+      return;
+    }
+    
     setSelectedSubjects(prev => {
       if (prev.includes(subjectId)) {
         return prev.filter(id => id !== subjectId);
       }
-      if (prev.length >= REQUIRED_SUBJECTS) {
+      if (prev.length >= MOCK_REQUIRED_SUBJECTS) {
         toast({
           title: "Maximum subjects reached",
           description: "You can only select 4 subjects. Deselect one to choose another.",
@@ -185,13 +192,20 @@ const JambExam = () => {
   };
 
   const handleStartExam = () => {
-    if (selectedSubjects.length !== REQUIRED_SUBJECTS) {
-      toast({
-        title: "Select 4 subjects",
-        description: `You've selected ${selectedSubjects.length} subject(s). Please select exactly 4.`,
-        variant: "destructive",
-      });
-      return;
+    if (examMode === "practice") {
+      if (selectedSubjects.length !== 1) {
+        toast({ title: "Select a subject", description: "Please select one subject for practice.", variant: "destructive" });
+        return;
+      }
+    } else {
+      if (selectedSubjects.length !== MOCK_REQUIRED_SUBJECTS) {
+        toast({
+          title: "Select 4 subjects",
+          description: `You've selected ${selectedSubjects.length} subject(s). Please select exactly 4.`,
+          variant: "destructive",
+        });
+        return;
+      }
     }
     setSubjectsConfirmed(true);
     setActiveSubjectTab(selectedSubjects[0]);
@@ -273,7 +287,7 @@ const JambExam = () => {
             {/* Standard Mode */}
             <Card 
               className="relative overflow-hidden cursor-pointer group hover:shadow-xl hover:-translate-y-2 transition-all border-2 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30"
-              onClick={() => setExamMode("standard")}
+              onClick={() => { setSelectedSubjects([]); setExamMode("practice"); }}
             >
               <div className="absolute top-3 right-3 px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
                 Practice
@@ -282,22 +296,22 @@ const JambExam = () => {
                 <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
                   <Zap className="h-7 w-7 text-white" />
                 </div>
-                <CardTitle className="text-xl">JAMB / UTME</CardTitle>
-                <CardDescription className="text-xs">Standard Practice Mode</CardDescription>
+                <CardTitle className="text-xl">JAMB Practice</CardTitle>
+                <CardDescription className="text-xs">Single Subject Practice</CardDescription>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-sm text-muted-foreground mb-4">
                   <li className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-blue-500" />
-                    2-hour duration
+                    30-minute duration
                   </li>
                   <li className="flex items-center gap-2">
                     <BookOpen className="h-4 w-4 text-blue-500" />
-                    4-subject combination
+                    Single subject selection
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-blue-500" />
-                    Flexible practice focus
+                    {PRACTICE_QUESTIONS} questions
                   </li>
                 </ul>
                 <div className="flex items-center text-primary font-medium text-sm group-hover:gap-2 transition-all">
@@ -310,7 +324,7 @@ const JambExam = () => {
             {/* Mock UTME Mode */}
             <Card 
               className="relative overflow-hidden cursor-pointer group hover:shadow-xl hover:-translate-y-2 transition-all border-2 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/30"
-              onClick={() => setExamMode("mock")}
+              onClick={() => { setSelectedSubjects(["english"]); setExamMode("mock"); }}
             >
               <div className="absolute top-3 right-3 px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">
                 Full Simulation
@@ -358,6 +372,8 @@ const JambExam = () => {
   if (!subjectsConfirmed) {
     const categories = [...new Set(JAMB_SUBJECTS.map(s => s.category))];
     const isMock = examMode === "mock";
+    const isPractice = examMode === "practice";
+    const requiredCount = isMock ? MOCK_REQUIRED_SUBJECTS : 1;
     
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-6 px-3 md:px-4">
@@ -366,7 +382,7 @@ const JambExam = () => {
           <div className="text-center mb-6 md:mb-8">
             <img src={jambLogo} alt="JAMB Logo" className="w-20 h-20 md:w-24 md:h-24 mx-auto mb-4 rounded-full shadow-lg object-cover" />
             <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-1">
-              {isMock ? "JAMB Mock UTME" : "JAMB UTME Practice"}
+              {isMock ? "JAMB Mock UTME" : "JAMB Practice"}
             </h1>
             {isMock && (
               <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-3 py-1 rounded-full text-xs font-semibold mb-2">
@@ -375,7 +391,7 @@ const JambExam = () => {
               </span>
             )}
             <p className="text-muted-foreground text-sm md:text-base mt-2">
-              Select your 4 subject combination to begin
+              {isPractice ? "Select one subject to practice" : "Select your 4 subject combination to begin"}
             </p>
           </div>
 
@@ -384,15 +400,15 @@ const JambExam = () => {
             <div className="flex items-center gap-2">
               <BookOpen className="h-5 w-5 text-primary" />
               <span className="font-medium text-sm md:text-base">
-                {selectedSubjects.length} of {REQUIRED_SUBJECTS} subjects selected
+                {selectedSubjects.length} of {requiredCount} subject{requiredCount > 1 ? "s" : ""} selected
               </span>
             </div>
             <div className={`text-xs font-semibold px-2 py-1 rounded-full ${
-              selectedSubjects.length === REQUIRED_SUBJECTS
+              selectedSubjects.length === requiredCount
                 ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                 : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
             }`}>
-              {selectedSubjects.length === REQUIRED_SUBJECTS ? "Ready!" : `${REQUIRED_SUBJECTS - selectedSubjects.length} more needed`}
+              {selectedSubjects.length === requiredCount ? "Ready!" : `${requiredCount - selectedSubjects.length} more needed`}
             </div>
           </div>
 
@@ -405,7 +421,7 @@ const JambExam = () => {
                   <span key={id} className="inline-flex items-center gap-1 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs md:text-sm font-medium">
                     <CheckCircle className="h-3 w-3" />
                     {subject?.name}
-                    {subject?.compulsory && <span className="text-[10px] opacity-70">(Compulsory)</span>}
+                    {subject?.compulsory && !isPractice && <span className="text-[10px] opacity-70">(Compulsory)</span>}
                   </span>
                 );
               })}
@@ -426,13 +442,19 @@ const JambExam = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {categorySubjects.map(subject => {
                           const isSelected = selectedSubjects.includes(subject.id);
-                          const isCompulsory = subject.compulsory;
-                          const isDisabled = !isSelected && selectedSubjects.length >= REQUIRED_SUBJECTS;
+                          const isCompulsory = !isPractice && subject.compulsory;
+                          const isDisabled = !isPractice && !isSelected && selectedSubjects.length >= MOCK_REQUIRED_SUBJECTS;
                           
                           return (
                             <div
                               key={subject.id}
-                              onClick={() => !isCompulsory && !isDisabled && handleSubjectToggle(subject.id)}
+                              onClick={() => {
+                                if (isPractice) {
+                                  handleSubjectToggle(subject.id);
+                                } else if (!isCompulsory && !isDisabled) {
+                                  handleSubjectToggle(subject.id);
+                                }
+                              }}
                               className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
                                 isCompulsory
                                   ? "border-primary bg-primary/5 cursor-default"
@@ -471,10 +493,10 @@ const JambExam = () => {
               <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="text-sm text-muted-foreground text-center md:text-left">
                   <p className="flex items-center gap-1 justify-center md:justify-start">
-                    <Clock className="h-4 w-4" /> Duration: <strong>{isMock ? "120 Minutes (Locked)" : "2 Hours"}</strong>
+                    <Clock className="h-4 w-4" /> Duration: <strong>{isMock ? "120 Minutes (Locked)" : "30 Minutes"}</strong>
                   </p>
                   <p className="flex items-center gap-1 justify-center md:justify-start mt-1">
-                    <BookOpen className="h-4 w-4" /> Questions: <strong>{QUESTIONS_PER_SUBJECT * REQUIRED_SUBJECTS} ({QUESTIONS_PER_SUBJECT} per subject)</strong>
+                    <BookOpen className="h-4 w-4" /> Questions: <strong>{isPractice ? PRACTICE_QUESTIONS : `${MOCK_QUESTIONS_PER_SUBJECT * MOCK_REQUIRED_SUBJECTS} (${MOCK_QUESTIONS_PER_SUBJECT} per subject)`}</strong>
                   </p>
                   {isMock && (
                     <p className="flex items-center gap-1 justify-center md:justify-start mt-1 text-amber-600 dark:text-amber-400">
@@ -489,7 +511,7 @@ const JambExam = () => {
                   </Button>
                   <Button
                     onClick={handleStartExam}
-                    disabled={selectedSubjects.length !== REQUIRED_SUBJECTS}
+                    disabled={selectedSubjects.length !== requiredCount}
                     className={`flex-1 md:flex-none ${isMock ? "bg-gradient-to-r from-amber-500 to-red-600 hover:from-amber-600 hover:to-red-700" : ""}`}
                     size="lg"
                   >
