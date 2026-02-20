@@ -21,11 +21,13 @@ serve(async (req) => {
     // Parse subjects from request body
     let subjects: string[] = [];
     let questionsPerSubject = 10;
+    let level = "JAMB / UTME";
     if (req.method === "POST") {
       try {
         const body = await req.json();
         subjects = body.subjects || [];
         questionsPerSubject = body.questionsPerSubject || 10;
+        level = body.level || "JAMB / UTME";
       } catch {
         // ignore parse errors
       }
@@ -33,6 +35,7 @@ serve(async (req) => {
 
     console.log("Requested subjects:", subjects);
     console.log("Questions per subject:", questionsPerSubject);
+    console.log("Level:", level);
 
     const baseUrl = "https://studio--studio-6583429608-f6a92.us-central1.hosted.app/api/bank";
     const allQuestions: any[] = [];
@@ -41,7 +44,7 @@ serve(async (req) => {
     const subjectsToFetch = subjects.length > 0 ? subjects : ["English Language"];
 
     for (const subject of subjectsToFetch) {
-      const apiUrl = `${baseUrl}?level=${encodeURIComponent("JAMB / UTME")}&subject=${encodeURIComponent(subject)}&count=${questionsPerSubject}`;
+      const apiUrl = `${baseUrl}?level=${encodeURIComponent(level)}&subject=${encodeURIComponent(subject)}&count=${questionsPerSubject}`;
       
       console.log(`Fetching ${subject} from: ${apiUrl}`);
 

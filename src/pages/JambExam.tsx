@@ -125,10 +125,9 @@ const JambExam = () => {
   }, [questions, selectedSubjects]);
 
   // Get subject display label for tab
-  const getSubjectTabLabel = (subId: string, index: number) => {
+  const getSubjectTabLabel = (subId: string) => {
     const subject = JAMB_SUBJECTS.find(s => s.id === subId);
-    if (subject?.compulsory) return "English";
-    return `Elective ${index}`;
+    return subject?.name || subId;
   };
 
   const fetchQuestions = async (subjects: string[]) => {
@@ -830,7 +829,7 @@ const JambExam = () => {
                         : "bg-muted/50 text-muted-foreground hover:bg-muted"
                     }`}
                   >
-                    <span className="block">{electiveIdx === 0 ? "English" : `Elective ${electiveIdx}`}</span>
+                    <span className="block">{subName}</span>
                     <span className={`text-[10px] block ${isActive ? "text-white/80" : "text-muted-foreground"}`}>
                       {answeredInSub}/{totalInSub}
                     </span>

@@ -203,6 +203,10 @@ const Exam = () => {
       navigate("/jamb-exam");
       return;
     }
+    if (slug === "waec" || slug === "neco" || slug === "nabteb") {
+      navigate(`/api-exam?type=${slug}`);
+      return;
+    }
     setSelectedCategorySlug(slug);
     if (slug === "university-cbt") {
       fetchSubjects(selectedLevel);
