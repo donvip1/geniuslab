@@ -52,6 +52,7 @@ interface AccessPin {
   used_at: string | null;
   expires_at: string | null;
   created_at: string;
+  exam_category_id: string | null;
 }
 
 interface PinBatch {
@@ -75,6 +76,12 @@ interface PaymentSettings {
   payment_bank_name: string;
   payment_account_holder: string;
   payment_amount: number;
+}
+
+interface ExamCategory {
+  id: string;
+  name: string;
+  slug: string;
 }
 
 export const AccessPinManagement = () => {
@@ -125,12 +132,18 @@ export const AccessPinManagement = () => {
   // Stats
   const [stats, setStats] = useState<PinStats>({ total: 0, unused: 0, used: 0, expired: 0, active: 0 });
 
+  // Exam categories
+  const [examCategories, setExamCategories] = useState<ExamCategory[]>([]);
+  const [selectedCategoryForGen, setSelectedCategoryForGen] = useState<string>("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+
   useEffect(() => {
     fetchSettings();
     fetchPins();
     fetchBatches();
     checkPasswordExists();
     fetchPaymentSettings();
+    fetchExamCategories();
   }, []);
 
   useEffect(() => {
@@ -139,7 +152,7 @@ export const AccessPinManagement = () => {
 
   const checkPasswordExists = async () => {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("pin_generator_settings")
         .select("id")
         .limit(1)
@@ -150,6 +163,20 @@ export const AccessPinManagement = () => {
       console.error("Error checking password:", error);
     } finally {
       setPasswordLoading(false);
+    }
+  };
+
+  const fetchExamCategories = async () => {
+    const { data } = await supabase
+      .from("exam_categories")
+      .select("id, name, slug")
+      .eq("is_active", true)
+      .order("display_order");
+    if (data) {
+      setExamCategories(data);
+      if (data.length > 0 && !selectedCategoryForGen) {
+        setSelectedCategoryForGen(data[0].id);
+      }
     }
   };
 
@@ -521,6 +548,7 @@ export const AccessPinManagement = () => {
         pin_code: pin,
         batch_id: batchData.id,
         created_by: session.user.id,
+        exam_category_id: selectedCategoryForGen || null,
       }));
 
       const batchSize = 100;
@@ -562,6 +590,7 @@ export const AccessPinManagement = () => {
       if (statusFilter === "active" && (!pin.is_used || !pin.expires_at || new Date(pin.expires_at) <= now)) return false;
       
       if (batchFilter !== "all" && pin.batch_id !== batchFilter) return false;
+      if (categoryFilter !== "all" && pin.exam_category_id !== categoryFilter) return false;
       
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -884,7 +913,7 @@ export const AccessPinManagement = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label htmlFor="pinCount">Number of PINs</Label>
               <Input
@@ -906,10 +935,23 @@ export const AccessPinManagement = () => {
                 placeholder="e.g., January 2026 Batch"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="pinCategory">Exam Category</Label>
+              <Select value={selectedCategoryForGen} onValueChange={setSelectedCategoryForGen}>
+                <SelectTrigger id="pinCategory">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {examCategories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex items-end">
               <Button 
                 onClick={handleGeneratePins} 
-                disabled={generating}
+                disabled={generating || !selectedCategoryForGen}
                 className="w-full"
               >
                 {generating ? (
@@ -976,6 +1018,17 @@ export const AccessPinManagement = () => {
                 <SelectItem value="unused">Unused</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="expired">Expired</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setCurrentPage(1); }}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {examCategories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select value={batchFilter} onValueChange={(v) => { setBatchFilter(v); setCurrentPage(1); }}>
