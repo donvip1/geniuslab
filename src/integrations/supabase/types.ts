@@ -19,6 +19,7 @@ export type Database = {
           batch_id: string
           created_at: string | null
           created_by: string
+          exam_category_id: string | null
           expires_at: string | null
           id: string
           is_used: boolean | null
@@ -31,6 +32,7 @@ export type Database = {
           batch_id: string
           created_at?: string | null
           created_by: string
+          exam_category_id?: string | null
           expires_at?: string | null
           id?: string
           is_used?: boolean | null
@@ -43,6 +45,7 @@ export type Database = {
           batch_id?: string
           created_at?: string | null
           created_by?: string
+          exam_category_id?: string | null
           expires_at?: string | null
           id?: string
           is_used?: boolean | null
@@ -57,6 +60,13 @@ export type Database = {
             columns: ["batch_id"]
             isOneToOne: false
             referencedRelation: "pin_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_pins_exam_category_id_fkey"
+            columns: ["exam_category_id"]
+            isOneToOne: false
+            referencedRelation: "exam_categories"
             referencedColumns: ["id"]
           },
         ]
@@ -250,8 +260,48 @@ export type Database = {
           },
         ]
       }
+      exam_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number
+          icon_name: string | null
+          id: string
+          is_active: boolean
+          monthly_price: number
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          icon_name?: string | null
+          id?: string
+          is_active?: boolean
+          monthly_price?: number
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          icon_name?: string | null
+          id?: string
+          is_active?: boolean
+          monthly_price?: number
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       exam_settings: {
         Row: {
+          allow_semester_selection: boolean
           created_at: string
           exam_duration_minutes: number
           exam_end_time: string | null
@@ -269,6 +319,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          allow_semester_selection?: boolean
           created_at?: string
           exam_duration_minutes?: number
           exam_end_time?: string | null
@@ -286,6 +337,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          allow_semester_selection?: boolean
           created_at?: string
           exam_duration_minutes?: number
           exam_end_time?: string | null
@@ -301,6 +353,36 @@ export type Database = {
           payment_bank_name?: string | null
           payment_contact?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      nigerian_universities: {
+        Row: {
+          abbreviation: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          state: string | null
+          type: string
+        }
+        Insert: {
+          abbreviation?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          state?: string | null
+          type?: string
+        }
+        Update: {
+          abbreviation?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          state?: string | null
+          type?: string
         }
         Relationships: []
       }
@@ -333,6 +415,50 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      payment_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          exam_category_id: string
+          id: string
+          paystack_reference: string | null
+          reference: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          exam_category_id: string
+          id?: string
+          paystack_reference?: string | null
+          reference: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          exam_category_id?: string
+          id?: string
+          paystack_reference?: string | null
+          reference?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_transactions_exam_category_id_fkey"
+            columns: ["exam_category_id"]
+            isOneToOne: false
+            referencedRelation: "exam_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pin_batches: {
         Row: {
@@ -470,36 +596,97 @@ export type Database = {
           contributors: string | null
           created_at: string
           created_by: string | null
+          department: string | null
           description: string | null
+          exam_category_id: string | null
           id: string
           is_active: boolean
           level: string | null
           name: string
+          semester: string | null
           updated_at: string
         }
         Insert: {
           contributors?: string | null
           created_at?: string
           created_by?: string | null
+          department?: string | null
           description?: string | null
+          exam_category_id?: string | null
           id?: string
           is_active?: boolean
           level?: string | null
           name: string
+          semester?: string | null
           updated_at?: string
         }
         Update: {
           contributors?: string | null
           created_at?: string
           created_by?: string | null
+          department?: string | null
           description?: string | null
+          exam_category_id?: string | null
           id?: string
           is_active?: boolean
           level?: string | null
           name?: string
+          semester?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "subjects_exam_category_id_fkey"
+            columns: ["exam_category_id"]
+            isOneToOne: false
+            referencedRelation: "exam_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_plans: {
+        Row: {
+          created_at: string
+          exam_category_id: string
+          expires_at: string
+          id: string
+          payment_reference: string | null
+          plan_type: string
+          starts_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          exam_category_id: string
+          expires_at: string
+          id?: string
+          payment_reference?: string | null
+          plan_type?: string
+          starts_at?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          exam_category_id?: string
+          expires_at?: string
+          id?: string
+          payment_reference?: string | null
+          plan_type?: string
+          starts_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_plans_exam_category_id_fkey"
+            columns: ["exam_category_id"]
+            isOneToOne: false
+            referencedRelation: "exam_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       success_stories: {
         Row: {
@@ -641,6 +828,44 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_trials: {
+        Row: {
+          created_at: string
+          exam_category_id: string
+          id: string
+          last_question_date: string | null
+          questions_used_today: number
+          trial_start_date: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          exam_category_id: string
+          id?: string
+          last_question_date?: string | null
+          questions_used_today?: number
+          trial_start_date?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          exam_category_id?: string
+          id?: string
+          last_question_date?: string | null
+          questions_used_today?: number
+          trial_start_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_trials_exam_category_id_fkey"
+            columns: ["exam_category_id"]
+            isOneToOne: false
+            referencedRelation: "exam_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

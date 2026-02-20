@@ -11,3 +11,9 @@ verify_jwt = true
 
 [functions.jamb-questions]
 verify_jwt = false
+
+[functions.paystack-initialize]
+verify_jwt = false
+
+[functions.paystack-webhook]
+verify_jwt = false
