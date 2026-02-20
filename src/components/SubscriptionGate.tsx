@@ -132,13 +132,20 @@ export const SubscriptionGate = ({
 
       if (!trial) {
         // First time — create trial
-        await supabase.from("user_trials").insert({
+        const { error: insertError } = await supabase.from("user_trials").insert({
           user_id: userId,
           exam_category_id: examCategoryId,
           trial_start_date: new Date().toISOString().split("T")[0],
           questions_used_today: 0,
         });
+        if (insertError) {
+          console.error("Trial insert error:", insertError);
+        }
+        // Auto-grant access for new trials
         setTrialInfo({ daysRemaining: 5, questionsUsedToday: 0, isTrialActive: true });
+        setHasAccess(true);
+        setLoading(false);
+        return;
       } else {
         const startDate = new Date(trial.trial_start_date);
         const today = new Date();
@@ -146,12 +153,20 @@ export const SubscriptionGate = ({
         const daysRemaining = Math.max(0, 5 - daysPassed);
         const todayStr = today.toISOString().split("T")[0];
         const questionsUsedToday = trial.last_question_date === todayStr ? trial.questions_used_today : 0;
+        const isTrialActive = daysRemaining > 0 && questionsUsedToday < 5;
 
         setTrialInfo({
           daysRemaining,
           questionsUsedToday,
-          isTrialActive: daysRemaining > 0 && questionsUsedToday < 5,
+          isTrialActive,
         });
+
+        // Auto-grant access if trial is still active
+        if (isTrialActive) {
+          setHasAccess(true);
+          setLoading(false);
+          return;
+        }
       }
     } catch (error) {
       console.error("Error checking access:", error);
