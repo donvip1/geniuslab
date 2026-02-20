@@ -17,6 +17,9 @@ import { SubscriptionGate } from "@/components/SubscriptionGate";
 import { UniversitySelector } from "@/components/UniversitySelector";
 import { SemesterToggle } from "@/components/SemesterToggle";
 import jambLogo from "@/assets/jamb-logo.webp";
+import waecLogo from "@/assets/waec-logo.png";
+import necoLogo from "@/assets/neco-logo.png";
+import nabtebLogo from "@/assets/nabteb-logo.png";
 
 interface Subject {
   id: string;
@@ -46,6 +49,13 @@ const iconMap: Record<string, React.ReactNode> = {
   Award: <Award className="h-7 w-7 text-white" />,
   FileText: <FileText className="h-7 w-7 text-white" />,
   Wrench: <Wrench className="h-7 w-7 text-white" />,
+};
+
+const logoMap: Record<string, string> = {
+  "jamb-utme": jambLogo,
+  "waec": waecLogo,
+  "neco": necoLogo,
+  "nabteb": nabtebLogo,
 };
 
 const colorMap: Record<string, string> = {
@@ -400,9 +410,9 @@ const Exam = () => {
                         </div>
                       )}
                       <CardHeader className="pb-4">
-                        {category.slug === "jamb-utme" ? (
+                        {logoMap[category.slug] ? (
                           <div className="w-16 h-16 rounded-xl overflow-hidden mb-4 shadow-lg group-hover:scale-110 transition-transform">
-                            <img src={jambLogo} alt="JAMB" className="w-full h-full object-cover" />
+                            <img src={logoMap[category.slug]} alt={category.name} className="w-full h-full object-cover" />
                           </div>
                         ) : (
                           <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${colorMap[category.slug] || "from-gray-500 to-gray-600"} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform`}>
