@@ -1,65 +1,44 @@
 
+# Fix: Bulk-Populate Question Cache via Repeated API Calls
 
-# WAEC/NECO/NABTEB Course-Based Subject Selection + Trial Fix
+## Problem
+The Veezee Academy API only returns ~5 unique questions per API call, regardless of the `count` parameter. With only 4-14 questions cached per subject, JAMB Mock UTME (which needs 180 questions: 60 English + 40 x 3 others) is only showing 22 questions.
 
-## What's Changing
+## Root Cause
+The `sync-questions` function makes **one** API call per subject. Since each call returns only ~5 questions, the cache never grows beyond a handful.
 
-### 1. Course-Based Subject Selection for WAEC, NECO, NABTEB
+## Solution
+Modify the `sync-questions` edge function to make **multiple iterative calls** per subject until we reach a target cache size or hit diminishing returns.
 
-Currently, subjects are listed in flat categories. We'll restructure to a Nigerian secondary school course-based selection:
+### Changes to `supabase/functions/sync-questions/index.ts`
 
-**Step 1: Pick your course track**
-- Science
-- Commercial (Business Studies)
-- Arts/Humanities
+1. **Iterative fetching loop** -- For each subject, call the API up to **30 times** (with a 500ms delay between calls) to accumulate unique questions via upsert deduplication
+2. **Target threshold** -- Stop early if the cache reaches the target (e.g., 80 questions for English, 60 for others) or if 3 consecutive calls return 0 new unique questions
+3. **Progress logging** -- Log how many new unique questions each iteration adds
 
-**Step 2: Pick a single subject from your track**
+### Technical approach
 
-Each track shows relevant subjects:
+```
+For each level/subject:
+  target = (English ? 80 : 60)
+  maxIterations = 30
+  zeroNewCount = 0
+  
+  for i in 1..maxIterations:
+    call API
+    upsert results (deduplicates on exam_level + subject + question_text)
+    check new count vs previous count
+    if no new questions added: zeroNewCount++
+    if zeroNewCount >= 3: break (API exhausted)
+    if count >= target: break (enough questions)
+    wait 500ms
+```
 
-| Science | Commercial | Arts |
-|---------|-----------|------|
-| Physics | Commerce | Government |
-| Chemistry | Accounting | Literature in English |
-| Biology | Economics | History |
-| Agricultural Science | Business Methods | CRK/IRK |
-| Further Mathematics | Insurance | Fine Arts |
-| Computer Studies | Office Practice | Yoruba/Igbo/Hausa |
-| Geography | Marketing | Geography |
-| Mathematics | Mathematics | Civic Education |
-| English Language | English Language | English Language |
+### No frontend changes needed
+The `jamb-questions` function and `JambExam.tsx` already serve from cache correctly. Once the cache is populated with enough questions, the 180-question mock will work automatically.
 
-**Key changes:**
-- Single subject selection (not up to 4) -- WAEC/NECO/NABTEB are single-subject exams
-- 50 questions per subject (realistic exam count)
-- 1 hour timer (60 minutes)
-- Course track chips for quick filtering
+### After deployment
+We will trigger a full sync for key JAMB subjects (English, Mathematics, Physics, Chemistry, Biology, etc.) to populate the cache. The cron job will continue to top it up every 6 hours.
 
-### 2. Free Trial Visibility Fix
-
-The free trial banner IS currently working (confirmed via testing -- see screenshot above). However, two improvements:
-
-- For brand new users hitting the page for the first time, the trial record insert may silently fail if there's an RLS issue. We'll add error handling and a fallback display.
-- The "Continue Trial" button text could be more prominent -- we'll make it auto-grant access for trial users instead of requiring them to click through the gate.
-
-## Technical Details
-
-### Files Modified
-
-**`src/pages/ApiExam.tsx`**
-- Replace `EXAM_SUBJECTS` flat list with course-track-based structure
-- Add course track selector (Science / Commercial / Arts) as toggle group
-- Change to single subject selection (remove multi-select, remove "up to 4" limit)
-- Update questions per subject from 20 to 50
-- Update timer from 45 minutes to 60 minutes
-- Show subjects filtered by selected course track
-
-**`src/components/SubscriptionGate.tsx`**
-- When trial is active, auto-grant access (set `hasAccess = true`) instead of showing the gate with a "Continue Trial" button
-- This means trial users go straight to subject selection without an extra click
-- Only show the gate when trial is expired or no trial exists
-- Add better error handling for the trial insert (catch and display gracefully)
-
-### No database changes needed
-The subject list is hardcoded for API-based exams (fetched from Veezee API by name), so no schema changes required.
-
+## Files to modify
+- **`supabase/functions/sync-questions/index.ts`** -- Add iterative multi-call fetching loop with early termination
