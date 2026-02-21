@@ -166,6 +166,51 @@ export type Database = {
         }
         Relationships: []
       }
+      cached_api_questions: {
+        Row: {
+          correct_answer_index: number
+          created_at: string
+          exam_level: string
+          explanation: string | null
+          id: string
+          option_a: string
+          option_b: string
+          option_c: string
+          option_d: string
+          question_text: string
+          subject: string
+          year: string | null
+        }
+        Insert: {
+          correct_answer_index?: number
+          created_at?: string
+          exam_level: string
+          explanation?: string | null
+          id?: string
+          option_a: string
+          option_b: string
+          option_c: string
+          option_d: string
+          question_text: string
+          subject: string
+          year?: string | null
+        }
+        Update: {
+          correct_answer_index?: number
+          created_at?: string
+          exam_level?: string
+          explanation?: string | null
+          id?: string
+          option_a?: string
+          option_b?: string
+          option_c?: string
+          option_d?: string
+          question_text?: string
+          subject?: string
+          year?: string | null
+        }
+        Relationships: []
+      }
       document_uploads: {
         Row: {
           created_at: string

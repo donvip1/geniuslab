@@ -54,8 +54,9 @@ interface JambQuestion {
 
 type ExamMode = "select" | "practice" | "mock";
 
-const PRACTICE_QUESTIONS = 10;
-const MOCK_QUESTIONS_PER_SUBJECT = 10;
+const PRACTICE_QUESTIONS = 20;
+const MOCK_ENGLISH_QUESTIONS = 60;
+const MOCK_OTHER_QUESTIONS = 40;
 const MOCK_REQUIRED_SUBJECTS = 4;
 const PRACTICE_DURATION = 30 * 60; // 30 minutes
 const MOCK_DURATION = 2 * 60 * 60; // 2 hours (locked)
@@ -157,24 +158,45 @@ const JambExam = () => {
   const fetchQuestions = async (subjects: string[]) => {
     setLoading(true);
     try {
-      const subjectNames = subjects.map(id => 
-        JAMB_SUBJECTS.find(s => s.id === id)?.name || id
-      );
-      
-      const { data, error } = await supabase.functions.invoke("jamb-questions", {
-        body: { subjects: subjectNames, questionsPerSubject: examMode === "practice" ? PRACTICE_QUESTIONS : MOCK_QUESTIONS_PER_SUBJECT },
-      });
+      // For mock mode, fetch each subject with its specific count
+      // English = 60, others = 40
+      const allQuestions: JambQuestion[] = [];
 
-      if (error) throw error;
+      if (examMode === "mock") {
+        for (const subId of subjects) {
+          const subName = JAMB_SUBJECTS.find(s => s.id === subId)?.name || subId;
+          const count = subId === "english" ? MOCK_ENGLISH_QUESTIONS : MOCK_OTHER_QUESTIONS;
 
-      const questionsArray = data?.questions || data;
-      
-      if (!questionsArray || !Array.isArray(questionsArray) || questionsArray.length === 0) {
+          const { data, error } = await supabase.functions.invoke("jamb-questions", {
+            body: { subjects: [subName], questionsPerSubject: count },
+          });
+
+          if (error) {
+            console.error(`Error fetching ${subName}:`, error);
+            continue;
+          }
+
+          const arr = data?.questions || data;
+          if (Array.isArray(arr)) {
+            allQuestions.push(...arr);
+          }
+        }
+      } else {
+        // Practice mode: single subject
+        const subjectNames = subjects.map(id => JAMB_SUBJECTS.find(s => s.id === id)?.name || id);
+        const { data, error } = await supabase.functions.invoke("jamb-questions", {
+          body: { subjects: subjectNames, questionsPerSubject: PRACTICE_QUESTIONS },
+        });
+        if (error) throw error;
+        const arr = data?.questions || data;
+        if (Array.isArray(arr)) allQuestions.push(...arr);
+      }
+
+      if (allQuestions.length === 0) {
         throw new Error("No questions available from the question bank for the selected subjects");
       }
 
-      // Questions are already tagged with subjects from the edge function
-      setQuestions(questionsArray);
+      setQuestions(allQuestions);
       setExamStarted(true);
       setTimeLeft(examDuration);
     } catch (error: any) {
@@ -543,7 +565,7 @@ const JambExam = () => {
                     <Clock className="h-4 w-4" /> Duration: <strong>{isMock ? "120 Minutes (Locked)" : "30 Minutes"}</strong>
                   </p>
                   <p className="flex items-center gap-1 justify-center md:justify-start mt-1">
-                    <BookOpen className="h-4 w-4" /> Questions: <strong>{isPractice ? PRACTICE_QUESTIONS : `${MOCK_QUESTIONS_PER_SUBJECT * MOCK_REQUIRED_SUBJECTS} (${MOCK_QUESTIONS_PER_SUBJECT} per subject)`}</strong>
+                    <BookOpen className="h-4 w-4" /> Questions: <strong>{isPractice ? PRACTICE_QUESTIONS : `${MOCK_ENGLISH_QUESTIONS + MOCK_OTHER_QUESTIONS * 3} (English: ${MOCK_ENGLISH_QUESTIONS}, Others: ${MOCK_OTHER_QUESTIONS} each)`}</strong>
                   </p>
                   {isMock && (
                     <p className="flex items-center gap-1 justify-center md:justify-start mt-1 text-amber-600 dark:text-amber-400">
