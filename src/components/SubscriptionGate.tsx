@@ -46,9 +46,33 @@ export const SubscriptionGate = ({
   });
 
   useEffect(() => {
-    checkAccess();
-    fetchPaymentInfo();
+    checkAccessMode();
   }, [examCategoryId, userId]);
+
+  const checkAccessMode = async () => {
+    setLoading(true);
+    try {
+      // First check if this category is in free mode
+      const { data: category } = await supabase
+        .from("exam_categories")
+        .select("access_mode")
+        .eq("id", examCategoryId)
+        .maybeSingle();
+
+      if (category && (category as any).access_mode === "free") {
+        setHasAccess(true);
+        setLoading(false);
+        return;
+      }
+
+      // Category is in pin mode — check subscription/pin/trial
+      await fetchPaymentInfo();
+      await checkAccess();
+    } catch (error) {
+      console.error("Error checking access mode:", error);
+      setLoading(false);
+    }
+  };
 
   const fetchPaymentInfo = async () => {
     const { data } = await supabase
