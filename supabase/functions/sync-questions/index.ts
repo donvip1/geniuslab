@@ -62,7 +62,7 @@ serve(async (req) => {
       } catch { /* ignore */ }
     }
 
-    const results: { level: string; subject: string; iterations: number; cached: number; error?: string }[] = [];
+    const results: { level: string; subject: string; fetched: number; cached: number; error?: string }[] = [];
 
     for (const levelConfig of LEVELS) {
       if (targetLevel && levelConfig.level !== targetLevel) continue;
@@ -71,118 +71,93 @@ serve(async (req) => {
         if (targetSubject && subject !== targetSubject) continue;
 
         try {
-          const target = subject === "English Language" ? 80 : 60;
-          const maxIterations = 30;
-          let zeroNewCount = 0;
+          // Target: enough questions for exams (English=200, others=100)
+          const target = subject === "English Language" ? 200 : 100;
 
-          // Get initial cache count
-          const { count: initialCount } = await supabase
+          // Check current cache count
+          const { count: currentCount } = await supabase
             .from("cached_api_questions")
             .select("*", { count: "exact", head: true })
             .eq("exam_level", levelConfig.level)
             .eq("subject", subject);
 
-          let currentCount = initialCount || 0;
-
-          if (currentCount >= target) {
+          if ((currentCount || 0) >= target) {
             console.log(`${levelConfig.level} - ${subject}: already at ${currentCount}/${target}, skipping`);
-            results.push({ level: levelConfig.level, subject, iterations: 0, cached: currentCount });
+            results.push({ level: levelConfig.level, subject, fetched: 0, cached: currentCount || 0 });
             continue;
           }
 
-          console.log(`${levelConfig.level} - ${subject}: ${currentCount}/${target}, starting iterative sync...`);
+          // Fetch a large batch directly - API now supports returning many questions
+          const fetchCount = target * 2; // Request more to account for possible duplicates
+          const apiUrl = `${BASE_URL}?level=${encodeURIComponent(levelConfig.level)}&subject=${encodeURIComponent(subject)}&count=${fetchCount}`;
 
-          let iteration = 0;
-          for (iteration = 0; iteration < maxIterations; iteration++) {
-            const apiUrl = `${BASE_URL}?level=${encodeURIComponent(levelConfig.level)}&subject=${encodeURIComponent(subject)}&count=200`;
+          console.log(`${levelConfig.level} - ${subject}: cache=${currentCount || 0}/${target}, fetching ${fetchCount}...`);
 
-            let response: Response;
-            try {
-              response = await fetch(apiUrl, {
-                method: "GET",
-                headers: {
-                  "X-API-KEY": VEEZEE_API_KEY,
-                  "Content-Type": "application/json",
-                  "Accept": "application/json",
-                },
-              });
-            } catch (fetchErr: any) {
-              console.error(`Fetch error iter ${iteration}: ${fetchErr.message}`);
-              zeroNewCount++;
-              if (zeroNewCount >= 3) break;
-              await new Promise(r => setTimeout(r, 1000));
-              continue;
-            }
+          const response = await fetch(apiUrl, {
+            method: "GET",
+            headers: {
+              "X-API-KEY": VEEZEE_API_KEY,
+              "Content-Type": "application/json",
+              "Accept": "application/json",
+            },
+          });
 
-            if (!response.ok) {
-              console.error(`API ${response.status} iter ${iteration}`);
-              zeroNewCount++;
-              if (zeroNewCount >= 3) break;
-              await new Promise(r => setTimeout(r, 1000));
-              continue;
-            }
-
-            const rawText = await response.text();
-            const data = JSON.parse(rawText);
-            let questionsArray = data?.questions || data?.data || data;
-            if (!Array.isArray(questionsArray)) break;
-
-            const toCache = questionsArray
-              .map((q: any) => ({
-                exam_level: levelConfig.level,
-                subject: subject,
-                question_text: (q.question || q.text || "").toString().trim(),
-                option_a: (q.options?.[0] || q.option_a || "A").toString().trim(),
-                option_b: (q.options?.[1] || q.option_b || "B").toString().trim(),
-                option_c: (q.options?.[2] || q.option_c || "C").toString().trim(),
-                option_d: (q.options?.[3] || q.option_d || "D").toString().trim(),
-                correct_answer_index: typeof q.correctAnswerIndex === "number" ? q.correctAnswerIndex : (typeof q.answer === "number" ? q.answer : 0),
-                year: (q.year || "").toString(),
-                explanation: (q.explanation || "").toString(),
-              }))
-              .filter((q: any) => q.question_text.length > 5);
-
-            if (toCache.length > 0) {
-              await supabase
-                .from("cached_api_questions")
-                .upsert(toCache, { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
-            }
-
-            // Check new count
-            const { count: newCount } = await supabase
-              .from("cached_api_questions")
-              .select("*", { count: "exact", head: true })
-              .eq("exam_level", levelConfig.level)
-              .eq("subject", subject);
-
-            const added = (newCount || 0) - currentCount;
-            currentCount = newCount || 0;
-
-            console.log(`  iter ${iteration + 1}: +${added} new (total: ${currentCount}/${target})`);
-
-            if (added === 0) {
-              zeroNewCount++;
-              if (zeroNewCount >= 3) {
-                console.log(`  API exhausted after ${zeroNewCount} zero-new iterations`);
-                break;
-              }
-            } else {
-              zeroNewCount = 0;
-            }
-
-            if (currentCount >= target) {
-              console.log(`  Target reached: ${currentCount}/${target}`);
-              break;
-            }
-
-            await new Promise(r => setTimeout(r, 500));
+          if (!response.ok) {
+            const errText = await response.text();
+            console.error(`API ${response.status} for ${subject}: ${errText}`);
+            results.push({ level: levelConfig.level, subject, fetched: 0, cached: currentCount || 0, error: `API ${response.status}` });
+            continue;
           }
 
-          results.push({ level: levelConfig.level, subject, iterations: iteration + 1, cached: currentCount });
+          const rawText = await response.text();
+          const data = JSON.parse(rawText);
+          let questionsArray = data?.questions || data?.data || data;
+          if (!Array.isArray(questionsArray)) {
+            console.error(`Non-array response for ${subject}`);
+            results.push({ level: levelConfig.level, subject, fetched: 0, cached: currentCount || 0, error: "Non-array response" });
+            continue;
+          }
+
+          const toCache = questionsArray
+            .map((q: any) => ({
+              exam_level: levelConfig.level,
+              subject: subject,
+              question_text: (q.question || q.text || "").toString().trim(),
+              option_a: (q.options?.[0] || q.option_a || "A").toString().trim(),
+              option_b: (q.options?.[1] || q.option_b || "B").toString().trim(),
+              option_c: (q.options?.[2] || q.option_c || "C").toString().trim(),
+              option_d: (q.options?.[3] || q.option_d || "D").toString().trim(),
+              correct_answer_index: typeof q.correctAnswerIndex === "number" ? q.correctAnswerIndex : (typeof q.answer === "number" ? q.answer : 0),
+              year: (q.year || "").toString(),
+              explanation: (q.explanation || "").toString(),
+            }))
+            .filter((q: any) => q.question_text.length > 5);
+
+          console.log(`${subject}: parsed ${toCache.length} valid questions from API`);
+
+          if (toCache.length > 0) {
+            // Batch upsert in chunks of 500 to avoid payload limits
+            for (let i = 0; i < toCache.length; i += 500) {
+              const chunk = toCache.slice(i, i + 500);
+              await supabase
+                .from("cached_api_questions")
+                .upsert(chunk, { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
+            }
+          }
+
+          // Final count
+          const { count: newCount } = await supabase
+            .from("cached_api_questions")
+            .select("*", { count: "exact", head: true })
+            .eq("exam_level", levelConfig.level)
+            .eq("subject", subject);
+
+          console.log(`${subject}: cache now at ${newCount}/${target}`);
+          results.push({ level: levelConfig.level, subject, fetched: toCache.length, cached: newCount || 0 });
 
         } catch (err: any) {
           console.error(`Error syncing ${levelConfig.level} - ${subject}:`, err.message);
-          results.push({ level: levelConfig.level, subject, iterations: 0, cached: 0, error: err.message });
+          results.push({ level: levelConfig.level, subject, fetched: 0, cached: 0, error: err.message });
         }
       }
     }

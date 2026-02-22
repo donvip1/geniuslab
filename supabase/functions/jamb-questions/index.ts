@@ -6,6 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const BASE_URL = "https://studio--studio-6583429608-f6a92.us-central1.hosted.app/api/bank";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -14,6 +16,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const VEEZEE_API_KEY = Deno.env.get("VEEZEE_API_KEY");
     if (!supabaseUrl || !supabaseKey) throw new Error("Supabase config missing");
 
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -31,13 +34,13 @@ serve(async (req) => {
       } catch { /* ignore */ }
     }
 
-    console.log("Serving from cache:", { subjects, questionsPerSubject, level });
+    console.log("Request:", { subjects, questionsPerSubject, level });
 
     const subjectsToFetch = subjects.length > 0 ? subjects : ["English Language"];
     const allQuestions: any[] = [];
 
     for (const subject of subjectsToFetch) {
-      // Serve directly from cache
+      // First try cache
       const { data: cached, error } = await supabase
         .from("cached_api_questions")
         .select("*")
@@ -46,13 +49,79 @@ serve(async (req) => {
 
       if (error) {
         console.error(`Cache read error for ${subject}:`, error.message);
-        continue;
       }
 
-      const pool = cached || [];
-      console.log(`${subject}: ${pool.length} cached, serving ${Math.min(questionsPerSubject, pool.length)}`);
+      let pool = cached || [];
+      console.log(`${subject}: ${pool.length} cached, need ${questionsPerSubject}`);
 
-      // Shuffle and pick requested count
+      // If cache doesn't have enough, fetch directly from API to fill gap
+      if (pool.length < questionsPerSubject && VEEZEE_API_KEY) {
+        console.log(`${subject}: cache insufficient (${pool.length}/${questionsPerSubject}), fetching from API...`);
+        try {
+          const fetchCount = questionsPerSubject * 2; // fetch extra for dedup
+          const apiUrl = `${BASE_URL}?level=${encodeURIComponent(level)}&subject=${encodeURIComponent(subject)}&count=${fetchCount}`;
+          
+          const response = await fetch(apiUrl, {
+            method: "GET",
+            headers: {
+              "X-API-KEY": VEEZEE_API_KEY,
+              "Content-Type": "application/json",
+              "Accept": "application/json",
+            },
+          });
+
+          if (response.ok) {
+            const rawText = await response.text();
+            const data = JSON.parse(rawText);
+            let questionsArray = data?.questions || data?.data || data;
+            
+            if (Array.isArray(questionsArray)) {
+              const toCache = questionsArray
+                .map((q: any) => ({
+                  exam_level: level,
+                  subject: subject,
+                  question_text: (q.question || q.text || "").toString().trim(),
+                  option_a: (q.options?.[0] || q.option_a || "A").toString().trim(),
+                  option_b: (q.options?.[1] || q.option_b || "B").toString().trim(),
+                  option_c: (q.options?.[2] || q.option_c || "C").toString().trim(),
+                  option_d: (q.options?.[3] || q.option_d || "D").toString().trim(),
+                  correct_answer_index: typeof q.correctAnswerIndex === "number" ? q.correctAnswerIndex : (typeof q.answer === "number" ? q.answer : 0),
+                  year: (q.year || "").toString(),
+                  explanation: (q.explanation || "").toString(),
+                }))
+                .filter((q: any) => q.question_text.length > 5);
+
+              console.log(`${subject}: fetched ${toCache.length} from API`);
+
+              // Cache the new questions
+              if (toCache.length > 0) {
+                for (let i = 0; i < toCache.length; i += 500) {
+                  const chunk = toCache.slice(i, i + 500);
+                  await supabase
+                    .from("cached_api_questions")
+                    .upsert(chunk, { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
+                }
+
+                // Re-read the full cache after insert
+                const { data: refreshed } = await supabase
+                  .from("cached_api_questions")
+                  .select("*")
+                  .eq("exam_level", level)
+                  .eq("subject", subject);
+                
+                pool = refreshed || pool;
+                console.log(`${subject}: cache refreshed to ${pool.length}`);
+              }
+            }
+          } else {
+            console.error(`API ${response.status} for ${subject}`);
+          }
+        } catch (fetchErr: any) {
+          console.error(`API fetch error for ${subject}:`, fetchErr.message);
+        }
+      }
+
+      // Shuffle and pick exact requested count
       const shuffled = pool.sort(() => Math.random() - 0.5);
       const selected = shuffled.slice(0, questionsPerSubject);
 
@@ -66,6 +135,7 @@ serve(async (req) => {
       }));
 
       allQuestions.push(...formatted);
+      console.log(`${subject}: serving ${formatted.length}/${questionsPerSubject}`);
     }
 
     console.log("Total questions served:", allQuestions.length);
