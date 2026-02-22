@@ -136,6 +136,7 @@ export const AccessPinManagement = () => {
   const [examCategories, setExamCategories] = useState<ExamCategory[]>([]);
   const [selectedCategoryForGen, setSelectedCategoryForGen] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [categoryAccessModes, setCategoryAccessModes] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchSettings();
@@ -169,7 +170,7 @@ export const AccessPinManagement = () => {
   const fetchExamCategories = async () => {
     const { data } = await supabase
       .from("exam_categories")
-      .select("id, name, slug")
+      .select("id, name, slug, access_mode")
       .eq("is_active", true)
       .order("display_order");
     if (data) {
@@ -177,7 +178,34 @@ export const AccessPinManagement = () => {
       if (data.length > 0 && !selectedCategoryForGen) {
         setSelectedCategoryForGen(data[0].id);
       }
+      // Fetch access_mode for each category
+      const modes: Record<string, string> = {};
+      for (const cat of data) {
+        modes[cat.id] = (cat as any).access_mode || "free";
+      }
+      setCategoryAccessModes(modes);
     }
+  };
+
+  const toggleCategoryAccessMode = async (categoryId: string) => {
+    const currentMode = categoryAccessModes[categoryId] || "free";
+    const newMode = currentMode === "free" ? "pin" : "free";
+    
+    const { error } = await supabase
+      .from("exam_categories")
+      .update({ access_mode: newMode } as any)
+      .eq("id", categoryId);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to update access mode", variant: "destructive" });
+      return;
+    }
+
+    setCategoryAccessModes(prev => ({ ...prev, [categoryId]: newMode }));
+    toast({
+      title: "Updated",
+      description: `${examCategories.find(c => c.id === categoryId)?.name} is now in ${newMode === "free" ? "Free" : "PIN"} mode`,
+    });
   };
 
   const fetchPaymentSettings = async () => {
@@ -758,27 +786,39 @@ export const AccessPinManagement = () => {
         </Card>
       )}
 
-      {/* Global Toggle */}
+      {/* Per-Category Access Mode Toggles */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Key className="h-5 w-5" />
-            PIN Access Control
+            Per-Category Access Control
           </CardTitle>
           <CardDescription>
-            When enabled, students must enter a valid PIN to access exams
+            Toggle each exam category between Free Mode (open access) and PIN Mode (requires PIN/subscription)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Require PIN for Exam Access</p>
-              <p className="text-sm text-muted-foreground">
-                {isPinRequired ? "Students must have a valid PIN to take exams" : "Students can take exams without a PIN"}
-              </p>
+          {examCategories.map((cat) => (
+            <div key={cat.id} className="flex items-center justify-between py-3 border-b last:border-b-0">
+              <div>
+                <p className="font-medium">{cat.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {categoryAccessModes[cat.id] === "pin"
+                    ? "PIN/Subscription required"
+                    : "Free access — all questions open"}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-medium ${categoryAccessModes[cat.id] === "pin" ? "text-destructive" : "text-green-600"}`}>
+                  {categoryAccessModes[cat.id] === "pin" ? "PIN Mode" : "Free Mode"}
+                </span>
+                <Switch
+                  checked={categoryAccessModes[cat.id] === "pin"}
+                  onCheckedChange={() => toggleCategoryAccessMode(cat.id)}
+                />
+              </div>
             </div>
-            <Switch checked={isPinRequired} onCheckedChange={togglePinRequired} />
-          </div>
+          ))}
           
           {hasPassword && (
             <div className="pt-4 border-t">

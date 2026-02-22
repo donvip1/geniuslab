@@ -307,6 +307,7 @@ export type Database = {
       }
       exam_categories: {
         Row: {
+          access_mode: string
           created_at: string
           description: string | null
           display_order: number
@@ -319,6 +320,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          access_mode?: string
           created_at?: string
           description?: string | null
           display_order?: number
@@ -331,6 +333,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          access_mode?: string
           created_at?: string
           description?: string | null
           display_order?: number

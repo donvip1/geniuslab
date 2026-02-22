@@ -54,11 +54,12 @@ serve(async (req) => {
       let pool = cached || [];
       console.log(`${subject}: ${pool.length} cached, need ${questionsPerSubject}`);
 
-      // If cache doesn't have enough, fetch directly from API to fill gap
+      // If cache doesn't have enough, fetch directly from API
       if (pool.length < questionsPerSubject && VEEZEE_API_KEY) {
         console.log(`${subject}: cache insufficient (${pool.length}/${questionsPerSubject}), fetching from API...`);
         try {
-          const fetchCount = questionsPerSubject * 2; // fetch extra for dedup
+          // Fetch exact amount needed plus buffer for dedup
+          const fetchCount = Math.max(questionsPerSubject * 2, 200);
           const apiUrl = `${BASE_URL}?level=${encodeURIComponent(level)}&subject=${encodeURIComponent(subject)}&count=${fetchCount}`;
           
           const response = await fetch(apiUrl, {
@@ -112,6 +113,20 @@ serve(async (req) => {
                 pool = refreshed || pool;
                 console.log(`${subject}: cache refreshed to ${pool.length}`);
               }
+
+              // If cache still not enough, use API results directly (don't just rely on cache)
+              if (pool.length < questionsPerSubject && toCache.length > 0) {
+                console.log(`${subject}: cache still short, merging API results directly`);
+                // Deduplicate by question_text
+                const existingTexts = new Set(pool.map((q: any) => q.question_text));
+                for (const q of toCache) {
+                  if (!existingTexts.has(q.question_text)) {
+                    pool.push(q);
+                    existingTexts.add(q.question_text);
+                  }
+                }
+                console.log(`${subject}: merged pool now ${pool.length}`);
+              }
             }
           } else {
             console.error(`API ${response.status} for ${subject}`);
@@ -131,7 +146,7 @@ serve(async (req) => {
         correctAnswerIndex: q.correct_answer_index,
         year: q.year || "",
         explanation: q.explanation || "",
-        subject: q.subject,
+        subject: subject,
       }));
 
       allQuestions.push(...formatted);
