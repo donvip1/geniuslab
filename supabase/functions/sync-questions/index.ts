@@ -62,7 +62,7 @@ serve(async (req) => {
       } catch { /* ignore */ }
     }
 
-    const results: { level: string; subject: string; fetched: number; cached: number; error?: string }[] = [];
+    const results: { level: string; subject: string; fetched: number; newStored: number; totalCached: number; error?: string }[] = [];
 
     for (const levelConfig of LEVELS) {
       if (targetLevel && levelConfig.level !== targetLevel) continue;
@@ -71,8 +71,6 @@ serve(async (req) => {
         if (targetSubject && subject !== targetSubject) continue;
 
         try {
-          const target = subject === "Use of English" ? 500 : 300;
-
           // Check current cache count
           const { count: currentCount } = await supabase
             .from("cached_api_questions")
@@ -80,17 +78,13 @@ serve(async (req) => {
             .eq("exam_level", levelConfig.level)
             .eq("subject", subject);
 
-          if ((currentCount || 0) >= target) {
-            console.log(`${levelConfig.level} - ${subject}: already at ${currentCount}/${target}, skipping`);
-            results.push({ level: levelConfig.level, subject, fetched: 0, cached: currentCount || 0 });
-            continue;
-          }
+          const cached = currentCount || 0;
 
-          // Fetch a large batch directly - API now supports returning many questions
-          const fetchCount = target * 3;
+          // Always fetch a large batch from API to fill our bank
+          const fetchCount = 1000;
           const apiUrl = `${BASE_URL}?level=${encodeURIComponent(levelConfig.level)}&subject=${encodeURIComponent(subject)}&count=${fetchCount}`;
 
-          console.log(`${levelConfig.level} - ${subject}: cache=${currentCount || 0}/${target}, fetching ${fetchCount}...`);
+          console.log(`${levelConfig.level} - ${subject}: current cache=${cached}, fetching ${fetchCount} from API...`);
 
           const response = await fetch(apiUrl, {
             method: "GET",
@@ -104,7 +98,7 @@ serve(async (req) => {
           if (!response.ok) {
             const errText = await response.text();
             console.error(`API ${response.status} for ${subject}: ${errText}`);
-            results.push({ level: levelConfig.level, subject, fetched: 0, cached: currentCount || 0, error: `API ${response.status}` });
+            results.push({ level: levelConfig.level, subject, fetched: 0, newStored: 0, totalCached: cached, error: `API ${response.status}` });
             continue;
           }
 
@@ -113,7 +107,7 @@ serve(async (req) => {
           let questionsArray = data?.questions || data?.data || data;
           if (!Array.isArray(questionsArray)) {
             console.error(`Non-array response for ${subject}`);
-            results.push({ level: levelConfig.level, subject, fetched: 0, cached: currentCount || 0, error: "Non-array response" });
+            results.push({ level: levelConfig.level, subject, fetched: 0, newStored: 0, totalCached: cached, error: "Non-array response" });
             continue;
           }
 
@@ -134,13 +128,18 @@ serve(async (req) => {
 
           console.log(`${subject}: parsed ${toCache.length} valid questions from API`);
 
+          let newStored = 0;
           if (toCache.length > 0) {
-            // Batch upsert in chunks of 500 to avoid payload limits
+            // Upsert in chunks - ignoreDuplicates ensures no duplicates
             for (let i = 0; i < toCache.length; i += 500) {
               const chunk = toCache.slice(i, i + 500);
-              await supabase
+              const { data: upsertData, error: upsertError } = await supabase
                 .from("cached_api_questions")
                 .upsert(chunk, { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
+              
+              if (upsertError) {
+                console.error(`Upsert error for ${subject} chunk ${i}:`, upsertError.message);
+              }
             }
           }
 
@@ -151,12 +150,13 @@ serve(async (req) => {
             .eq("exam_level", levelConfig.level)
             .eq("subject", subject);
 
-          console.log(`${subject}: cache now at ${newCount}/${target}`);
-          results.push({ level: levelConfig.level, subject, fetched: toCache.length, cached: newCount || 0 });
+          newStored = (newCount || 0) - cached;
+          console.log(`${subject}: ${newStored} new questions stored, total now ${newCount}`);
+          results.push({ level: levelConfig.level, subject, fetched: toCache.length, newStored, totalCached: newCount || 0 });
 
         } catch (err: any) {
           console.error(`Error syncing ${levelConfig.level} - ${subject}:`, err.message);
-          results.push({ level: levelConfig.level, subject, fetched: 0, cached: 0, error: err.message });
+          results.push({ level: levelConfig.level, subject, fetched: 0, newStored: 0, totalCached: 0, error: err.message });
         }
       }
     }

@@ -36,11 +36,11 @@ serve(async (req) => {
 
     console.log("Request:", { subjects, questionsPerSubject, level });
 
-    const subjectsToFetch = subjects.length > 0 ? subjects : ["English Language"];
+    const subjectsToFetch = subjects.length > 0 ? subjects : ["Use of English"];
     const allQuestions: any[] = [];
 
     for (const subject of subjectsToFetch) {
-      // First try cache for the requested level
+      // Step 1: Check cache for the requested level
       const { data: cached, error } = await supabase
         .from("cached_api_questions")
         .select("*")
@@ -52,8 +52,8 @@ serve(async (req) => {
       }
 
       let pool = cached || [];
-      
-      // If requested level has insufficient questions, also check JAMB cache (same curriculum)
+
+      // Step 2: If not enough in requested level, also check JAMB cache (same curriculum base)
       if (pool.length < questionsPerSubject && level !== "JAMB / UTME") {
         console.log(`${subject}: ${level} cache has ${pool.length}, checking JAMB cache...`);
         const { data: jambCached } = await supabase
@@ -63,7 +63,6 @@ serve(async (req) => {
           .eq("subject", subject);
         
         if (jambCached && jambCached.length > 0) {
-          // Merge, dedup by question_text
           const existingTexts = new Set(pool.map((q: any) => q.question_text));
           for (const q of jambCached) {
             if (!existingTexts.has(q.question_text)) {
@@ -74,16 +73,15 @@ serve(async (req) => {
           console.log(`${subject}: merged JAMB cache, pool now ${pool.length}`);
         }
       }
-      
-      console.log(`${subject}: ${pool.length} cached, need ${questionsPerSubject}`);
 
-      // If cache doesn't have enough, fetch directly from API (always use JAMB / UTME level - API only supports this)
+      console.log(`${subject}: cache pool=${pool.length}, need=${questionsPerSubject}`);
+
+      // Step 3: If cache still insufficient, fetch from Veezee API AND store in cache
       if (pool.length < questionsPerSubject && VEEZEE_API_KEY) {
-        console.log(`${subject}: cache insufficient (${pool.length}/${questionsPerSubject}), fetching from API...`);
+        console.log(`${subject}: cache insufficient, fetching from Veezee API...`);
         try {
-          const fetchCount = Math.max(questionsPerSubject * 3, 500);
-          // Always use JAMB / UTME for API calls - Veezee only supports this level
-          const apiUrl = `${BASE_URL}?level=${encodeURIComponent("JAMB / UTME")}&subject=${encodeURIComponent(subject)}&count=${fetchCount}`;
+          const fetchCount = Math.max(questionsPerSubject * 5, 1000);
+          const apiUrl = `${BASE_URL}?level=${encodeURIComponent(level)}&subject=${encodeURIComponent(subject)}&count=${fetchCount}`;
           
           const response = await fetch(apiUrl, {
             method: "GET",
@@ -115,9 +113,9 @@ serve(async (req) => {
                 }))
                 .filter((q: any) => q.question_text.length > 5);
 
-              console.log(`${subject}: fetched ${toCache.length} from API`);
+              console.log(`${subject}: fetched ${toCache.length} from API, storing in cache...`);
 
-              // Cache the new questions
+              // Store ALL fetched questions in our question bank (ignore duplicates)
               if (toCache.length > 0) {
                 for (let i = 0; i < toCache.length; i += 500) {
                   const chunk = toCache.slice(i, i + 500);
@@ -126,29 +124,26 @@ serve(async (req) => {
                     .upsert(chunk, { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
                 }
 
-                // Re-read the full cache after insert
+                // Re-read the full cache after storing
                 const { data: refreshed } = await supabase
                   .from("cached_api_questions")
                   .select("*")
                   .eq("exam_level", level)
                   .eq("subject", subject);
                 
-                pool = refreshed || pool;
-                console.log(`${subject}: cache refreshed to ${pool.length}`);
-              }
-
-              // If cache still not enough, use API results directly (don't just rely on cache)
-              if (pool.length < questionsPerSubject && toCache.length > 0) {
-                console.log(`${subject}: cache still short, merging API results directly`);
-                // Deduplicate by question_text
-                const existingTexts = new Set(pool.map((q: any) => q.question_text));
-                for (const q of toCache) {
-                  if (!existingTexts.has(q.question_text)) {
-                    pool.push(q);
-                    existingTexts.add(q.question_text);
+                if (refreshed && refreshed.length > 0) {
+                  pool = refreshed;
+                } else {
+                  // Merge API results directly into pool as fallback
+                  const existingTexts = new Set(pool.map((q: any) => q.question_text));
+                  for (const q of toCache) {
+                    if (!existingTexts.has(q.question_text)) {
+                      pool.push(q);
+                      existingTexts.add(q.question_text);
+                    }
                   }
                 }
-                console.log(`${subject}: merged pool now ${pool.length}`);
+                console.log(`${subject}: cache refreshed to ${pool.length}`);
               }
             }
           } else {
@@ -159,7 +154,7 @@ serve(async (req) => {
         }
       }
 
-      // Shuffle and pick exact requested count
+      // Step 4: Shuffle and pick exact requested count from our bank
       const shuffled = pool.sort(() => Math.random() - 0.5);
       const selected = shuffled.slice(0, questionsPerSubject);
 
@@ -173,7 +168,7 @@ serve(async (req) => {
       }));
 
       allQuestions.push(...formatted);
-      console.log(`${subject}: serving ${formatted.length}/${questionsPerSubject}`);
+      console.log(`${subject}: serving ${formatted.length}/${questionsPerSubject} (bank has ${pool.length})`);
     }
 
     console.log("Total questions served:", allQuestions.length);
