@@ -40,7 +40,7 @@ serve(async (req) => {
     const allQuestions: any[] = [];
 
     for (const subject of subjectsToFetch) {
-      // First try cache
+      // First try cache for the requested level
       const { data: cached, error } = await supabase
         .from("cached_api_questions")
         .select("*")
@@ -52,15 +52,38 @@ serve(async (req) => {
       }
 
       let pool = cached || [];
+      
+      // If requested level has insufficient questions, also check JAMB cache (same curriculum)
+      if (pool.length < questionsPerSubject && level !== "JAMB / UTME") {
+        console.log(`${subject}: ${level} cache has ${pool.length}, checking JAMB cache...`);
+        const { data: jambCached } = await supabase
+          .from("cached_api_questions")
+          .select("*")
+          .eq("exam_level", "JAMB / UTME")
+          .eq("subject", subject);
+        
+        if (jambCached && jambCached.length > 0) {
+          // Merge, dedup by question_text
+          const existingTexts = new Set(pool.map((q: any) => q.question_text));
+          for (const q of jambCached) {
+            if (!existingTexts.has(q.question_text)) {
+              pool.push(q);
+              existingTexts.add(q.question_text);
+            }
+          }
+          console.log(`${subject}: merged JAMB cache, pool now ${pool.length}`);
+        }
+      }
+      
       console.log(`${subject}: ${pool.length} cached, need ${questionsPerSubject}`);
 
-      // If cache doesn't have enough, fetch directly from API
+      // If cache doesn't have enough, fetch directly from API (always use JAMB / UTME level - API only supports this)
       if (pool.length < questionsPerSubject && VEEZEE_API_KEY) {
         console.log(`${subject}: cache insufficient (${pool.length}/${questionsPerSubject}), fetching from API...`);
         try {
-          // Fetch exact amount needed plus buffer for dedup
-          const fetchCount = Math.max(questionsPerSubject * 2, 200);
-          const apiUrl = `${BASE_URL}?level=${encodeURIComponent(level)}&subject=${encodeURIComponent(subject)}&count=${fetchCount}`;
+          const fetchCount = Math.max(questionsPerSubject * 3, 500);
+          // Always use JAMB / UTME for API calls - Veezee only supports this level
+          const apiUrl = `${BASE_URL}?level=${encodeURIComponent("JAMB / UTME")}&subject=${encodeURIComponent(subject)}&count=${fetchCount}`;
           
           const response = await fetch(apiUrl, {
             method: "GET",

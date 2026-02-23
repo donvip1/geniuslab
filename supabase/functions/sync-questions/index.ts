@@ -8,7 +8,7 @@ const corsHeaders = {
 
 const LEVELS = [
   { level: "JAMB / UTME", subjects: [
-    "English Language", "Mathematics", "Physics", "Chemistry", "Biology",
+    "Use of English", "Mathematics", "Physics", "Chemistry", "Biology",
     "Agricultural Science", "Economics", "Commerce", "Accounting",
     "Government", "Literature in English", "Christian Religious Knowledge",
     "Islamic Religious Knowledge", "History", "Geography", "Civic Education", "Computer Studies"
@@ -71,8 +71,7 @@ serve(async (req) => {
         if (targetSubject && subject !== targetSubject) continue;
 
         try {
-          // Target: enough questions for exams (English=200, others=100)
-          const target = subject === "English Language" ? 200 : 100;
+          const target = subject === "Use of English" ? 500 : 300;
 
           // Check current cache count
           const { count: currentCount } = await supabase
@@ -88,7 +87,7 @@ serve(async (req) => {
           }
 
           // Fetch a large batch directly - API now supports returning many questions
-          const fetchCount = target * 2; // Request more to account for possible duplicates
+          const fetchCount = target * 3;
           const apiUrl = `${BASE_URL}?level=${encodeURIComponent(levelConfig.level)}&subject=${encodeURIComponent(subject)}&count=${fetchCount}`;
 
           console.log(`${levelConfig.level} - ${subject}: cache=${currentCount || 0}/${target}, fetching ${fetchCount}...`);
