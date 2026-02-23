@@ -63,7 +63,7 @@ const MOCK_DURATION = 2 * 60 * 60; // 2 hours (locked)
 
 // Common JAMB UTME subjects
 const JAMB_SUBJECTS = [
-  { id: "english", name: "English Language", category: "Compulsory", compulsory: true },
+  { id: "english", name: "Use of English", category: "Compulsory", compulsory: true },
   { id: "mathematics", name: "Mathematics", category: "Science/Commercial" },
   { id: "physics", name: "Physics", category: "Science" },
   { id: "chemistry", name: "Chemistry", category: "Science" },
@@ -212,10 +212,11 @@ const JambExam = () => {
   };
 
   const handleSubjectToggle = (subjectId: string) => {
-    if (subjectId === "english") return;
+    // Only block English deselection in mock mode (it's compulsory there)
+    if (subjectId === "english" && examMode === "mock") return;
     
     if (examMode === "practice") {
-      // Practice mode: single subject only (besides english which is compulsory for practice too? No - practice is single subject)
+      // Practice mode: single subject only
       setSelectedSubjects([subjectId]);
       return;
     }
@@ -511,8 +512,8 @@ const JambExam = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {categorySubjects.map(subject => {
                           const isSelected = selectedSubjects.includes(subject.id);
-                          const isCompulsory = !isPractice && subject.compulsory;
-                          const isDisabled = !isPractice && !isSelected && selectedSubjects.length >= MOCK_REQUIRED_SUBJECTS;
+                          const isCompulsory = isMock && subject.compulsory;
+                          const isDisabled = isMock && !isSelected && selectedSubjects.length >= MOCK_REQUIRED_SUBJECTS;
                           
                           return (
                             <div
