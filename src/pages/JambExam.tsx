@@ -80,6 +80,13 @@ const JAMB_SUBJECTS = [
   { id: "geography", name: "Geography", category: "Arts/Science" },
   { id: "civic-education", name: "Civic Education", category: "General" },
   { id: "computer-studies", name: "Computer Studies", category: "Science" },
+  { id: "igbo", name: "Igbo Language", category: "Languages" },
+  { id: "yoruba", name: "Yoruba Language", category: "Languages" },
+  { id: "hausa", name: "Hausa Language", category: "Languages" },
+  { id: "french", name: "French", category: "Languages" },
+  { id: "arabic", name: "Arabic", category: "Languages" },
+  { id: "fine-arts", name: "Fine Arts", category: "Arts" },
+  { id: "technical-drawing", name: "Technical Drawing", category: "Science" },
 ];
 
 const JambExam = () => {
