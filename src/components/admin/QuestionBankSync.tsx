@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { RefreshCw, Database, Loader2, CheckCircle, XCircle } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
+import { RefreshCw, Database, Loader2, CheckCircle, XCircle, Zap } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -21,7 +20,7 @@ interface CacheStats {
 }
 
 interface SyncResult {
-  level: string;
+  level?: string;
   subject: string;
   fetched: number;
   newStored: number;
@@ -36,6 +35,7 @@ export const QuestionBankSync = () => {
   const [cacheStats, setCacheStats] = useState<CacheStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [bulkFetching, setBulkFetching] = useState(false);
   const [syncResults, setSyncResults] = useState<SyncResult[]>([]);
   const [selectedLevel, setSelectedLevel] = useState<string>("all");
   const [totalQuestions, setTotalQuestions] = useState(0);
@@ -47,14 +47,12 @@ export const QuestionBankSync = () => {
   const fetchCacheStats = async () => {
     setLoading(true);
     try {
-      // Get counts grouped by level and subject
       const { data, error } = await supabase
         .from("cached_api_questions")
         .select("exam_level, subject");
 
       if (error) throw error;
 
-      // Group and count manually
       const counts: Record<string, number> = {};
       (data || []).forEach((row: any) => {
         const key = `${row.exam_level}|||${row.subject}`;
@@ -81,14 +79,9 @@ export const QuestionBankSync = () => {
     setSyncResults([]);
     try {
       const body: any = {};
-      if (level && level !== "all") {
-        body.level = level;
-      }
+      if (level && level !== "all") body.level = level;
 
-      const { data, error } = await supabase.functions.invoke("sync-questions", {
-        body,
-      });
-
+      const { data, error } = await supabase.functions.invoke("sync-questions", { body });
       if (error) throw error;
 
       if (data?.results) {
@@ -96,21 +89,42 @@ export const QuestionBankSync = () => {
         const totalNew = data.results.reduce((sum: number, r: SyncResult) => sum + (r.newStored || 0), 0);
         toast({
           title: "Sync Complete",
-          description: `${totalNew} new questions stored in the question bank.`,
+          description: `${totalNew} new questions stored.`,
         });
       }
-
-      // Refresh stats
       await fetchCacheStats();
     } catch (error: any) {
-      console.error("Sync error:", error);
-      toast({
-        title: "Sync Failed",
-        description: error.message || "Failed to sync questions",
-        variant: "destructive",
-      });
+      toast({ title: "Sync Failed", description: error.message, variant: "destructive" });
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const triggerBulkFetch = async () => {
+    setBulkFetching(true);
+    setSyncResults([]);
+    toast({
+      title: "Bulk Fetch Started",
+      description: "Fetching from ALOC API (15 years × 24 subjects). This may take several minutes...",
+    });
+    try {
+      const { data, error } = await supabase.functions.invoke("bulk-fetch-questions", {
+        body: { level: selectedLevel === "all" ? "JAMB / UTME" : selectedLevel },
+      });
+      if (error) throw error;
+
+      if (data?.results) {
+        setSyncResults(data.results);
+        toast({
+          title: "Bulk Fetch Complete!",
+          description: `${data.totalNew || 0} new questions added. Grand total: ${data.grandTotal || 0}`,
+        });
+      }
+      await fetchCacheStats();
+    } catch (error: any) {
+      toast({ title: "Bulk Fetch Failed", description: error.message, variant: "destructive" });
+    } finally {
+      setBulkFetching(false);
     }
   };
 
@@ -126,10 +140,9 @@ export const QuestionBankSync = () => {
 
   return (
     <div className="space-y-6">
-      {/* Overview Card */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Database className="h-5 w-5" />
@@ -139,49 +152,38 @@ export const QuestionBankSync = () => {
                 {totalQuestions.toLocaleString()} total questions cached across all exam levels
               </CardDescription>
             </div>
-            <div className="flex items-center gap-3">
-              <Select value={selectedLevel} onValueChange={setSelectedLevel}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by level" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Levels</SelectItem>
-                  {LEVELS.map(level => (
-                    <SelectItem key={level} value={level}>{level}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Select value={selectedLevel} onValueChange={setSelectedLevel}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by level" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Levels</SelectItem>
+                {LEVELS.map(level => (
+                  <SelectItem key={level} value={level}>{level}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
         <CardContent>
-          {/* Sync Controls */}
           <div className="flex flex-wrap gap-3 mb-6">
-            <Button
-              onClick={() => triggerSync(selectedLevel)}
-              disabled={syncing}
-              className="gap-2"
-            >
-              {syncing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-              {syncing ? "Syncing..." : `Sync ${selectedLevel === "all" ? "All" : selectedLevel} Now`}
+            <Button onClick={() => triggerSync(selectedLevel)} disabled={syncing || bulkFetching} className="gap-2">
+              {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {syncing ? "Syncing..." : "Sync (ALOC + Veezee)"}
             </Button>
-            <p className="text-sm text-muted-foreground self-center">
-              Questions are automatically synced every hour. Click to sync manually.
-            </p>
+            <Button onClick={triggerBulkFetch} disabled={syncing || bulkFetching} variant="default" className="gap-2 bg-green-600 hover:bg-green-700">
+              {bulkFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+              {bulkFetching ? "Bulk Fetching... (may take minutes)" : "Bulk Fetch All (15 years)"}
+            </Button>
           </div>
 
-          {/* Stats Table */}
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin" />
             </div>
           ) : filteredStats.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              No cached questions yet. Click "Sync Now" to fetch questions from the question bank API.
+              No cached questions yet. Click "Bulk Fetch All" to populate the question bank.
             </p>
           ) : (
             <div className="space-y-4">
@@ -213,11 +215,10 @@ export const QuestionBankSync = () => {
         </CardContent>
       </Card>
 
-      {/* Sync Results */}
       {syncResults.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Last Sync Results</CardTitle>
+            <CardTitle className="text-base">Last Fetch Results</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="max-h-64 overflow-y-auto space-y-1">
@@ -228,7 +229,7 @@ export const QuestionBankSync = () => {
                   ) : (
                     <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
                   )}
-                  <span className="truncate flex-1">{result.level} — {result.subject}</span>
+                  <span className="truncate flex-1">{result.level ? `${result.level} — ` : ""}{result.subject}</span>
                   {result.error ? (
                     <span className="text-xs text-destructive">{result.error}</span>
                   ) : (
