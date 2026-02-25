@@ -23,6 +23,8 @@ const ALOC_SUBJECTS: Record<string, string> = {
   "History": "history",
   "Geography": "geography",
   "Civic Education": "civiledu",
+  "Insurance": "insurance",
+  "Current Affairs": "currentaffairs",
 };
 
 function mapAlocAnswer(answer: string): number {
@@ -30,7 +32,7 @@ function mapAlocAnswer(answer: string): number {
   return map[answer?.toLowerCase()] ?? 0;
 }
 
-async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 15000): Promise<Response> {
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 20000): Promise<Response> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -62,7 +64,6 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Process ONE subject at a time
     let subject = "Use of English";
     let examLevel = "JAMB / UTME";
     if (req.method === "POST") {
@@ -82,24 +83,40 @@ serve(async (req) => {
       .eq("subject", subject);
 
     let totalFetched = 0;
+    let alocSuccess = 0;
     const alocParam = ALOC_SUBJECTS[subject];
 
-    // ALOC: fetch recent 5 years for sync (quick refresh)
+    // ===== ALOC API FIRST (PRIMARY) =====
     if (alocParam && ALOC_API_KEY) {
       const alocType = examLevel.includes("JAMB") ? "utme" : "wassce";
-      for (let year = 2020; year <= 2025; year++) {
+      console.log(`ALOC sync: ${subject} (${alocType}) key=${ALOC_API_KEY.substring(0, 6)}...`);
+
+      // Sync recent 8 years for quick refresh
+      for (let year = 2017; year <= 2025; year++) {
         try {
           const url = `https://questions.aloc.com.ng/api/v2/q/40?subject=${alocParam}&year=${year}&type=${alocType}`;
           const res = await fetchWithTimeout(url, {
-            headers: { "Accept": "application/json", "AccessToken": ALOC_API_KEY },
-          }, 15000);
+            headers: {
+              "Accept": "application/json",
+              "Content-Type": "application/json",
+              "AccessToken": ALOC_API_KEY,
+            },
+          }, 20000);
 
-          if (!res.ok) continue;
+          if (!res.ok) {
+            if (res.status === 401 || res.status === 403) {
+              console.error("ALOC auth failed, stopping");
+              break;
+            }
+            continue;
+          }
+
           const json = await res.json();
-
           let questions = [];
           if (Array.isArray(json.data)) questions = json.data;
           else if (json.data?.question) questions = [json.data];
+          else if (Array.isArray(json)) questions = json;
+
           if (questions.length === 0) continue;
 
           const toCache = questions
@@ -123,21 +140,25 @@ serve(async (req) => {
               .from("cached_api_questions")
               .upsert(toCache, { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
             totalFetched += toCache.length;
+            alocSuccess += toCache.length;
+            console.log(`ALOC: ${subject} ${year} → ${toCache.length} questions`);
           }
-          await new Promise(r => setTimeout(r, 100));
+          await new Promise(r => setTimeout(r, 150));
         } catch (err: any) {
           console.error(`ALOC error ${subject} ${year}:`, err.message);
         }
       }
+      console.log(`ALOC sync total: ${alocSuccess}`);
     }
 
-    // Veezee fallback
+    // ===== VEEZEE FALLBACK (SECONDARY - always try for more) =====
     if (VEEZEE_API_KEY) {
       try {
-        const veezeeUrl = `${VEEZEE_BASE}?level=${encodeURIComponent(examLevel)}&subject=${encodeURIComponent(subject)}&count=2000`;
+        const veezeeUrl = `${VEEZEE_BASE}?level=${encodeURIComponent(examLevel)}&subject=${encodeURIComponent(subject)}&count=5000`;
+        console.log(`Veezee sync: ${subject}...`);
         const res = await fetchWithTimeout(veezeeUrl, {
           headers: { "X-API-KEY": VEEZEE_API_KEY, "Content-Type": "application/json", "Accept": "application/json" },
-        }, 30000);
+        }, 45000);
 
         if (res.ok) {
           const data = JSON.parse(await res.text());
@@ -164,6 +185,7 @@ serve(async (req) => {
                 .upsert(toCache.slice(i, i + 500), { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
             }
             totalFetched += toCache.length;
+            console.log(`Veezee: ${subject} → ${toCache.length}`);
           }
         }
       } catch (err: any) {
@@ -178,12 +200,13 @@ serve(async (req) => {
       .eq("subject", subject);
 
     const newStored = (afterCount || 0) - (beforeCount || 0);
-    console.log(`${subject}: fetched=${totalFetched}, new=${newStored}, total=${afterCount}`);
+    console.log(`DONE ${subject}: aloc=${alocSuccess}, fetched=${totalFetched}, new=${newStored}, bank=${afterCount}`);
 
     return new Response(JSON.stringify({
       success: true,
       subject,
       fetched: totalFetched,
+      alocFetched: alocSuccess,
       newStored,
       totalCached: afterCount || 0,
     }), {
