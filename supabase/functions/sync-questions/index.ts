@@ -6,35 +6,44 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const LEVELS = [
-  { level: "JAMB / UTME", subjects: [
-    "Use of English", "Mathematics", "Physics", "Chemistry", "Biology",
-    "Agricultural Science", "Economics", "Commerce", "Accounting",
-    "Government", "Literature in English", "Christian Religious Knowledge",
-    "Islamic Religious Knowledge", "History", "Geography", "Civic Education", "Computer Studies"
-  ]},
-  { level: "WAEC / SSCE", subjects: [
-    "English Language", "Mathematics", "Physics", "Chemistry", "Biology",
-    "Agricultural Science", "Further Mathematics", "Computer Studies", "Geography",
-    "Commerce", "Accounting", "Economics", "Business Methods", "Insurance",
-    "Office Practice", "Marketing", "Government", "Literature in English",
-    "History", "Christian Religious Knowledge", "Islamic Religious Knowledge",
-    "Fine Arts", "Yoruba", "Igbo", "Hausa", "Civic Education"
-  ]},
-  { level: "NECO / SSCE", subjects: [
-    "English Language", "Mathematics", "Physics", "Chemistry", "Biology",
-    "Agricultural Science", "Further Mathematics", "Computer Studies", "Geography",
-    "Commerce", "Accounting", "Economics", "Government", "Literature in English",
-    "History", "Christian Religious Knowledge", "Islamic Religious Knowledge",
-    "Civic Education"
-  ]},
-  { level: "NABTEB / SSCE", subjects: [
-    "English Language", "Mathematics", "Physics", "Chemistry", "Biology",
-    "Economics", "Commerce", "Accounting", "Government"
-  ]},
-];
+const ALOC_SUBJECTS: Record<string, string> = {
+  "Use of English": "english",
+  "English Language": "english",
+  "Mathematics": "mathematics",
+  "Physics": "physics",
+  "Chemistry": "chemistry",
+  "Biology": "biology",
+  "Economics": "economics",
+  "Commerce": "commerce",
+  "Accounting": "accounting",
+  "Government": "government",
+  "Literature in English": "englishlit",
+  "Christian Religious Knowledge": "crk",
+  "Islamic Religious Knowledge": "irk",
+  "History": "history",
+  "Geography": "geography",
+  "Civic Education": "civiledu",
+};
 
-const BASE_URL = "https://studio--studio-6583429608-f6a92.us-central1.hosted.app/api/bank";
+function mapAlocAnswer(answer: string): number {
+  const map: Record<string, number> = { a: 0, b: 1, c: 2, d: 3 };
+  return map[answer?.toLowerCase()] ?? 0;
+}
+
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 15000): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(id);
+    return res;
+  } catch (err) {
+    clearTimeout(id);
+    throw err;
+  }
+}
+
+const VEEZEE_BASE = "https://studio--studio-6583429608-f6a92.us-central1.hosted.app/api/bank";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -42,126 +51,142 @@ serve(async (req) => {
   }
 
   try {
+    const ALOC_API_KEY = Deno.env.get("ALOC_API_KEY");
     const VEEZEE_API_KEY = Deno.env.get("VEEZEE_API_KEY");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!VEEZEE_API_KEY || !supabaseUrl || !supabaseKey) {
+    if (!supabaseUrl || !supabaseKey) {
       throw new Error("Missing required environment variables");
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    let targetLevel: string | null = null;
-    let targetSubject: string | null = null;
+    // Process ONE subject at a time
+    let subject = "Use of English";
+    let examLevel = "JAMB / UTME";
     if (req.method === "POST") {
       try {
         const body = await req.json();
-        targetLevel = body.level || null;
-        targetSubject = body.subject || null;
+        subject = body.subject || "Use of English";
+        examLevel = body.level || "JAMB / UTME";
       } catch { /* ignore */ }
     }
 
-    const results: { level: string; subject: string; fetched: number; newStored: number; totalCached: number; error?: string }[] = [];
+    console.log(`Sync: ${subject} (${examLevel})`);
 
-    for (const levelConfig of LEVELS) {
-      if (targetLevel && levelConfig.level !== targetLevel) continue;
+    const { count: beforeCount } = await supabase
+      .from("cached_api_questions")
+      .select("*", { count: "exact", head: true })
+      .eq("exam_level", examLevel)
+      .eq("subject", subject);
 
-      for (const subject of levelConfig.subjects) {
-        if (targetSubject && subject !== targetSubject) continue;
+    let totalFetched = 0;
+    const alocParam = ALOC_SUBJECTS[subject];
 
+    // ALOC: fetch recent 5 years for sync (quick refresh)
+    if (alocParam && ALOC_API_KEY) {
+      const alocType = examLevel.includes("JAMB") ? "utme" : "wassce";
+      for (let year = 2020; year <= 2025; year++) {
         try {
-          // Check current cache count
-          const { count: currentCount } = await supabase
-            .from("cached_api_questions")
-            .select("*", { count: "exact", head: true })
-            .eq("exam_level", levelConfig.level)
-            .eq("subject", subject);
+          const url = `https://questions.aloc.com.ng/api/v2/q/40?subject=${alocParam}&year=${year}&type=${alocType}`;
+          const res = await fetchWithTimeout(url, {
+            headers: { "Accept": "application/json", "AccessToken": ALOC_API_KEY },
+          }, 15000);
 
-          const cached = currentCount || 0;
+          if (!res.ok) continue;
+          const json = await res.json();
 
-          // Always fetch a large batch from API to fill our bank
-          const fetchCount = 1000;
-          const apiUrl = `${BASE_URL}?level=${encodeURIComponent(levelConfig.level)}&subject=${encodeURIComponent(subject)}&count=${fetchCount}`;
+          let questions = [];
+          if (Array.isArray(json.data)) questions = json.data;
+          else if (json.data?.question) questions = [json.data];
+          if (questions.length === 0) continue;
 
-          console.log(`${levelConfig.level} - ${subject}: current cache=${cached}, fetching ${fetchCount} from API...`);
-
-          const response = await fetch(apiUrl, {
-            method: "GET",
-            headers: {
-              "X-API-KEY": VEEZEE_API_KEY,
-              "Content-Type": "application/json",
-              "Accept": "application/json",
-            },
-          });
-
-          if (!response.ok) {
-            const errText = await response.text();
-            console.error(`API ${response.status} for ${subject}: ${errText}`);
-            results.push({ level: levelConfig.level, subject, fetched: 0, newStored: 0, totalCached: cached, error: `API ${response.status}` });
-            continue;
-          }
-
-          const rawText = await response.text();
-          const data = JSON.parse(rawText);
-          let questionsArray = data?.questions || data?.data || data;
-          if (!Array.isArray(questionsArray)) {
-            console.error(`Non-array response for ${subject}`);
-            results.push({ level: levelConfig.level, subject, fetched: 0, newStored: 0, totalCached: cached, error: "Non-array response" });
-            continue;
-          }
-
-          const toCache = questionsArray
+          const toCache = questions
+            .filter((q: any) => q.question && q.option)
             .map((q: any) => ({
-              exam_level: levelConfig.level,
-              subject: subject,
-              question_text: (q.question || q.text || "").toString().trim(),
-              option_a: (q.options?.[0] || q.option_a || "A").toString().trim(),
-              option_b: (q.options?.[1] || q.option_b || "B").toString().trim(),
-              option_c: (q.options?.[2] || q.option_c || "C").toString().trim(),
-              option_d: (q.options?.[3] || q.option_d || "D").toString().trim(),
-              correct_answer_index: typeof q.correctAnswerIndex === "number" ? q.correctAnswerIndex : (typeof q.answer === "number" ? q.answer : 0),
-              year: (q.year || "").toString(),
-              explanation: (q.explanation || "").toString(),
+              exam_level: examLevel,
+              subject,
+              question_text: (q.question || "").toString().trim(),
+              option_a: (q.option?.a || "A").toString().trim(),
+              option_b: (q.option?.b || "B").toString().trim(),
+              option_c: (q.option?.c || "C").toString().trim(),
+              option_d: (q.option?.d || "D").toString().trim(),
+              correct_answer_index: mapAlocAnswer(q.answer),
+              year: (q.examyear || year).toString(),
+              explanation: (q.section || "").toString(),
             }))
             .filter((q: any) => q.question_text.length > 5);
 
-          console.log(`${subject}: parsed ${toCache.length} valid questions from API`);
-
-          let newStored = 0;
           if (toCache.length > 0) {
-            // Upsert in chunks - ignoreDuplicates ensures no duplicates
-            for (let i = 0; i < toCache.length; i += 500) {
-              const chunk = toCache.slice(i, i + 500);
-              const { data: upsertData, error: upsertError } = await supabase
-                .from("cached_api_questions")
-                .upsert(chunk, { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
-              
-              if (upsertError) {
-                console.error(`Upsert error for ${subject} chunk ${i}:`, upsertError.message);
-              }
-            }
+            await supabase
+              .from("cached_api_questions")
+              .upsert(toCache, { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
+            totalFetched += toCache.length;
           }
-
-          // Final count
-          const { count: newCount } = await supabase
-            .from("cached_api_questions")
-            .select("*", { count: "exact", head: true })
-            .eq("exam_level", levelConfig.level)
-            .eq("subject", subject);
-
-          newStored = (newCount || 0) - cached;
-          console.log(`${subject}: ${newStored} new questions stored, total now ${newCount}`);
-          results.push({ level: levelConfig.level, subject, fetched: toCache.length, newStored, totalCached: newCount || 0 });
-
+          await new Promise(r => setTimeout(r, 100));
         } catch (err: any) {
-          console.error(`Error syncing ${levelConfig.level} - ${subject}:`, err.message);
-          results.push({ level: levelConfig.level, subject, fetched: 0, newStored: 0, totalCached: 0, error: err.message });
+          console.error(`ALOC error ${subject} ${year}:`, err.message);
         }
       }
     }
 
-    return new Response(JSON.stringify({ success: true, results }), {
+    // Veezee fallback
+    if (VEEZEE_API_KEY) {
+      try {
+        const veezeeUrl = `${VEEZEE_BASE}?level=${encodeURIComponent(examLevel)}&subject=${encodeURIComponent(subject)}&count=2000`;
+        const res = await fetchWithTimeout(veezeeUrl, {
+          headers: { "X-API-KEY": VEEZEE_API_KEY, "Content-Type": "application/json", "Accept": "application/json" },
+        }, 30000);
+
+        if (res.ok) {
+          const data = JSON.parse(await res.text());
+          let questionsArray = data?.questions || data?.data || data;
+          if (Array.isArray(questionsArray)) {
+            const toCache = questionsArray
+              .map((q: any) => ({
+                exam_level: examLevel,
+                subject,
+                question_text: (q.question || q.text || "").toString().trim(),
+                option_a: (q.options?.[0] || q.option_a || "A").toString().trim(),
+                option_b: (q.options?.[1] || q.option_b || "B").toString().trim(),
+                option_c: (q.options?.[2] || q.option_c || "C").toString().trim(),
+                option_d: (q.options?.[3] || q.option_d || "D").toString().trim(),
+                correct_answer_index: typeof q.correctAnswerIndex === "number" ? q.correctAnswerIndex : (typeof q.answer === "number" ? q.answer : 0),
+                year: (q.year || "").toString(),
+                explanation: (q.explanation || "").toString(),
+              }))
+              .filter((q: any) => q.question_text.length > 5);
+
+            for (let i = 0; i < toCache.length; i += 500) {
+              await supabase
+                .from("cached_api_questions")
+                .upsert(toCache.slice(i, i + 500), { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
+            }
+            totalFetched += toCache.length;
+          }
+        }
+      } catch (err: any) {
+        console.error(`Veezee error ${subject}:`, err.message);
+      }
+    }
+
+    const { count: afterCount } = await supabase
+      .from("cached_api_questions")
+      .select("*", { count: "exact", head: true })
+      .eq("exam_level", examLevel)
+      .eq("subject", subject);
+
+    const newStored = (afterCount || 0) - (beforeCount || 0);
+    console.log(`${subject}: fetched=${totalFetched}, new=${newStored}, total=${afterCount}`);
+
+    return new Response(JSON.stringify({
+      success: true,
+      subject,
+      fetched: totalFetched,
+      newStored,
+      totalCached: afterCount || 0,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
