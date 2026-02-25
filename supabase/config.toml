@@ -23,6 +23,3 @@ verify_jwt = false
 
 [functions.sync-questions]
 verify_jwt = false
-
-[functions.bulk-fetch-questions]
-verify_jwt = false

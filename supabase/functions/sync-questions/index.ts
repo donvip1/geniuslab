@@ -6,46 +6,35 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const ALOC_SUBJECTS: Record<string, string> = {
-  "Use of English": "english",
-  "English Language": "english",
-  "Mathematics": "mathematics",
-  "Physics": "physics",
-  "Chemistry": "chemistry",
-  "Biology": "biology",
-  "Economics": "economics",
-  "Commerce": "commerce",
-  "Accounting": "accounting",
-  "Government": "government",
-  "Literature in English": "englishlit",
-  "Christian Religious Knowledge": "crk",
-  "Islamic Religious Knowledge": "irk",
-  "History": "history",
-  "Geography": "geography",
-  "Civic Education": "civiledu",
-  "Insurance": "insurance",
-  "Current Affairs": "currentaffairs",
-};
+const LEVELS = [
+  { level: "JAMB / UTME", subjects: [
+    "Use of English", "Mathematics", "Physics", "Chemistry", "Biology",
+    "Agricultural Science", "Economics", "Commerce", "Accounting",
+    "Government", "Literature in English", "Christian Religious Knowledge",
+    "Islamic Religious Knowledge", "History", "Geography", "Civic Education", "Computer Studies"
+  ]},
+  { level: "WAEC / SSCE", subjects: [
+    "English Language", "Mathematics", "Physics", "Chemistry", "Biology",
+    "Agricultural Science", "Further Mathematics", "Computer Studies", "Geography",
+    "Commerce", "Accounting", "Economics", "Business Methods", "Insurance",
+    "Office Practice", "Marketing", "Government", "Literature in English",
+    "History", "Christian Religious Knowledge", "Islamic Religious Knowledge",
+    "Fine Arts", "Yoruba", "Igbo", "Hausa", "Civic Education"
+  ]},
+  { level: "NECO / SSCE", subjects: [
+    "English Language", "Mathematics", "Physics", "Chemistry", "Biology",
+    "Agricultural Science", "Further Mathematics", "Computer Studies", "Geography",
+    "Commerce", "Accounting", "Economics", "Government", "Literature in English",
+    "History", "Christian Religious Knowledge", "Islamic Religious Knowledge",
+    "Civic Education"
+  ]},
+  { level: "NABTEB / SSCE", subjects: [
+    "English Language", "Mathematics", "Physics", "Chemistry", "Biology",
+    "Economics", "Commerce", "Accounting", "Government"
+  ]},
+];
 
-function mapAlocAnswer(answer: string): number {
-  const map: Record<string, number> = { a: 0, b: 1, c: 2, d: 3 };
-  return map[answer?.toLowerCase()] ?? 0;
-}
-
-async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 20000): Promise<Response> {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { ...options, signal: controller.signal });
-    clearTimeout(id);
-    return res;
-  } catch (err) {
-    clearTimeout(id);
-    throw err;
-  }
-}
-
-const VEEZEE_BASE = "https://studio--studio-6583429608-f6a92.us-central1.hosted.app/api/bank";
+const BASE_URL = "https://studio--studio-6583429608-f6a92.us-central1.hosted.app/api/bank";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -53,163 +42,126 @@ serve(async (req) => {
   }
 
   try {
-    const ALOC_API_KEY = Deno.env.get("ALOC_API_KEY");
     const VEEZEE_API_KEY = Deno.env.get("VEEZEE_API_KEY");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!supabaseUrl || !supabaseKey) {
+    if (!VEEZEE_API_KEY || !supabaseUrl || !supabaseKey) {
       throw new Error("Missing required environment variables");
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    let subject = "Use of English";
-    let examLevel = "JAMB / UTME";
+    let targetLevel: string | null = null;
+    let targetSubject: string | null = null;
     if (req.method === "POST") {
       try {
         const body = await req.json();
-        subject = body.subject || "Use of English";
-        examLevel = body.level || "JAMB / UTME";
+        targetLevel = body.level || null;
+        targetSubject = body.subject || null;
       } catch { /* ignore */ }
     }
 
-    console.log(`Sync: ${subject} (${examLevel})`);
+    const results: { level: string; subject: string; fetched: number; newStored: number; totalCached: number; error?: string }[] = [];
 
-    const { count: beforeCount } = await supabase
-      .from("cached_api_questions")
-      .select("*", { count: "exact", head: true })
-      .eq("exam_level", examLevel)
-      .eq("subject", subject);
+    for (const levelConfig of LEVELS) {
+      if (targetLevel && levelConfig.level !== targetLevel) continue;
 
-    let totalFetched = 0;
-    let alocSuccess = 0;
-    const alocParam = ALOC_SUBJECTS[subject];
+      for (const subject of levelConfig.subjects) {
+        if (targetSubject && subject !== targetSubject) continue;
 
-    // ===== ALOC API FIRST (PRIMARY) =====
-    if (alocParam && ALOC_API_KEY) {
-      const alocType = examLevel.includes("JAMB") ? "utme" : "wassce";
-      console.log(`ALOC sync: ${subject} (${alocType}) key=${ALOC_API_KEY.substring(0, 6)}...`);
-
-      // Sync recent 8 years for quick refresh
-      for (let year = 2017; year <= 2025; year++) {
         try {
-          const url = `https://questions.aloc.com.ng/api/v2/q/40?subject=${alocParam}&year=${year}&type=${alocType}`;
-          const res = await fetchWithTimeout(url, {
-            headers: {
-              "Accept": "application/json",
-              "Content-Type": "application/json",
-              "AccessToken": ALOC_API_KEY,
-            },
-          }, 20000);
+          // Check current cache count
+          const { count: currentCount } = await supabase
+            .from("cached_api_questions")
+            .select("*", { count: "exact", head: true })
+            .eq("exam_level", levelConfig.level)
+            .eq("subject", subject);
 
-          if (!res.ok) {
-            if (res.status === 401 || res.status === 403) {
-              console.error("ALOC auth failed, stopping");
-              break;
-            }
+          const cached = currentCount || 0;
+
+          // Always fetch a large batch from API to fill our bank
+          const fetchCount = 1000;
+          const apiUrl = `${BASE_URL}?level=${encodeURIComponent(levelConfig.level)}&subject=${encodeURIComponent(subject)}&count=${fetchCount}`;
+
+          console.log(`${levelConfig.level} - ${subject}: current cache=${cached}, fetching ${fetchCount} from API...`);
+
+          const response = await fetch(apiUrl, {
+            method: "GET",
+            headers: {
+              "X-API-KEY": VEEZEE_API_KEY,
+              "Content-Type": "application/json",
+              "Accept": "application/json",
+            },
+          });
+
+          if (!response.ok) {
+            const errText = await response.text();
+            console.error(`API ${response.status} for ${subject}: ${errText}`);
+            results.push({ level: levelConfig.level, subject, fetched: 0, newStored: 0, totalCached: cached, error: `API ${response.status}` });
             continue;
           }
 
-          const json = await res.json();
-          let questions = [];
-          if (Array.isArray(json.data)) questions = json.data;
-          else if (json.data?.question) questions = [json.data];
-          else if (Array.isArray(json)) questions = json;
+          const rawText = await response.text();
+          const data = JSON.parse(rawText);
+          let questionsArray = data?.questions || data?.data || data;
+          if (!Array.isArray(questionsArray)) {
+            console.error(`Non-array response for ${subject}`);
+            results.push({ level: levelConfig.level, subject, fetched: 0, newStored: 0, totalCached: cached, error: "Non-array response" });
+            continue;
+          }
 
-          if (questions.length === 0) continue;
-
-          const toCache = questions
-            .filter((q: any) => q.question && q.option)
+          const toCache = questionsArray
             .map((q: any) => ({
-              exam_level: examLevel,
-              subject,
-              question_text: (q.question || "").toString().trim(),
-              option_a: (q.option?.a || "A").toString().trim(),
-              option_b: (q.option?.b || "B").toString().trim(),
-              option_c: (q.option?.c || "C").toString().trim(),
-              option_d: (q.option?.d || "D").toString().trim(),
-              correct_answer_index: mapAlocAnswer(q.answer),
-              year: (q.examyear || year).toString(),
-              explanation: (q.section || "").toString(),
+              exam_level: levelConfig.level,
+              subject: subject,
+              question_text: (q.question || q.text || "").toString().trim(),
+              option_a: (q.options?.[0] || q.option_a || "A").toString().trim(),
+              option_b: (q.options?.[1] || q.option_b || "B").toString().trim(),
+              option_c: (q.options?.[2] || q.option_c || "C").toString().trim(),
+              option_d: (q.options?.[3] || q.option_d || "D").toString().trim(),
+              correct_answer_index: typeof q.correctAnswerIndex === "number" ? q.correctAnswerIndex : (typeof q.answer === "number" ? q.answer : 0),
+              year: (q.year || "").toString(),
+              explanation: (q.explanation || "").toString(),
             }))
             .filter((q: any) => q.question_text.length > 5);
 
+          console.log(`${subject}: parsed ${toCache.length} valid questions from API`);
+
+          let newStored = 0;
           if (toCache.length > 0) {
-            await supabase
-              .from("cached_api_questions")
-              .upsert(toCache, { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
-            totalFetched += toCache.length;
-            alocSuccess += toCache.length;
-            console.log(`ALOC: ${subject} ${year} → ${toCache.length} questions`);
-          }
-          await new Promise(r => setTimeout(r, 150));
-        } catch (err: any) {
-          console.error(`ALOC error ${subject} ${year}:`, err.message);
-        }
-      }
-      console.log(`ALOC sync total: ${alocSuccess}`);
-    }
-
-    // ===== VEEZEE FALLBACK (SECONDARY - always try for more) =====
-    if (VEEZEE_API_KEY) {
-      try {
-        const veezeeUrl = `${VEEZEE_BASE}?level=${encodeURIComponent(examLevel)}&subject=${encodeURIComponent(subject)}&count=5000`;
-        console.log(`Veezee sync: ${subject}...`);
-        const res = await fetchWithTimeout(veezeeUrl, {
-          headers: { "X-API-KEY": VEEZEE_API_KEY, "Content-Type": "application/json", "Accept": "application/json" },
-        }, 45000);
-
-        if (res.ok) {
-          const data = JSON.parse(await res.text());
-          let questionsArray = data?.questions || data?.data || data;
-          if (Array.isArray(questionsArray)) {
-            const toCache = questionsArray
-              .map((q: any) => ({
-                exam_level: examLevel,
-                subject,
-                question_text: (q.question || q.text || "").toString().trim(),
-                option_a: (q.options?.[0] || q.option_a || "A").toString().trim(),
-                option_b: (q.options?.[1] || q.option_b || "B").toString().trim(),
-                option_c: (q.options?.[2] || q.option_c || "C").toString().trim(),
-                option_d: (q.options?.[3] || q.option_d || "D").toString().trim(),
-                correct_answer_index: typeof q.correctAnswerIndex === "number" ? q.correctAnswerIndex : (typeof q.answer === "number" ? q.answer : 0),
-                year: (q.year || "").toString(),
-                explanation: (q.explanation || "").toString(),
-              }))
-              .filter((q: any) => q.question_text.length > 5);
-
+            // Upsert in chunks - ignoreDuplicates ensures no duplicates
             for (let i = 0; i < toCache.length; i += 500) {
-              await supabase
+              const chunk = toCache.slice(i, i + 500);
+              const { data: upsertData, error: upsertError } = await supabase
                 .from("cached_api_questions")
-                .upsert(toCache.slice(i, i + 500), { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
+                .upsert(chunk, { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
+              
+              if (upsertError) {
+                console.error(`Upsert error for ${subject} chunk ${i}:`, upsertError.message);
+              }
             }
-            totalFetched += toCache.length;
-            console.log(`Veezee: ${subject} → ${toCache.length}`);
           }
+
+          // Final count
+          const { count: newCount } = await supabase
+            .from("cached_api_questions")
+            .select("*", { count: "exact", head: true })
+            .eq("exam_level", levelConfig.level)
+            .eq("subject", subject);
+
+          newStored = (newCount || 0) - cached;
+          console.log(`${subject}: ${newStored} new questions stored, total now ${newCount}`);
+          results.push({ level: levelConfig.level, subject, fetched: toCache.length, newStored, totalCached: newCount || 0 });
+
+        } catch (err: any) {
+          console.error(`Error syncing ${levelConfig.level} - ${subject}:`, err.message);
+          results.push({ level: levelConfig.level, subject, fetched: 0, newStored: 0, totalCached: 0, error: err.message });
         }
-      } catch (err: any) {
-        console.error(`Veezee error ${subject}:`, err.message);
       }
     }
 
-    const { count: afterCount } = await supabase
-      .from("cached_api_questions")
-      .select("*", { count: "exact", head: true })
-      .eq("exam_level", examLevel)
-      .eq("subject", subject);
-
-    const newStored = (afterCount || 0) - (beforeCount || 0);
-    console.log(`DONE ${subject}: aloc=${alocSuccess}, fetched=${totalFetched}, new=${newStored}, bank=${afterCount}`);
-
-    return new Response(JSON.stringify({
-      success: true,
-      subject,
-      fetched: totalFetched,
-      alocFetched: alocSuccess,
-      newStored,
-      totalCached: afterCount || 0,
-    }), {
+    return new Response(JSON.stringify({ success: true, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
