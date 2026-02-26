@@ -38,6 +38,7 @@ const ALL_SUBJECTS = [
 ];
 
 const LEVELS = ["JAMB / UTME", "WAEC / SSCE", "NECO / SSCE", "NABTEB / SSCE"];
+const TARGET_MIN_QUESTIONS = 2000;
 
 export const QuestionBankSync = () => {
   const { toast } = useToast();
@@ -88,7 +89,7 @@ export const QuestionBankSync = () => {
   const fetchSubject = async (subject: string, level: string, useBulk: boolean): Promise<FetchResult> => {
     try {
       const fnName = useBulk ? "bulk-fetch-questions" : "sync-questions";
-      const body: any = { subject, level };
+      const body: any = { subject, level, targetMin: TARGET_MIN_QUESTIONS };
       if (useBulk) {
         body.startYear = 2001;
         body.endYear = 2025;
@@ -110,16 +111,20 @@ export const QuestionBankSync = () => {
   // Fetch priority subjects (those below threshold)
   const fetchPrioritySubjects = async () => {
     const level = selectedLevel === "all" ? "JAMB / UTME" : selectedLevel;
-    const threshold = 40;
+    const threshold = TARGET_MIN_QUESTIONS;
     
-    // Find subjects below threshold
-    const lowSubjects = ALL_SUBJECTS.filter(subj => {
-      const stat = cacheStats.find(s => s.exam_level === level && s.subject === subj);
-      return !stat || stat.question_count < threshold;
-    });
+    // Find subjects below threshold (start from lowest)
+    const lowSubjects = ALL_SUBJECTS
+      .map(subject => {
+        const stat = cacheStats.find(s => s.exam_level === level && s.subject === subject);
+        return { subject, count: stat?.question_count || 0 };
+      })
+      .filter(item => item.count < threshold)
+      .sort((a, b) => a.count - b.count)
+      .map(item => item.subject);
 
     if (lowSubjects.length === 0) {
-      toast({ title: "All Good", description: "All subjects have 40+ questions." });
+      toast({ title: "All Good", description: `All subjects have ${TARGET_MIN_QUESTIONS.toLocaleString()}+ questions.` });
       return;
     }
 
@@ -146,18 +151,23 @@ export const QuestionBankSync = () => {
     setFetching(false);
   };
 
-  // Fetch ALL subjects sequentially
+  // Fetch ALL subjects (starting from lowest count)
   const fetchAllSubjects = async () => {
     const level = selectedLevel === "all" ? "JAMB / UTME" : selectedLevel;
+    const subjectsByCount = [...ALL_SUBJECTS].sort((a, b) => {
+      const aCount = cacheStats.find(s => s.exam_level === level && s.subject === a)?.question_count || 0;
+      const bCount = cacheStats.find(s => s.exam_level === level && s.subject === b)?.question_count || 0;
+      return aCount - bCount;
+    });
     
     setFetching(true);
     setFetchResults([]);
-    setFetchProgress({ current: 0, total: ALL_SUBJECTS.length, subject: "" });
+    setFetchProgress({ current: 0, total: subjectsByCount.length, subject: "" });
 
     const results: FetchResult[] = [];
-    for (let i = 0; i < ALL_SUBJECTS.length; i++) {
-      const subj = ALL_SUBJECTS[i];
-      setFetchProgress({ current: i + 1, total: ALL_SUBJECTS.length, subject: subj });
+    for (let i = 0; i < subjectsByCount.length; i++) {
+      const subj = subjectsByCount[i];
+      setFetchProgress({ current: i + 1, total: subjectsByCount.length, subject: subj });
       
       const result = await fetchSubject(subj, level, true);
       results.push(result);
@@ -166,7 +176,7 @@ export const QuestionBankSync = () => {
 
     toast({
       title: "Bulk Fetch Complete!",
-      description: `Processed all ${ALL_SUBJECTS.length} subjects. ${results.reduce((s, r) => s + r.newStored, 0)} new questions added.`,
+      description: `Processed all ${subjectsByCount.length} subjects (low to high). ${results.reduce((s, r) => s + r.newStored, 0)} new questions added.`,
     });
 
     await fetchCacheStats();
@@ -197,16 +207,20 @@ export const QuestionBankSync = () => {
     : cacheStats.filter(s => s.exam_level === selectedLevel);
 
   const getStatusColor = (count: number) => {
-    if (count >= 200) return "bg-green-500";
-    if (count >= 40) return "bg-yellow-500";
+    if (count >= TARGET_MIN_QUESTIONS) return "bg-green-500";
+    if (count >= 500) return "bg-yellow-500";
     return "bg-red-500";
   };
 
-  const lowCountSubjects = ALL_SUBJECTS.filter(subj => {
-    const level = selectedLevel === "all" ? "JAMB / UTME" : selectedLevel;
-    const stat = cacheStats.find(s => s.exam_level === level && s.subject === subj);
-    return !stat || stat.question_count < 40;
-  });
+  const lowCountSubjects = ALL_SUBJECTS
+    .map(subject => {
+      const level = selectedLevel === "all" ? "JAMB / UTME" : selectedLevel;
+      const stat = cacheStats.find(s => s.exam_level === level && s.subject === subject);
+      return { subject, count: stat?.question_count || 0 };
+    })
+    .filter(item => item.count < TARGET_MIN_QUESTIONS)
+    .sort((a, b) => a.count - b.count)
+    .map(item => item.subject);
 
   return (
     <div className="space-y-6">
@@ -239,7 +253,7 @@ export const QuestionBankSync = () => {
           {lowCountSubjects.length > 0 && !fetching && (
             <div className="flex items-center gap-2 mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
               <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-              <span>{lowCountSubjects.length} subjects have fewer than 40 questions</span>
+              <span>{lowCountSubjects.length} subjects have fewer than {TARGET_MIN_QUESTIONS.toLocaleString()} questions</span>
             </div>
           )}
 
@@ -276,7 +290,7 @@ export const QuestionBankSync = () => {
             </div>
           ) : filteredStats.length === 0 && !fetching ? (
             <p className="text-center text-muted-foreground py-8">
-              No cached questions yet. Click "Bulk Fetch All Subjects" to populate.
+              No cached questions yet. Click "Bulk Fetch All Subjects" to start filling toward {TARGET_MIN_QUESTIONS.toLocaleString()}+ per subject.
             </p>
           ) : (
             <div className="space-y-4">
@@ -309,7 +323,7 @@ export const QuestionBankSync = () => {
                         >
                           <div className={`w-2 h-2 rounded-full flex-shrink-0 ${getStatusColor(stat.question_count)}`} />
                           <span className="truncate flex-1">{stat.subject}</span>
-                          <span className={`font-mono text-xs font-semibold ${stat.question_count < 40 ? 'text-destructive' : ''}`}>
+                          <span className={`font-mono text-xs font-semibold ${stat.question_count < TARGET_MIN_QUESTIONS ? 'text-destructive' : ''}`}>
                             {stat.question_count}
                           </span>
                         </div>
