@@ -7,6 +7,10 @@ const corsHeaders = {
 };
 
 const VEEZEE_BASE = "https://studio--studio-6583429608-f6a92.us-central1.hosted.app/api/bank";
+const GITHUB_RAW_BASE = "https://raw.githubusercontent.com/wisdom209/jamb_questions/main";
+
+const TARGET_MIN_DEFAULT = 2000;
+const MAX_EXECUTION_MS = 115000;
 
 const ALOC_SUBJECTS: Record<string, string> = {
   "Use of English": "english",
@@ -29,23 +33,162 @@ const ALOC_SUBJECTS: Record<string, string> = {
   "Current Affairs": "currentaffairs",
 };
 
-function mapAlocAnswer(answer: string): number {
-  const map: Record<string, number> = { a: 0, b: 1, c: 2, d: 3 };
-  return map[answer?.toLowerCase()] ?? 0;
+const GITHUB_SUBJECTS: Record<string, string> = {
+  "Mathematics": "mathematics",
+  "Physics": "physics",
+  "Chemistry": "chemistry",
+  "Biology": "biology",
+  "Government": "government",
+  "Literature in English": "literature-in-english",
+  "Christian Religious Knowledge": "crs",
+};
+
+type CachedQuestion = {
+  exam_level: string;
+  subject: string;
+  question_text: string;
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  correct_answer_index: number;
+  year: string;
+  explanation: string;
+};
+
+function cleanText(value: unknown, fallback = ""): string {
+  const text = (value ?? fallback).toString().trim();
+  return text.length > 0 ? text : fallback;
 }
 
-async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 30000): Promise<Response> {
+function mapAnswerLetter(answer: unknown): number | null {
+  const map: Record<string, number> = { a: 0, b: 1, c: 2, d: 3 };
+  const key = cleanText(answer, "").toLowerCase();
+  return key in map ? map[key] : null;
+}
+
+function mapVeezeeQuestion(q: any, examLevel: string, subject: string): CachedQuestion | null {
+  const questionText = cleanText(q?.question ?? q?.text, "");
+  if (questionText.length < 6) return null;
+
+  const options = Array.isArray(q?.options) ? q.options : null;
+  const optionA = cleanText(options?.[0] ?? q?.option_a, "A");
+  const optionB = cleanText(options?.[1] ?? q?.option_b, "B");
+  const optionC = cleanText(options?.[2] ?? q?.option_c, "C");
+  const optionD = cleanText(options?.[3] ?? q?.option_d, "D");
+
+  let correctIndex: number | null = null;
+  if (typeof q?.correctAnswerIndex === "number" && q.correctAnswerIndex >= 0 && q.correctAnswerIndex <= 3) {
+    correctIndex = q.correctAnswerIndex;
+  } else if (typeof q?.answer === "number" && q.answer >= 0 && q.answer <= 3) {
+    correctIndex = q.answer;
+  } else {
+    correctIndex = mapAnswerLetter(q?.answer);
+  }
+
+  return {
+    exam_level: examLevel,
+    subject,
+    question_text: questionText,
+    option_a: optionA,
+    option_b: optionB,
+    option_c: optionC,
+    option_d: optionD,
+    correct_answer_index: correctIndex ?? 0,
+    year: cleanText(q?.year, ""),
+    explanation: cleanText(q?.explanation, ""),
+  };
+}
+
+function mapAlocQuestion(q: any, examLevel: string, subject: string, year: number): CachedQuestion | null {
+  const questionText = cleanText(q?.question, "");
+  if (questionText.length < 6 || !q?.option) return null;
+
+  const correct = mapAnswerLetter(q?.answer);
+  if (correct === null) return null;
+
+  return {
+    exam_level: examLevel,
+    subject,
+    question_text: questionText,
+    option_a: cleanText(q?.option?.a, "A"),
+    option_b: cleanText(q?.option?.b, "B"),
+    option_c: cleanText(q?.option?.c, "C"),
+    option_d: cleanText(q?.option?.d, "D"),
+    correct_answer_index: correct,
+    year: cleanText(q?.examyear ?? year, year.toString()),
+    explanation: cleanText(q?.section, ""),
+  };
+}
+
+function mapGithubQuestions(payload: any, examLevel: string, subject: string): CachedQuestion[] {
+  const mapped: CachedQuestion[] = [];
+  const years = payload?.questions;
+  if (!years || typeof years !== "object") return mapped;
+
+  for (const [yearKey, yearQuestions] of Object.entries(years as Record<string, unknown>)) {
+    if (!yearQuestions || typeof yearQuestions !== "object") continue;
+
+    for (const item of Object.values(yearQuestions as Record<string, any>)) {
+      const questionText = cleanText(item?.question, "");
+      if (questionText.length < 6) continue;
+
+      const correct = mapAnswerLetter(item?.answer);
+      if (correct === null) continue;
+
+      mapped.push({
+        exam_level: examLevel,
+        subject,
+        question_text: questionText,
+        option_a: cleanText(item?.a, "A"),
+        option_b: cleanText(item?.b, "B"),
+        option_c: cleanText(item?.c, "C"),
+        option_d: cleanText(item?.d, "D"),
+        correct_answer_index: correct,
+        year: cleanText(item?.year, yearKey),
+        explanation: "",
+      });
+    }
+  }
+
+  return mapped;
+}
+
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    const res = await fetch(url, { ...options, signal: controller.signal });
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
     clearTimeout(id);
-    return res;
-  } catch (err) {
-    clearTimeout(id);
-    throw err;
   }
 }
+
+async function upsertInChunks(supabase: any, rows: CachedQuestion[]) {
+  for (let i = 0; i < rows.length; i += 500) {
+    const chunk = rows.slice(i, i + 500);
+    const { error } = await supabase
+      .from("cached_api_questions")
+      .upsert(chunk, { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
+
+    if (error) {
+      console.error(`Upsert error chunk ${i}-${i + chunk.length}:`, error.message);
+    }
+  }
+}
+
+async function getCount(supabase: any, examLevel: string, subject: string): Promise<number> {
+  const { count } = await supabase
+    .from("cached_api_questions")
+    .select("*", { count: "exact", head: true })
+    .eq("exam_level", examLevel)
+    .eq("subject", subject);
+
+  return count || 0;
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -68,101 +211,86 @@ serve(async (req) => {
     let examLevel = "JAMB / UTME";
     let startYear = 2001;
     let endYear = 2025;
+    let targetMin = TARGET_MIN_DEFAULT;
 
     if (req.method === "POST") {
       try {
         const body = await req.json();
-        subject = body.subject || "Use of English";
-        examLevel = body.level || "JAMB / UTME";
-        startYear = body.startYear || 2001;
-        endYear = body.endYear || 2025;
-      } catch { /* ignore */ }
+        subject = body.subject || subject;
+        examLevel = body.level || examLevel;
+        startYear = Number(body.startYear) || startYear;
+        endYear = Number(body.endYear) || endYear;
+        targetMin = Math.max(1, Number(body.targetMin) || targetMin);
+      } catch {
+        // ignore invalid body
+      }
     }
 
-    console.log(`Bulk fetch: ${subject} (${examLevel}) years ${startYear}-${endYear}`);
+    const startedAt = Date.now();
+    const deadline = startedAt + MAX_EXECUTION_MS;
 
-    const { count: beforeCount } = await supabase
-      .from("cached_api_questions")
-      .select("*", { count: "exact", head: true })
-      .eq("exam_level", examLevel)
-      .eq("subject", subject);
+    console.log(`Bulk fetch: ${subject} (${examLevel}) years ${startYear}-${endYear} target=${targetMin}`);
+
+    const beforeCount = await getCount(supabase, examLevel, subject);
+    let currentCount = beforeCount;
 
     let totalFetched = 0;
-    let veezeeSuccess = 0;
-    let alocSuccess = 0;
+    let veezeeFetched = 0;
+    let alocFetched = 0;
+    let githubFetched = 0;
 
-    // ===== STRATEGY 1: VEEZEE API (PRIMARY) =====
-    if (VEEZEE_API_KEY) {
-      // Try multiple batch sizes to get maximum questions
-      const batchSizes = [10000, 5000, 2000];
-      
-      for (const batchSize of batchSizes) {
-        try {
-          const veezeeUrl = `${VEEZEE_BASE}?level=${encodeURIComponent(examLevel)}&subject=${encodeURIComponent(subject)}&count=${batchSize}`;
-          console.log(`Veezee: Fetching ${subject} (up to ${batchSize})...`);
+    // ===== SOURCE 1: VEEZEE (PRIMARY) =====
+    if (VEEZEE_API_KEY && Date.now() < deadline) {
+      try {
+        const veezeeUrl = `${VEEZEE_BASE}?level=${encodeURIComponent(examLevel)}&subject=${encodeURIComponent(subject)}&count=10000`;
+        console.log(`Veezee: Fetching ${subject} (up to 10000)`);
 
-          const res = await fetchWithTimeout(veezeeUrl, {
-            headers: {
-              "X-API-KEY": VEEZEE_API_KEY,
-              "Content-Type": "application/json",
-              "Accept": "application/json",
-            },
-          }, 60000);
+        const res = await fetchWithTimeout(veezeeUrl, {
+          headers: {
+            "X-API-KEY": VEEZEE_API_KEY,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+          },
+        }, 60000);
 
-          if (res.ok) {
-            const rawText = await res.text();
-            const data = JSON.parse(rawText);
-            let questionsArray = data?.questions || data?.data || data;
+        if (res.ok) {
+          const payload = JSON.parse(await res.text());
+          const raw = Array.isArray(payload) ? payload : (payload?.questions || payload?.data || []);
+          const rows = (Array.isArray(raw) ? raw : [])
+            .map((item) => mapVeezeeQuestion(item, examLevel, subject))
+            .filter((item): item is CachedQuestion => item !== null);
 
-            if (Array.isArray(questionsArray) && questionsArray.length > 0) {
-              const toCache = questionsArray
-                .map((q: any) => ({
-                  exam_level: examLevel,
-                  subject: subject,
-                  question_text: (q.question || q.text || "").toString().trim(),
-                  option_a: (q.options?.[0] || q.option_a || "A").toString().trim(),
-                  option_b: (q.options?.[1] || q.option_b || "B").toString().trim(),
-                  option_c: (q.options?.[2] || q.option_c || "C").toString().trim(),
-                  option_d: (q.options?.[3] || q.option_d || "D").toString().trim(),
-                  correct_answer_index: typeof q.correctAnswerIndex === "number" ? q.correctAnswerIndex : (typeof q.answer === "number" ? q.answer : 0),
-                  year: (q.year || "").toString(),
-                  explanation: (q.explanation || "").toString(),
-                }))
-                .filter((q: any) => q.question_text.length > 5);
-
-              if (toCache.length > 0) {
-                for (let i = 0; i < toCache.length; i += 500) {
-                  const { error } = await supabase
-                    .from("cached_api_questions")
-                    .upsert(toCache.slice(i, i + 500), { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
-                  if (error) console.error(`Veezee upsert error chunk ${i}:`, error.message);
-                }
-                veezeeSuccess += toCache.length;
-                totalFetched += toCache.length;
-                console.log(`Veezee: ${subject} → ${toCache.length} questions (batch ${batchSize})`);
-              }
-              // Got questions, no need to try smaller batch
-              break;
-            }
-          } else {
-            console.log(`Veezee ${res.status} for ${subject} (batch ${batchSize})`);
+          if (rows.length > 0) {
+            await upsertInChunks(supabase, rows);
+            veezeeFetched = rows.length;
+            totalFetched += rows.length;
           }
-        } catch (err: any) {
-          console.error(`Veezee error ${subject} (batch ${batchSize}):`, err.message);
+
+          currentCount = await getCount(supabase, examLevel, subject);
+          console.log(`Veezee total for ${subject}: ${veezeeFetched}, bank=${currentCount}`);
+        } else {
+          console.log(`Veezee ${res.status} for ${subject}`);
         }
+      } catch (err: any) {
+        console.error(`Veezee error ${subject}:`, err.message);
       }
-      console.log(`Veezee total for ${subject}: ${veezeeSuccess} questions`);
-    } else {
-      console.log(`Veezee: No API key configured`);
     }
 
-    // ===== STRATEGY 2: ALOC API (FALLBACK) =====
+    // ===== SOURCE 2: ALOC (FAST-FALLBACK WITH CIRCUIT BREAKER) =====
     const alocParam = ALOC_SUBJECTS[subject];
-    if (alocParam && ALOC_API_KEY) {
+    if (currentCount < targetMin && alocParam && ALOC_API_KEY && Date.now() < deadline) {
       const alocType = examLevel.includes("JAMB") ? "utme" : "wassce";
+      let consecutiveAborts = 0;
+      let consecutiveEmptyYears = 0;
+
       console.log(`ALOC fallback: ${subject} (${alocType})`);
 
-      for (let year = startYear; year <= endYear; year++) {
+      for (let year = endYear; year >= startYear; year--) {
+        if (Date.now() > deadline - 3000) {
+          console.log("ALOC stopped early due to execution deadline");
+          break;
+        }
+
         try {
           const url = `https://questions.aloc.com.ng/api/v2/q/40?subject=${alocParam}&year=${year}&type=${alocType}`;
           const res = await fetchWithTimeout(url, {
@@ -171,82 +299,130 @@ serve(async (req) => {
               "Content-Type": "application/json",
               "AccessToken": ALOC_API_KEY,
             },
-          }, 15000);
+          }, 12000);
 
           if (!res.ok) {
             if (res.status === 401 || res.status === 403) {
-              console.error("ALOC: Auth failed, stopping");
+              console.error("ALOC auth failed, stopping fallback");
               break;
             }
             continue;
           }
 
           const json = await res.json();
-          let questions = [];
-          if (Array.isArray(json.data)) questions = json.data;
-          else if (json.data?.question) questions = [json.data];
-          else if (Array.isArray(json)) questions = json;
+          const questions = Array.isArray(json?.data)
+            ? json.data
+            : json?.data?.question
+              ? [json.data]
+              : Array.isArray(json)
+                ? json
+                : [];
 
-          if (questions.length === 0) continue;
+          const rows = questions
+            .map((q: any) => mapAlocQuestion(q, examLevel, subject, year))
+            .filter((q: CachedQuestion | null): q is CachedQuestion => q !== null);
 
-          const toCache = questions
-            .filter((q: any) => q.question && q.option)
-            .map((q: any) => ({
-              exam_level: examLevel,
-              subject: subject,
-              question_text: (q.question || "").toString().trim(),
-              option_a: (q.option?.a || "A").toString().trim(),
-              option_b: (q.option?.b || "B").toString().trim(),
-              option_c: (q.option?.c || "C").toString().trim(),
-              option_d: (q.option?.d || "D").toString().trim(),
-              correct_answer_index: mapAlocAnswer(q.answer),
-              year: (q.examyear || year).toString(),
-              explanation: (q.section || "").toString(),
-            }))
-            .filter((q: any) => q.question_text.length > 5);
+          if (rows.length > 0) {
+            await upsertInChunks(supabase, rows);
+            alocFetched += rows.length;
+            totalFetched += rows.length;
+            consecutiveEmptyYears = 0;
+            currentCount = await getCount(supabase, examLevel, subject);
+            console.log(`ALOC ${subject} ${year}: +${rows.length}, bank=${currentCount}`);
 
-          if (toCache.length > 0) {
-            await supabase
-              .from("cached_api_questions")
-              .upsert(toCache, { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
-            totalFetched += toCache.length;
-            alocSuccess += toCache.length;
-            console.log(`ALOC: ${subject} ${year} → ${toCache.length} questions`);
+            if (currentCount >= targetMin) {
+              break;
+            }
+          } else {
+            consecutiveEmptyYears += 1;
+            if (consecutiveEmptyYears >= 8 && alocFetched === 0) {
+              console.log("ALOC returned empty for many years, stopping fallback");
+              break;
+            }
           }
-          await new Promise(r => setTimeout(r, 150));
+
+          consecutiveAborts = 0;
+          await sleep(120);
         } catch (err: any) {
-          console.error(`ALOC error ${subject} ${year}:`, err.message);
+          const message = String(err?.message || "");
+          const aborted = err?.name === "AbortError" || message.toLowerCase().includes("aborted");
+
+          if (aborted) {
+            consecutiveAborts += 1;
+            console.error(`ALOC timeout ${subject} ${year}: ${message}`);
+            if (consecutiveAborts >= 3) {
+              console.error("ALOC circuit breaker triggered after repeated timeouts");
+              break;
+            }
+          } else {
+            console.error(`ALOC error ${subject} ${year}:`, message);
+          }
         }
       }
-      console.log(`ALOC total for ${subject}: ${alocSuccess} questions`);
     }
 
-    const { count: afterCount } = await supabase
-      .from("cached_api_questions")
-      .select("*", { count: "exact", head: true })
-      .eq("exam_level", examLevel)
-      .eq("subject", subject);
+    if (currentCount < targetMin) {
+      currentCount = await getCount(supabase, examLevel, subject);
+    }
 
-    const newStored = (afterCount || 0) - (beforeCount || 0);
-    console.log(`DONE ${subject}: veezee=${veezeeSuccess}, aloc=${alocSuccess}, total=${totalFetched}, new=${newStored}, bank=${afterCount}`);
+    // ===== SOURCE 3: GITHUB JAMB DATASET (WEB FALLBACK) =====
+    const githubFolder = GITHUB_SUBJECTS[subject];
+    if (currentCount < targetMin && githubFolder && Date.now() < deadline) {
+      try {
+        const githubUrl = `${GITHUB_RAW_BASE}/${githubFolder}/jambquestions.json`;
+        console.log(`GitHub fallback: ${subject} from ${githubFolder}`);
+
+        const res = await fetchWithTimeout(githubUrl, {
+          headers: {
+            "Accept": "application/json,text/plain,*/*",
+            "User-Agent": "Lovable-QuestionBank-Sync/1.0",
+          },
+        }, 25000);
+
+        if (res.ok) {
+          const payload = JSON.parse(await res.text());
+          const rows = mapGithubQuestions(payload, examLevel, subject);
+
+          if (rows.length > 0) {
+            await upsertInChunks(supabase, rows);
+            githubFetched = rows.length;
+            totalFetched += rows.length;
+          }
+
+          currentCount = await getCount(supabase, examLevel, subject);
+          console.log(`GitHub total for ${subject}: ${githubFetched}, bank=${currentCount}`);
+        } else {
+          console.log(`GitHub fallback ${res.status} for ${subject}`);
+        }
+      } catch (err: any) {
+        console.error(`GitHub fallback error ${subject}:`, err.message);
+      }
+    }
+
+    const afterCount = await getCount(supabase, examLevel, subject);
+    const newStored = afterCount - beforeCount;
+
+    console.log(`DONE ${subject}: veezee=${veezeeFetched}, aloc=${alocFetched}, github=${githubFetched}, fetched=${totalFetched}, new=${newStored}, bank=${afterCount}`);
 
     return new Response(JSON.stringify({
       success: true,
       subject,
       fetched: totalFetched,
-      veezeeFetched: veezeeSuccess,
-      alocFetched: alocSuccess,
+      veezeeFetched,
+      alocFetched,
+      githubFetched,
       newStored,
-      totalCached: afterCount || 0,
+      totalCached: afterCount,
+      targetMin,
+      reachedTarget: afterCount >= targetMin,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-
   } catch (error: any) {
     console.error("Bulk fetch error:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
