@@ -6,6 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const VEEZEE_BASE = "https://studio--studio-6583429608-f6a92.us-central1.hosted.app/api/bank";
+
 const ALOC_SUBJECTS: Record<string, string> = {
   "Use of English": "english",
   "English Language": "english",
@@ -45,16 +47,14 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 2
   }
 }
 
-const VEEZEE_BASE = "https://studio--studio-6583429608-f6a92.us-central1.hosted.app/api/bank";
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const ALOC_API_KEY = Deno.env.get("ALOC_API_KEY");
     const VEEZEE_API_KEY = Deno.env.get("VEEZEE_API_KEY");
+    const ALOC_API_KEY = Deno.env.get("ALOC_API_KEY");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -83,15 +83,60 @@ serve(async (req) => {
       .eq("subject", subject);
 
     let totalFetched = 0;
+    let veezeeSuccess = 0;
     let alocSuccess = 0;
-    const alocParam = ALOC_SUBJECTS[subject];
 
-    // ===== ALOC API FIRST (PRIMARY) =====
+    // ===== VEEZEE FIRST (PRIMARY) =====
+    if (VEEZEE_API_KEY) {
+      try {
+        const veezeeUrl = `${VEEZEE_BASE}?level=${encodeURIComponent(examLevel)}&subject=${encodeURIComponent(subject)}&count=10000`;
+        console.log(`Veezee sync: ${subject} (up to 10000)...`);
+        const res = await fetchWithTimeout(veezeeUrl, {
+          headers: { "X-API-KEY": VEEZEE_API_KEY, "Content-Type": "application/json", "Accept": "application/json" },
+        }, 60000);
+
+        if (res.ok) {
+          const data = JSON.parse(await res.text());
+          let questionsArray = data?.questions || data?.data || data;
+          if (Array.isArray(questionsArray) && questionsArray.length > 0) {
+            const toCache = questionsArray
+              .map((q: any) => ({
+                exam_level: examLevel,
+                subject,
+                question_text: (q.question || q.text || "").toString().trim(),
+                option_a: (q.options?.[0] || q.option_a || "A").toString().trim(),
+                option_b: (q.options?.[1] || q.option_b || "B").toString().trim(),
+                option_c: (q.options?.[2] || q.option_c || "C").toString().trim(),
+                option_d: (q.options?.[3] || q.option_d || "D").toString().trim(),
+                correct_answer_index: typeof q.correctAnswerIndex === "number" ? q.correctAnswerIndex : (typeof q.answer === "number" ? q.answer : 0),
+                year: (q.year || "").toString(),
+                explanation: (q.explanation || "").toString(),
+              }))
+              .filter((q: any) => q.question_text.length > 5);
+
+            for (let i = 0; i < toCache.length; i += 500) {
+              await supabase
+                .from("cached_api_questions")
+                .upsert(toCache.slice(i, i + 500), { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
+            }
+            veezeeSuccess = toCache.length;
+            totalFetched += toCache.length;
+            console.log(`Veezee: ${subject} → ${toCache.length}`);
+          }
+        } else {
+          console.log(`Veezee ${res.status} for ${subject}`);
+        }
+      } catch (err: any) {
+        console.error(`Veezee error ${subject}:`, err.message);
+      }
+    }
+
+    // ===== ALOC FALLBACK (SECONDARY) =====
+    const alocParam = ALOC_SUBJECTS[subject];
     if (alocParam && ALOC_API_KEY) {
       const alocType = examLevel.includes("JAMB") ? "utme" : "wassce";
-      console.log(`ALOC sync: ${subject} (${alocType}) key=${ALOC_API_KEY.substring(0, 6)}...`);
+      console.log(`ALOC fallback sync: ${subject} (${alocType})`);
 
-      // Sync recent 8 years for quick refresh
       for (let year = 2017; year <= 2025; year++) {
         try {
           const url = `https://questions.aloc.com.ng/api/v2/q/40?subject=${alocParam}&year=${year}&type=${alocType}`;
@@ -101,7 +146,7 @@ serve(async (req) => {
               "Content-Type": "application/json",
               "AccessToken": ALOC_API_KEY,
             },
-          }, 20000);
+          }, 15000);
 
           if (!res.ok) {
             if (res.status === 401 || res.status === 403) {
@@ -151,48 +196,6 @@ serve(async (req) => {
       console.log(`ALOC sync total: ${alocSuccess}`);
     }
 
-    // ===== VEEZEE FALLBACK (SECONDARY - always try for more) =====
-    if (VEEZEE_API_KEY) {
-      try {
-        const veezeeUrl = `${VEEZEE_BASE}?level=${encodeURIComponent(examLevel)}&subject=${encodeURIComponent(subject)}&count=5000`;
-        console.log(`Veezee sync: ${subject}...`);
-        const res = await fetchWithTimeout(veezeeUrl, {
-          headers: { "X-API-KEY": VEEZEE_API_KEY, "Content-Type": "application/json", "Accept": "application/json" },
-        }, 45000);
-
-        if (res.ok) {
-          const data = JSON.parse(await res.text());
-          let questionsArray = data?.questions || data?.data || data;
-          if (Array.isArray(questionsArray)) {
-            const toCache = questionsArray
-              .map((q: any) => ({
-                exam_level: examLevel,
-                subject,
-                question_text: (q.question || q.text || "").toString().trim(),
-                option_a: (q.options?.[0] || q.option_a || "A").toString().trim(),
-                option_b: (q.options?.[1] || q.option_b || "B").toString().trim(),
-                option_c: (q.options?.[2] || q.option_c || "C").toString().trim(),
-                option_d: (q.options?.[3] || q.option_d || "D").toString().trim(),
-                correct_answer_index: typeof q.correctAnswerIndex === "number" ? q.correctAnswerIndex : (typeof q.answer === "number" ? q.answer : 0),
-                year: (q.year || "").toString(),
-                explanation: (q.explanation || "").toString(),
-              }))
-              .filter((q: any) => q.question_text.length > 5);
-
-            for (let i = 0; i < toCache.length; i += 500) {
-              await supabase
-                .from("cached_api_questions")
-                .upsert(toCache.slice(i, i + 500), { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
-            }
-            totalFetched += toCache.length;
-            console.log(`Veezee: ${subject} → ${toCache.length}`);
-          }
-        }
-      } catch (err: any) {
-        console.error(`Veezee error ${subject}:`, err.message);
-      }
-    }
-
     const { count: afterCount } = await supabase
       .from("cached_api_questions")
       .select("*", { count: "exact", head: true })
@@ -200,12 +203,13 @@ serve(async (req) => {
       .eq("subject", subject);
 
     const newStored = (afterCount || 0) - (beforeCount || 0);
-    console.log(`DONE ${subject}: aloc=${alocSuccess}, fetched=${totalFetched}, new=${newStored}, bank=${afterCount}`);
+    console.log(`DONE ${subject}: veezee=${veezeeSuccess}, aloc=${alocSuccess}, total=${totalFetched}, new=${newStored}, bank=${afterCount}`);
 
     return new Response(JSON.stringify({
       success: true,
       subject,
       fetched: totalFetched,
+      veezeeFetched: veezeeSuccess,
       alocFetched: alocSuccess,
       newStored,
       totalCached: afterCount || 0,
