@@ -1,41 +1,38 @@
 
 
-## Plan: Scientific Calculator + Admin Subscription Bypass
+## Plan
 
-### 1. Create `ScientificCalculator` component
-New file: `src/components/ScientificCalculator.tsx`
+### 1. Grant admin role to robinsonwealth1@gmail.com
+- Insert `admin` role for `user_id = 4dc286b3-1d17-4688-9683-18fd8d877483` into `user_roles` table (they currently only have `student`).
 
-- A floating, draggable-feel calculator that appears when a button is clicked
-- Two modes toggled via tabs: **Normal** and **Scientific**
-- **Normal mode**: digits 0-9, +, -, ×, ÷, =, %, ±, decimal, clear, backspace
-- **Scientific mode**: adds sin, cos, tan, log, ln, √, x², xʸ, π, e, (, ), factorial
-- State: expression string, result display, mode toggle
-- Renders as a fixed-position panel (bottom-right) with a close button
-- Uses `eval()` with sanitized input (or manual expression parser) for calculation
-- Styled to look like a real calculator with grid layout buttons
+### 2. Add Study Material section to JAMB exam page
+- Add a "Study Materials" tab/section accessible from the JAMB mode selection screen.
+- For each JAMB subject, show topic summaries, key formulas, and tips sourced from `cached_api_questions` explanations (aggregate explanations per subject as study notes).
+- Alternatively, create a simple static study material page with curated JAMB topic outlines per subject, accessible via a "Study Material" button on the mode selection screen.
+- New page: `src/pages/JambStudyMaterial.tsx` with subject selector, showing grouped topic content.
+- Add route `/jamb-study` in `App.tsx`.
+- Add a "Study Material" card on the JAMB mode selection screen linking to it.
 
-### 2. Add calculator toggle button to JAMB exam header
-In `src/pages/JambExam.tsx`:
-- Add `Calculator` icon (from lucide-react) button in the exam header bar (near the timer/finalize area)
-- State: `showCalculator` boolean
-- Render `<ScientificCalculator>` when toggled on
-- Available in both practice and mock modes during active exam
+### 3. Add Results button to JAMB exam page
+- Add a "My Results" button/card on the JAMB mode selection screen.
+- Query `exam_attempts` table filtered by `user_id` to show past JAMB exam results (score, total, date, time taken).
+- Display as a list/history within a dialog or dedicated section on the mode selection screen.
+- Also save JAMB exam results to `exam_attempts` table on finalize (currently results are only shown in-page and not persisted for JAMB mode).
 
-### 3. Admin bypass for JAMB SubscriptionGate
-In `src/pages/JambExam.tsx`:
-- Add `isAdmin` state (boolean)
-- During auth init, query `user_roles` for admin role (same pattern as `ExamTaking.tsx` line 129-136)
-- Conditionally wrap mode selection in `<SubscriptionGate>` only when `!isAdmin` (matching the pattern already used in `ExamTaking.tsx` lines 654-668)
+### 4. Add Search button to JAMB exam page
+- Add a "Search Questions" button on the JAMB mode selection screen.
+- Opens a search dialog/page where students can search through `cached_api_questions` by keyword, subject, or year.
+- Shows matching questions with their options and explanations for self-study.
+
+### Files to create/modify
+- **Create** `src/pages/JambStudyMaterial.tsx` - Study material page with subject-based content
+- **Modify** `src/pages/JambExam.tsx` - Add Study Material, Results, and Search buttons to mode selection; save results to `exam_attempts` on finalize
+- **Modify** `src/App.tsx` - Add `/jamb-study` route
+- **Database** - Insert admin role for the specified user
 
 ### Technical details
-
-**Calculator expression handling:**
-- Replace display symbols (×→*, ÷→/) before evaluation
-- Scientific functions mapped: `sin(` → `Math.sin(`, `π` → `Math.PI`, etc.
-- Error handling wraps eval in try/catch, shows "Error" on invalid expressions
-- Max display length capped to prevent overflow
-
-**Files changed:**
-- `src/components/ScientificCalculator.tsx` (new)
-- `src/pages/JambExam.tsx` (add calculator + admin bypass)
+- Study materials will pull explanations from `cached_api_questions` grouped by subject, providing a "learn from explanations" approach. A fallback static outline per subject will also be included.
+- Results history queries `exam_attempts` with a new insert on JAMB exam finalization using the existing table schema (`user_id`, `subject_id`, `score`, `total_questions`, `time_taken_seconds`, `answers`).
+- Search uses a client-side `ilike` query on `cached_api_questions.question_text` filtered by subject.
+- The three new features appear as cards on the JAMB mode selection screen alongside Practice and Mock cards.
 
