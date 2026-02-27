@@ -359,6 +359,7 @@ export type Database = {
           is_exams_locked: boolean | null
           is_pin_required: boolean | null
           lock_message: string | null
+          manual_payment_enabled: boolean
           payment_account_holder: string | null
           payment_account_number: string | null
           payment_amount: number | null
@@ -380,6 +381,7 @@ export type Database = {
           is_exams_locked?: boolean | null
           is_pin_required?: boolean | null
           lock_message?: string | null
+          manual_payment_enabled?: boolean
           payment_account_holder?: string | null
           payment_account_number?: string | null
           payment_amount?: number | null
@@ -401,6 +403,7 @@ export type Database = {
           is_exams_locked?: boolean | null
           is_pin_required?: boolean | null
           lock_message?: string | null
+          manual_payment_enabled?: boolean
           payment_account_holder?: string | null
           payment_account_number?: string | null
           payment_amount?: number | null
