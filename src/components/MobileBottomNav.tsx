@@ -1,15 +1,21 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, BookOpen, Briefcase, Phone, Menu } from "lucide-react";
+import { Home, BookOpen, Briefcase, CreditCard, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 const mainTabs = [
   { to: "/", label: "Home", icon: Home },
   { to: "/exam", label: "Exams", icon: BookOpen },
   { to: "/services", label: "Services", icon: Briefcase },
-  { to: "/contact", label: "Contact", icon: Phone },
+  { to: "/payment", label: "Pricing", icon: CreditCard },
 ];
 
 export const MobileBottomNav = () => {
@@ -18,9 +24,7 @@ export const MobileBottomNav = () => {
   const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
@@ -29,8 +33,10 @@ export const MobileBottomNav = () => {
 
   const moreLinks = [
     { to: "/about", label: "About Us" },
-    { to: "/payment", label: "Pricing" },
-    ...(session ? [{ to: "/auth", label: "My Profile" }] : [{ to: "/auth", label: "Login / Sign Up" }]),
+    { to: "/contact", label: "Contact" },
+    ...(session
+      ? [{ to: "/auth", label: "My Profile" }]
+      : [{ to: "/auth", label: "Login / Sign Up" }]),
     { to: "/jamb-exam", label: "JAMB Exam" },
     { to: "/jamb-study", label: "Study Materials" },
   ];
@@ -51,12 +57,18 @@ export const MobileBottomNav = () => {
               to={tab.to}
               className={cn(
                 "flex flex-col items-center justify-center gap-0.5 flex-1 py-1 rounded-lg transition-colors",
-                active ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                active
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               <tab.icon className={cn("h-5 w-5", active && "stroke-[2.5]")} />
-              <span className={cn("text-[10px] font-medium", active && "font-bold")}>{tab.label}</span>
-              {active && <div className="absolute top-0 w-8 h-0.5 bg-primary rounded-full" />}
+              <span className={cn("text-[10px] font-medium", active && "font-bold")}>
+                {tab.label}
+              </span>
+              {active && (
+                <div className="absolute top-0 w-8 h-0.5 bg-primary rounded-full" />
+              )}
             </Link>
           );
         })}
@@ -83,7 +95,7 @@ export const MobileBottomNav = () => {
                     "flex items-center justify-center px-4 py-3 rounded-xl text-sm font-medium transition-colors",
                     isActive(link.to)
                       ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground hover:bg-muted/80",
+                      : "bg-muted text-foreground hover:bg-muted/80"
                   )}
                 >
                   {link.label}
