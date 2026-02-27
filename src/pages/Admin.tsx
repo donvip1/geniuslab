@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, FileText, BookOpen, Loader2, Pencil, Trash2, X, Check, ChevronDown, ChevronUp, ClipboardPaste, Megaphone, Users, Star, Clock, BarChart3, UserX, Key, Database } from "lucide-react";
+import { Upload, FileText, BookOpen, Loader2, Pencil, Trash2, X, Check, ChevronDown, ChevronUp, ClipboardPaste, Megaphone, Users, Star, Clock, BarChart3, UserX, Key, Database, FileUp } from "lucide-react";
 import { TeamExpertManagement } from "@/components/admin/TeamExpertManagement";
 import { SuccessStoryManagement } from "@/components/admin/SuccessStoryManagement";
 import { ExamModeManagement } from "@/components/admin/ExamModeManagement";
@@ -18,6 +18,7 @@ import { AnalyticsDashboard } from "@/components/admin/AnalyticsDashboard";
 import { UserManagement } from "@/components/admin/UserManagement";
 import { AccessPinManagement } from "@/components/admin/AccessPinManagement";
 import { QuestionBankSync } from "@/components/admin/QuestionBankSync";
+import { PastQuestionUpload } from "@/components/admin/PastQuestionUpload";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -919,7 +920,7 @@ const Admin = () => {
           </div>
 
           <Tabs defaultValue="subjects" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-11 max-w-6xl">
+            <TabsList className="grid w-full grid-cols-12 max-w-6xl">
               <TabsTrigger value="subjects">
                 <BookOpen className="h-4 w-4 mr-1" />
                 <span className="hidden sm:inline">Subjects</span>
@@ -959,6 +960,10 @@ const Admin = () => {
               <TabsTrigger value="questionbank">
                 <Database className="h-4 w-4 mr-1" />
                 <span className="hidden sm:inline">Q-Bank</span>
+              </TabsTrigger>
+              <TabsTrigger value="pastquestions">
+                <FileUp className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Past Q</span>
               </TabsTrigger>
               <TabsTrigger value="analytics">
                 <BarChart3 className="h-4 w-4 mr-1" />
@@ -2064,6 +2069,11 @@ Or any other format - our AI will parse it automatically!`}
             {/* Question Bank Sync Tab */}
             <TabsContent value="questionbank">
               <QuestionBankSync />
+            </TabsContent>
+
+            {/* Past Questions Upload Tab */}
+            <TabsContent value="pastquestions">
+              <PastQuestionUpload />
             </TabsContent>
 
             {/* Analytics Tab */}
