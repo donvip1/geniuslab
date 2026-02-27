@@ -12,7 +12,7 @@ import tutorialClass3 from "@/assets/tutorial-class-3.jpg";
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col pb-16 md:pb-0">
       <Navbar />
       <AdvertisementPopup />
       
