@@ -1,122 +1,41 @@
 
 
-# Plan: Massive Question Bank Population via ALOC API + Missing Subjects
+## Plan: Scientific Calculator + Admin Subscription Bypass
 
-## Current State
-- Only **1,304 total questions** in the bank (most subjects have 4-5 questions)
-- Single source: Veezee API (unreliable, limited returns)
-- 6 subjects missing entirely: Igbo, Yoruba, Hausa, French/Arabic, Fine Art, Technical Drawing
+### 1. Create `ScientificCalculator` component
+New file: `src/components/ScientificCalculator.tsx`
 
-## Discovery
-I found the **ALOC API** (questions.aloc.com.ng) -- a free, open-source Nigerian past questions database with **20,000+ verified questions** covering JAMB UTME, WAEC, and NECO from 2001-2020+. This will be the primary source.
+- A floating, draggable-feel calculator that appears when a button is clicked
+- Two modes toggled via tabs: **Normal** and **Scientific**
+- **Normal mode**: digits 0-9, +, -, ×, ÷, =, %, ±, decimal, clear, backspace
+- **Scientific mode**: adds sin, cos, tan, log, ln, √, x², xʸ, π, e, (, ), factorial
+- State: expression string, result display, mode toggle
+- Renders as a fixed-position panel (bottom-right) with a close button
+- Uses `eval()` with sanitized input (or manual expression parser) for calculation
+- Styled to look like a real calculator with grid layout buttons
 
-ALOC supports 17 subjects: English, Mathematics, Commerce, Accounting, Biology, Physics, Chemistry, Literature in English, Government, CRK, IRK, Geography, Economics, Civic Education, Insurance, Current Affairs, History.
+### 2. Add calculator toggle button to JAMB exam header
+In `src/pages/JambExam.tsx`:
+- Add `Calculator` icon (from lucide-react) button in the exam header bar (near the timer/finalize area)
+- State: `showCalculator` boolean
+- Render `<ScientificCalculator>` when toggled on
+- Available in both practice and mock modes during active exam
 
-## What Needs to Happen
+### 3. Admin bypass for JAMB SubscriptionGate
+In `src/pages/JambExam.tsx`:
+- Add `isAdmin` state (boolean)
+- During auth init, query `user_roles` for admin role (same pattern as `ExamTaking.tsx` line 129-136)
+- Conditionally wrap mode selection in `<SubscriptionGate>` only when `!isAdmin` (matching the pattern already used in `ExamTaking.tsx` lines 654-668)
 
-### 1. Get ALOC API Access Token (requires your action)
-You need to create a free account at **https://questions.aloc.com.ng** and retrieve your Access Token (looks like `ALOC-78bfe77b49fb3e407bf8`). I will then store it as a secret for the edge functions to use.
+### Technical details
 
-### 2. New Edge Function: `bulk-fetch-questions`
-A dedicated function that:
-- Iterates through every subject and every year (2001-2024) for both UTME and WASSCE exam types
-- Fetches questions from ALOC API first (primary source)
-- Falls back to Veezee API for any subjects ALOC doesn't cover
-- Upserts all questions into `cached_api_questions` with deduplication
-- Returns progress/results for each subject
+**Calculator expression handling:**
+- Replace display symbols (×→*, ÷→/) before evaluation
+- Scientific functions mapped: `sin(` → `Math.sin(`, `π` → `Math.PI`, etc.
+- Error handling wraps eval in try/catch, shows "Error" on invalid expressions
+- Max display length capped to prevent overflow
 
-ALOC API format:
-```
-GET https://questions.aloc.com.ng/api/v2/q/40?subject=chemistry&year=2010&type=utme
-Headers: { AccessToken: "ALOC-xxx" }
-```
-
-### 3. Add Missing Subjects
-Add to the JAMB subject list in both `JambExam.tsx` and `sync-questions`:
-- Igbo Language
-- Yoruba Language  
-- Hausa Language
-- French
-- Arabic
-- Fine Arts
-- Technical Drawing
-
-These will be fetched from Veezee API (ALOC doesn't have them). If Veezee doesn't have them either, the admin can manually import questions via the existing bulk import tool.
-
-### 4. Update `sync-questions` Edge Function
-- Add ALOC as primary fetch source (try ALOC first, then Veezee)
-- For each subject, iterate through years 2001-2024
-- Fetch up to 40 questions per year per subject (ALOC's max per call)
-- Target: **500+ questions per major subject**, 100+ for minor subjects
-
-### 5. Update Admin Q-Bank UI
-- Add a "Bulk Fetch All" button that triggers the full population job
-- Show estimated time (may take several minutes for all subjects x all years)
-- Add the new subjects to the stats display
-
-### Technical Details
-
-**ALOC subject mapping:**
-```text
-Our Subject Name     → ALOC query param
-─────────────────────────────────────────
-Use of English       → english
-Mathematics          → mathematics
-Physics              → physics
-Chemistry            → chemistry
-Biology              → biology
-Economics            → economics
-Commerce             → commerce
-Accounting           → accounting
-Government           → government
-Literature in English → englishlit
-CRK                  → crk
-IRK                  → irk
-History              → history
-Geography            → geography
-Civic Education      → civiledu
-Agricultural Science → (Veezee fallback)
-Computer Studies     → (Veezee fallback)
-```
-
-**ALOC response format:**
-```json
-{
-  "subject": "chemistry",
-  "status": 200,
-  "data": {
-    "id": 123,
-    "question": "Which of the following...",
-    "option": { "a": "...", "b": "...", "c": "...", "d": "..." },
-    "answer": "a",
-    "section": "utme",
-    "examtype": "utme",
-    "examyear": "2010"
-  }
-}
-```
-
-**Fetch strategy per subject:**
-```text
-For each subject:
-  For each year (2001..2024):
-    Fetch 40 questions from ALOC (utme type)
-    Fetch 40 questions from ALOC (wassce type)
-    Upsert to cached_api_questions (deduplicate)
-  If total < 50:
-    Fetch 1000 from Veezee API as fallback
-```
-
-## Files to Create/Modify
-- **`supabase/functions/bulk-fetch-questions/index.ts`** -- New edge function for ALOC + Veezee bulk fetch
-- **`supabase/functions/sync-questions/index.ts`** -- Add ALOC as primary source, add missing subjects
-- **`src/pages/JambExam.tsx`** -- Add missing subjects to JAMB_SUBJECTS array
-- **`src/components/admin/QuestionBankSync.tsx`** -- Add "Bulk Fetch All" button
-
-## Prerequisite
-Before implementation, you need to provide the **ALOC API Access Token**. Please:
-1. Go to https://questions.aloc.com.ng
-2. Create a free account
-3. Copy your Access Token from the dashboard
-4. Share it here so I can store it as a secret
+**Files changed:**
+- `src/components/ScientificCalculator.tsx` (new)
+- `src/pages/JambExam.tsx` (add calculator + admin bypass)
 
