@@ -1140,64 +1140,60 @@ const JambExam = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex flex-col pb-20 md:pb-0">
       {/* Header */}
-      <div className={`${isMock ? "bg-gradient-to-r from-amber-600 to-red-700" : "bg-gradient-to-r from-blue-600 to-indigo-700"} text-white py-3 px-3 md:py-4 md:px-4 sticky top-0 z-20 shadow-lg`}>
+      <div className={`${isMock ? "bg-gradient-to-r from-amber-600 to-red-700" : "bg-gradient-to-r from-blue-600 to-indigo-700"} text-white py-2 px-3 md:py-4 md:px-4 sticky top-0 z-20 shadow-lg`}>
         <div className="container mx-auto">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0 flex-shrink">
-              <h1 className="text-base md:text-2xl font-bold truncate">
-                {isMock ? "JAMB Mock UTME" : "JAMB CBT Practice"}
-              </h1>
-              <p className="text-xs md:text-sm opacity-90">
-                Q{currentQuestionIndex + 1} of {questions.length}
-                {isMock && <span className="ml-2 text-[10px] opacity-75">🔒 Proctored</span>}
-              </p>
+          {/* Top row: Title + actions */}
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <h1 className="text-sm md:text-2xl font-bold">
+              {isMock ? "JAMB Mock UTME" : "JAMB CBT Practice"}
+            </h1>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="secondary" size="sm" className="bg-white text-blue-700 hover:bg-blue-50 text-xs px-3 h-7 md:h-9 flex-shrink-0">
+                  <Send className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+                  End
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="max-w-[90vw] md:max-w-lg">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Finalize Exam?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    You have answered {getAnsweredCount()} out of {questions.length} questions.
+                    {getAnsweredCount() < questions.length && (
+                      <span className="block mt-2 text-yellow-600 font-medium">
+                        ⚠️ Warning: You have {questions.length - getAnsweredCount()} unanswered questions!
+                      </span>
+                    )}
+                    <span className="block mt-2">Are you sure you want to submit?</span>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                  <AlertDialogCancel className="w-full sm:w-auto">Continue Exam</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleFinalize} className="w-full sm:w-auto">Submit Exam</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+          {/* Bottom row: Stats */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs md:text-sm opacity-90">
+              Q{currentQuestionIndex + 1} of {questions.length}
+            </span>
+            {isMock && <span className="text-[10px] opacity-75">🔒 Proctored</span>}
+            <button
+              onClick={() => setShowCalculator(prev => !prev)}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] md:text-xs transition-colors ${showCalculator ? "bg-white/40" : "bg-white/20 hover:bg-white/30"}`}
+              title="Calculator"
+            >
+              <Calculator className="h-3 w-3" />
+            </button>
+            <div className="flex items-center gap-1 bg-white/20 px-2 py-0.5 rounded-full">
+              <CheckCircle className="h-3 w-3" />
+              <span className="font-medium text-[10px] md:text-xs">{getAnsweredCount()}/{questions.length}</span>
             </div>
-            <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
-              <button
-                onClick={() => setShowCalculator(prev => !prev)}
-                className={`flex items-center gap-1 px-2 md:px-3 py-1 md:py-1.5 rounded-full transition-colors ${showCalculator ? "bg-white/40" : "bg-white/20 hover:bg-white/30"}`}
-                title="Calculator"
-              >
-                <Calculator className="h-3 w-3 md:h-4 md:w-4" />
-                <span className="hidden md:inline text-xs font-medium">Calc</span>
-              </button>
-              <div className="flex items-center gap-1 md:gap-2 bg-white/20 px-2 md:px-3 py-1 md:py-1.5 rounded-full">
-                <CheckCircle className="h-3 w-3 md:h-4 md:w-4" />
-                <span className="font-medium text-xs md:text-sm">
-                  {getAnsweredCount()}/{questions.length}
-                </span>
-              </div>
-              <div className={`flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-full ${timeLeft < 600 ? "bg-red-500 animate-pulse" : "bg-white/20"}`}>
-                <Clock className="h-3 w-3 md:h-4 md:w-4" />
-                <span className="font-bold text-xs md:text-sm">{formatTime(timeLeft)}</span>
-              </div>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="secondary" size="sm" className="bg-white text-blue-700 hover:bg-blue-50 text-xs md:text-sm px-2 md:px-3 h-7 md:h-9">
-                    <Send className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
-                    <span className="hidden xs:inline">Finalize</span>
-                    <span className="xs:hidden">End</span>
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="max-w-[90vw] md:max-w-lg">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Finalize Exam?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      You have answered {getAnsweredCount()} out of {questions.length} questions.
-                      {getAnsweredCount() < questions.length && (
-                        <span className="block mt-2 text-yellow-600 font-medium">
-                          ⚠️ Warning: You have {questions.length - getAnsweredCount()} unanswered questions!
-                        </span>
-                      )}
-                      <span className="block mt-2">Are you sure you want to submit?</span>
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-                    <AlertDialogCancel className="w-full sm:w-auto">Continue Exam</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleFinalize} className="w-full sm:w-auto">Submit Exam</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+            <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${timeLeft < 600 ? "bg-red-500 animate-pulse" : "bg-white/20"}`}>
+              <Clock className="h-3 w-3" />
+              <span className="font-bold text-[10px] md:text-xs">{formatTime(timeLeft)}</span>
             </div>
           </div>
         </div>
@@ -1374,31 +1370,29 @@ const JambExam = () => {
                       {JAMB_SUBJECTS.find(s => s.id === activeSubjectTab)?.name} questions:
                     </span>
                   </div>
-                  <ScrollArea className="w-full">
-                    <div className="flex gap-1.5 pb-2">
-                      {activeSubjectIndices.map((globalIdx) => {
-                        const isAnswered = answers[globalIdx] !== undefined;
-                        const isCurrent = globalIdx === currentQuestionIndex;
-                        const localNum = activeSubjectIndices.indexOf(globalIdx) + 1;
-                        
-                        return (
-                          <button
-                            key={globalIdx}
-                            onClick={() => setCurrentQuestionIndex(globalIdx)}
-                            className={`w-8 h-8 rounded-md font-semibold text-xs transition-all flex-shrink-0 ${
-                              isCurrent
-                                ? isMock ? "bg-amber-600 text-white ring-2 ring-amber-400" : "bg-blue-600 text-white ring-2 ring-blue-400"
-                                : isAnswered
-                                ? "bg-green-500 text-white"
-                                : "bg-muted text-muted-foreground"
-                            }`}
-                          >
-                            {localNum}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </ScrollArea>
+                  <div className="grid grid-cols-8 gap-1.5">
+                    {activeSubjectIndices.map((globalIdx) => {
+                      const isAnswered = answers[globalIdx] !== undefined;
+                      const isCurrent = globalIdx === currentQuestionIndex;
+                      const localNum = activeSubjectIndices.indexOf(globalIdx) + 1;
+                      
+                      return (
+                        <button
+                          key={globalIdx}
+                          onClick={() => setCurrentQuestionIndex(globalIdx)}
+                          className={`w-full aspect-square rounded-md font-semibold text-xs transition-all ${
+                            isCurrent
+                              ? isMock ? "bg-amber-600 text-white ring-2 ring-amber-400" : "bg-blue-600 text-white ring-2 ring-blue-400"
+                              : isAnswered
+                              ? "bg-green-500 text-white"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {localNum}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Navigation Buttons */}
