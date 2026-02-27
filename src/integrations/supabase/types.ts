@@ -364,6 +364,9 @@ export type Database = {
           payment_amount: number | null
           payment_bank_name: string | null
           payment_contact: string | null
+          trial_duration_days: number
+          trial_max_questions: number
+          trials_enabled: boolean
           updated_at: string
         }
         Insert: {
@@ -382,6 +385,9 @@ export type Database = {
           payment_amount?: number | null
           payment_bank_name?: string | null
           payment_contact?: string | null
+          trial_duration_days?: number
+          trial_max_questions?: number
+          trials_enabled?: boolean
           updated_at?: string
         }
         Update: {
@@ -400,6 +406,9 @@ export type Database = {
           payment_amount?: number | null
           payment_bank_name?: string | null
           payment_contact?: string | null
+          trial_duration_days?: number
+          trial_max_questions?: number
+          trials_enabled?: boolean
           updated_at?: string
         }
         Relationships: []

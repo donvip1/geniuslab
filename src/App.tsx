@@ -17,6 +17,7 @@ import JambExam from "./pages/JambExam";
 import JambStudyMaterial from "./pages/JambStudyMaterial";
 import ApiExam from "./pages/ApiExam";
 import Admin from "./pages/Admin";
+import Payment from "./pages/Payment";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ const App = () => (
           <Route path="/jamb-study" element={<JambStudyMaterial />} />
           <Route path="/api-exam" element={<ApiExam />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/payment" element={<Payment />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
