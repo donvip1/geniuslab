@@ -1199,44 +1199,40 @@ const JambExam = () => {
         </div>
       </div>
 
-      {/* Subject Tabs - Horizontal */}
-      <div className="bg-card border-b shadow-sm sticky top-[52px] md:top-[64px] z-10">
+      {/* Subject Tabs - Wrapping grid on mobile */}
+      <div className="bg-card border-b shadow-sm sticky top-[60px] md:top-[64px] z-10">
         <div className="container mx-auto px-2 md:px-4">
-          <ScrollArea className="w-full">
-            <div className="flex gap-1 py-2">
-              {selectedSubjects.map((subId, idx) => {
-                const subName = JAMB_SUBJECTS.find(s => s.id === subId)?.name || subId;
-                const isActive = activeSubjectTab === subId;
-                const answeredInSub = getSubjectAnsweredCount(subId);
-                const totalInSub = questionsBySubject[subId]?.globalIndices.length || 0;
-                const electiveIdx = idx; // 0 = English, 1-3 = Electives
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 py-2">
+            {selectedSubjects.map((subId) => {
+              const subName = JAMB_SUBJECTS.find(s => s.id === subId)?.name || subId;
+              const isActive = activeSubjectTab === subId;
+              const answeredInSub = getSubjectAnsweredCount(subId);
+              const totalInSub = questionsBySubject[subId]?.globalIndices.length || 0;
 
-                return (
-                  <button
-                    key={subId}
-                    onClick={() => {
-                      setActiveSubjectTab(subId);
-                      // Jump to first question of this subject
-                      const firstIdx = questionsBySubject[subId]?.globalIndices[0];
-                      if (firstIdx !== undefined) setCurrentQuestionIndex(firstIdx);
-                    }}
-                    className={`flex-shrink-0 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap ${
-                      isActive
-                        ? isMock
-                          ? "bg-amber-600 text-white shadow-md"
-                          : "bg-blue-600 text-white shadow-md"
-                        : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                    }`}
-                  >
-                    <span className="block">{subName}</span>
-                    <span className={`text-[10px] block ${isActive ? "text-white/80" : "text-muted-foreground"}`}>
-                      {answeredInSub}/{totalInSub}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </ScrollArea>
+              return (
+                <button
+                  key={subId}
+                  onClick={() => {
+                    setActiveSubjectTab(subId);
+                    const firstIdx = questionsBySubject[subId]?.globalIndices[0];
+                    if (firstIdx !== undefined) setCurrentQuestionIndex(firstIdx);
+                  }}
+                  className={`px-2 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all text-center truncate ${
+                    isActive
+                      ? isMock
+                        ? "bg-amber-600 text-white shadow-md"
+                        : "bg-blue-600 text-white shadow-md"
+                      : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  <span className="block truncate">{subName}</span>
+                  <span className={`text-[10px] block ${isActive ? "text-white/80" : "text-muted-foreground"}`}>
+                    {answeredInSub}/{totalInSub}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
