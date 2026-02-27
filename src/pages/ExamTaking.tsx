@@ -36,7 +36,17 @@ interface Question {
 }
 
 const QUESTIONS_PER_PAGE = 10;
-const DEFAULT_EXAM_TIME_SECONDS = 900; // 15 minutes default
+const DEFAULT_EXAM_TIME_SECONDS = 900;
+const UNI_EXAM_STORAGE_KEY = "uni_exam_progress";
+
+interface SavedUniExamState {
+  subjectSlug: string;
+  questions: Question[];
+  answers: Record<string, string>;
+  timeLeft: number;
+  currentQuestionIndex: number;
+  savedAt: number;
+}
 
 // Subject-specific question limits
 const getQuestionLimit = (subjectName: string): number => {
@@ -99,6 +109,46 @@ const ExamTaking = () => {
   const startIndex = currentPage * QUESTIONS_PER_PAGE;
   const endIndex = Math.min(startIndex + QUESTIONS_PER_PAGE, questions.length);
   const visibleQuestions = questions.slice(startIndex, endIndex);
+
+  // === Save exam progress to localStorage ===
+  useEffect(() => {
+    if (!examStarted || questions.length === 0) return;
+    try {
+      const state: SavedUniExamState = {
+        subjectSlug: subjectSlug || "",
+        questions,
+        answers,
+        timeLeft,
+        currentQuestionIndex,
+        savedAt: Date.now(),
+      };
+      localStorage.setItem(UNI_EXAM_STORAGE_KEY, JSON.stringify(state));
+    } catch {}
+  }, [answers, timeLeft, currentQuestionIndex, examStarted]);
+
+  // === Restore exam progress on mount ===
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(UNI_EXAM_STORAGE_KEY);
+      if (!saved) return;
+      const state: SavedUniExamState = JSON.parse(saved);
+      const threeHoursMs = 3 * 60 * 60 * 1000;
+      if (Date.now() - state.savedAt > threeHoursMs || state.timeLeft <= 0) {
+        localStorage.removeItem(UNI_EXAM_STORAGE_KEY);
+        return;
+      }
+      if (state.subjectSlug === subjectSlug && state.questions.length > 0) {
+        setQuestions(state.questions);
+        setAnswers(state.answers);
+        setTimeLeft(state.timeLeft);
+        setCurrentQuestionIndex(state.currentQuestionIndex);
+        setExamStarted(true);
+        setLoading(false);
+      }
+    } catch {
+      localStorage.removeItem(UNI_EXAM_STORAGE_KEY);
+    }
+  }, [subjectSlug]);
 
   useEffect(() => {
     checkAccessControl();
@@ -320,7 +370,7 @@ const ExamTaking = () => {
 
   const handleSubmitExam = async () => {
     if (submitting) return;
-    
+    localStorage.removeItem(UNI_EXAM_STORAGE_KEY);
     setSubmitting(true);
 
     try {
