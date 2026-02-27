@@ -770,7 +770,7 @@ const JambExam = () => {
     const requiredCount = isMock ? MOCK_REQUIRED_SUBJECTS : 1;
     
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-6 px-3 md:px-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-6 px-3 md:px-4 pb-24 md:pb-6">
         <div className="max-w-3xl mx-auto">
           {/* Header */}
           <div className="text-center mb-6 md:mb-8">
@@ -968,7 +968,7 @@ const JambExam = () => {
     const isMock = examMode === "mock";
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4 pb-24 md:pb-8">
         <div className="max-w-4xl mx-auto">
           {/* Score Summary */}
           <Card className="mb-8 overflow-hidden">
@@ -1138,7 +1138,7 @@ const JambExam = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex flex-col pb-20 md:pb-0">
       {/* Header */}
       <div className={`${isMock ? "bg-gradient-to-r from-amber-600 to-red-700" : "bg-gradient-to-r from-blue-600 to-indigo-700"} text-white py-3 px-3 md:py-4 md:px-4 sticky top-0 z-20 shadow-lg`}>
         <div className="container mx-auto">
@@ -1245,7 +1245,7 @@ const JambExam = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col md:flex-row md:overflow-hidden overflow-x-hidden">
+      <div className="flex-1 flex flex-col md:flex-row md:overflow-hidden overflow-x-hidden min-h-0">
         {/* Side Navigation - Desktop */}
         <div className={`hidden md:block ${showSideNav ? "w-64" : "w-0"} transition-all duration-300 bg-card border-r shadow-lg overflow-hidden flex-shrink-0`}>
           <div className="p-4 h-full">
@@ -1298,8 +1298,8 @@ const JambExam = () => {
         )}
 
         {/* Question Content */}
-        <div className="flex-1 p-2 sm:p-3 md:p-8 overflow-y-auto overflow-x-hidden">
-          <div className="max-w-3xl mx-auto w-full min-w-0">
+        <div className="flex-1 p-2 sm:p-3 md:p-8 overflow-y-auto overflow-x-hidden min-h-0">
+          <div className="max-w-3xl mx-auto w-full min-w-0 pb-4">
             <Card className="shadow-xl overflow-hidden">
               <CardHeader className="border-b bg-gradient-to-r from-muted/30 to-muted/50 p-3 md:p-6">
                 <div className="flex items-center justify-between">

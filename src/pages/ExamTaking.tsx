@@ -481,7 +481,7 @@ const ExamTaking = () => {
   const currentQuestion = questions[currentQuestionIndex];
 
   const examContent = (
-    <div className="min-h-screen bg-muted/30 flex flex-col">
+    <div className="min-h-screen bg-muted/30 flex flex-col pb-20 md:pb-0">
       {/* Founder Welcome Popup */}
       <FounderWelcomePopup
         isOpen={showFounderPopup && !loading}
@@ -560,8 +560,8 @@ const ExamTaking = () => {
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-6 flex-1 flex flex-col">
-        <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 flex-1 flex flex-col">
+        <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col pb-4">
           {timeLeft < 300 && (
             <Alert className="mb-4 border-destructive">
               <AlertCircle className="h-4 w-4" />
