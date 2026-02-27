@@ -50,6 +50,22 @@ import jambLogo from "@/assets/jamb-logo.webp";
 import { SubscriptionGate } from "@/components/SubscriptionGate";
 import ScientificCalculator from "@/components/ScientificCalculator";
 
+// Clean HTML tags from question text, converting common ones to markdown
+const cleanHtml = (text: string): string => {
+  if (!text) return text;
+  return text
+    .replace(/<i>(.*?)<\/i>/gi, '*$1*')
+    .replace(/<em>(.*?)<\/em>/gi, '*$1*')
+    .replace(/<b>(.*?)<\/b>/gi, '**$1**')
+    .replace(/<strong>(.*?)<\/strong>/gi, '**$1**')
+    .replace(/<u>(.*?)<\/u>/gi, '$1')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<p>(.*?)<\/p>/gi, '$1\n')
+    .replace(/<sup>(.*?)<\/sup>/gi, '^$1')
+    .replace(/<sub>(.*?)<\/sub>/gi, '_$1')
+    .replace(/<[^>]+>/g, '');
+};
+
 interface JambQuestion {
   text: string;
   options: string[];
@@ -260,7 +276,7 @@ const JambSearchDialog = () => {
                     </div>
                     <div className="text-sm font-medium">
                       <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                        {q.question_text}
+                        {cleanHtml(q.question_text)}
                       </ReactMarkdown>
                     </div>
                     <div className="grid grid-cols-2 gap-1 text-xs">
@@ -274,7 +290,7 @@ const JambSearchDialog = () => {
                       <div className="bg-muted/50 rounded p-2 text-xs">
                         <span className="font-semibold text-primary">Explanation: </span>
                         <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                          {q.explanation}
+                          {cleanHtml(q.explanation)}
                         </ReactMarkdown>
                       </div>
                     )}
@@ -1065,7 +1081,7 @@ const JambExam = () => {
                           
                           <div className="prose dark:prose-invert max-w-none mb-4">
                             <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                              {q.text}
+                              {cleanHtml(q.text)}
                             </ReactMarkdown>
                           </div>
 
@@ -1085,7 +1101,7 @@ const JambExam = () => {
                                   <span className="font-medium">{getOptionLabel(optIdx)}.</span>
                                   <div className="prose dark:prose-invert prose-sm max-w-none flex-1">
                                     <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                                      {opt}
+                                      {cleanHtml(opt)}
                                     </ReactMarkdown>
                                   </div>
                                   {optIdx === q.correctAnswerIndex && (
@@ -1104,7 +1120,7 @@ const JambExam = () => {
                               <h4 className="font-semibold text-blue-700 dark:text-blue-400 mb-1">Explanation:</h4>
                               <div className="prose dark:prose-invert prose-sm max-w-none text-blue-900 dark:text-blue-100">
                                 <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                                  {q.explanation}
+                                  {cleanHtml(q.explanation)}
                                 </ReactMarkdown>
                               </div>
                             </div>
@@ -1316,7 +1332,7 @@ const JambExam = () => {
                 {/* Question Text */}
                 <div className="prose dark:prose-invert max-w-none mb-4 md:mb-6 text-sm md:text-lg break-words [word-break:break-word] [overflow-wrap:anywhere] min-w-0">
                   <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                    {currentQuestion.text}
+                    {cleanHtml(currentQuestion.text)}
                   </ReactMarkdown>
                 </div>
 
@@ -1350,7 +1366,7 @@ const JambExam = () => {
                           </span>
                           <span className="prose dark:prose-invert prose-sm md:prose-base inline break-words min-w-0 [word-break:break-word] [overflow-wrap:anywhere]">
                             <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                              {option}
+                              {cleanHtml(option)}
                             </ReactMarkdown>
                           </span>
                         </Label>
