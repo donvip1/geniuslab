@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, BookOpen, Briefcase, Phone, Menu } from "lucide-react";
+import { Home, BookOpen, Briefcase, CreditCard, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +15,7 @@ const mainTabs = [
   { to: "/", label: "Home", icon: Home },
   { to: "/exam", label: "Exams", icon: BookOpen },
   { to: "/services", label: "Services", icon: Briefcase },
-  { to: "/contact", label: "Contact", icon: Phone },
+  { to: "/payment", label: "Pricing", icon: CreditCard },
 ];
 
 export const MobileBottomNav = () => {
@@ -33,7 +33,7 @@ export const MobileBottomNav = () => {
 
   const moreLinks = [
     { to: "/about", label: "About Us" },
-    { to: "/payment", label: "Pricing" },
+    { to: "/contact", label: "Contact" },
     ...(session
       ? [{ to: "/auth", label: "My Profile" }]
       : [{ to: "/auth", label: "Login / Sign Up" }]),
