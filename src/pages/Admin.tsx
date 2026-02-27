@@ -912,15 +912,15 @@ const Admin = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-      <main className="flex-1 pt-16 bg-muted/30">
-        <div className="container mx-auto px-4 py-8">
+      <main className="flex-1 pt-16 pb-20 md:pb-0 bg-muted/30">
+        <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 overflow-x-hidden">
           <div className="mb-8">
             <h1 className="text-3xl md:text-4xl font-bold mb-2">Admin Dashboard</h1>
             <p className="text-muted-foreground">Manage subjects and upload exam questions</p>
           </div>
 
           <Tabs defaultValue="subjects" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-12 max-w-6xl">
+            <TabsList className="flex flex-wrap gap-1 h-auto w-full max-w-6xl p-1">
               <TabsTrigger value="subjects">
                 <BookOpen className="h-4 w-4 mr-1" />
                 <span className="hidden sm:inline">Subjects</span>
