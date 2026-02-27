@@ -22,7 +22,8 @@ import {
   BookOpen,
   ArrowLeft,
   Shield,
-  Zap
+  Zap,
+  Calculator
 } from "lucide-react";
 import {
   AlertDialog,
@@ -42,6 +43,7 @@ import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import jambLogo from "@/assets/jamb-logo.webp";
 import { SubscriptionGate } from "@/components/SubscriptionGate";
+import ScientificCalculator from "@/components/ScientificCalculator";
 
 interface JambQuestion {
   text: string;
@@ -97,6 +99,8 @@ const JambExam = () => {
   const [user, setUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [examCategoryId, setExamCategoryId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
 
   // Mode & subject selection
   const [examMode, setExamMode] = useState<ExamMode>("select");
@@ -123,6 +127,14 @@ const JambExam = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { navigate("/auth"); return; }
       setUser(session.user);
+
+      // Check admin role
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .eq("role", "admin");
+      if (roles && roles.length > 0) setIsAdmin(true);
 
       const { data: cat } = await supabase
         .from("exam_categories")
@@ -340,13 +352,7 @@ const JambExam = () => {
       );
     }
 
-    return (
-      <SubscriptionGate
-        examCategoryId={examCategoryId}
-        examCategoryName="JAMB UTME"
-        userId={user.id}
-        userEmail={user.email || ""}
-      >
+    const modeSelectionContent = (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-6 px-3 md:px-4">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-8">
@@ -441,6 +447,18 @@ const JambExam = () => {
           </Button>
         </div>
       </div>
+    );
+
+    if (isAdmin) return modeSelectionContent;
+
+    return (
+      <SubscriptionGate
+        examCategoryId={examCategoryId}
+        examCategoryName="JAMB UTME"
+        userId={user.id}
+        userEmail={user.email || ""}
+      >
+        {modeSelectionContent}
       </SubscriptionGate>
     );
   }
@@ -836,6 +854,14 @@ const JambExam = () => {
               </p>
             </div>
             <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+              <button
+                onClick={() => setShowCalculator(prev => !prev)}
+                className={`flex items-center gap-1 px-2 md:px-3 py-1 md:py-1.5 rounded-full transition-colors ${showCalculator ? "bg-white/40" : "bg-white/20 hover:bg-white/30"}`}
+                title="Calculator"
+              >
+                <Calculator className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="hidden md:inline text-xs font-medium">Calc</span>
+              </button>
               <div className="flex items-center gap-1 md:gap-2 bg-white/20 px-2 md:px-3 py-1 md:py-1.5 rounded-full">
                 <CheckCircle className="h-3 w-3 md:h-4 md:w-4" />
                 <span className="font-medium text-xs md:text-sm">
@@ -1106,6 +1132,7 @@ const JambExam = () => {
           </div>
         </div>
       </div>
+      {showCalculator && <ScientificCalculator onClose={() => setShowCalculator(false)} />}
     </div>
   );
 };
