@@ -10,7 +10,9 @@ export const Navbar = () => {
   const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
@@ -26,7 +28,7 @@ export const Navbar = () => {
     { to: "/", label: "Home" },
     { to: "/about", label: "About" },
     { to: "/services", label: "Services" },
-    { to: "/payment", label: "Pricing" },
+    { to: "/payment", label: "Activate" },
     { to: "/exam", label: "Take Exam" },
     { to: "/contact", label: "Contact" },
   ];
@@ -43,17 +45,16 @@ export const Navbar = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
             {navLinks.map((link) => (
-              <Link
-                key={link.to}
-                to={link.to}
-                className="text-foreground/80 hover:text-foreground transition-colors"
-              >
+              <Link key={link.to} to={link.to} className="text-foreground/80 hover:text-foreground transition-colors">
                 {link.label}
               </Link>
             ))}
             {session ? (
               <div className="flex items-center gap-3 ml-4">
-                <Link to="/auth" className="flex items-center gap-1 text-foreground/80 hover:text-foreground transition-colors">
+                <Link
+                  to="/auth"
+                  className="flex items-center gap-1 text-foreground/80 hover:text-foreground transition-colors"
+                >
                   <User className="h-4 w-4" />
                   <span className="text-sm">Profile</span>
                 </Link>
