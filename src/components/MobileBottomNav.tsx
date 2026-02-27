@@ -33,6 +33,7 @@ export const MobileBottomNav = () => {
 
   const moreLinks = [
     { to: "/about", label: "About Us" },
+    { to: "/payment", label: "Pricing" },
     ...(session
       ? [{ to: "/auth", label: "My Profile" }]
       : [{ to: "/auth", label: "Login / Sign Up" }]),

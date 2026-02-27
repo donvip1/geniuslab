@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Key, CreditCard, Loader2, MessageCircle, Copy, ArrowLeft, ShieldCheck, Clock, Zap } from "lucide-react";
+import { Key, CreditCard, Loader2, MessageCircle, Copy, ArrowLeft, ShieldCheck, Clock, Zap, ChevronRight, BookOpen, GraduationCap, Award, FileText, Wrench } from "lucide-react";
 
 interface PaymentInfo {
   contact: string;
@@ -17,15 +17,34 @@ interface PaymentInfo {
   amount: number;
 }
 
+interface ExamCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  icon_name: string | null;
+  monthly_price: number;
+}
+
+const iconMap: Record<string, React.ReactNode> = {
+  GraduationCap: <GraduationCap className="h-6 w-6" />,
+  BookOpen: <BookOpen className="h-6 w-6" />,
+  Award: <Award className="h-6 w-6" />,
+  FileText: <FileText className="h-6 w-6" />,
+  Wrench: <Wrench className="h-6 w-6" />,
+};
+
 const Payment = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const categoryId = searchParams.get("category");
-  const categoryName = searchParams.get("name") || "Exam";
+  const categoryIdParam = searchParams.get("category");
+  const categoryNameParam = searchParams.get("name");
 
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<ExamCategory[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<ExamCategory | null>(null);
   const [pin, setPin] = useState("");
   const [pinLoading, setPinLoading] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
@@ -40,16 +59,29 @@ const Payment = () => {
   useEffect(() => {
     checkAuth();
     fetchPaymentInfo();
+    fetchCategories();
   }, []);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      navigate("/auth");
-      return;
-    }
-    setUser(session.user);
+    setUser(session?.user || null);
     setLoading(false);
+  };
+
+  const fetchCategories = async () => {
+    const { data } = await supabase
+      .from("exam_categories")
+      .select("*")
+      .eq("is_active", true)
+      .order("display_order");
+    if (data) {
+      setCategories(data as ExamCategory[]);
+      // If category param exists, auto-select it
+      if (categoryIdParam) {
+        const found = data.find((c: any) => c.id === categoryIdParam);
+        if (found) setSelectedCategory(found as ExamCategory);
+      }
+    }
   };
 
   const fetchPaymentInfo = async () => {
@@ -70,7 +102,7 @@ const Payment = () => {
   };
 
   const handlePinSubmit = async () => {
-    if (pin.length !== 8 || !user || !categoryId) return;
+    if (pin.length !== 8 || !user || !selectedCategory) return;
     setPinLoading(true);
     try {
       const { data: pinData } = await supabase
@@ -104,14 +136,14 @@ const Payment = () => {
           used_by_email: user.email,
           used_at: new Date().toISOString(),
           expires_at: expiresAt.toISOString(),
-          exam_category_id: categoryId,
+          exam_category_id: selectedCategory.id,
         })
         .eq("id", pinData.id)
         .eq("is_used", false);
 
       await supabase.from("subscription_plans").insert({
         user_id: user.id,
-        exam_category_id: categoryId,
+        exam_category_id: selectedCategory.id,
         plan_type: "pin",
         status: "active",
         expires_at: expiresAt.toISOString(),
@@ -127,12 +159,17 @@ const Payment = () => {
   };
 
   const handlePaystack = async () => {
-    if (!categoryId) return;
+    if (!selectedCategory) return;
+    if (!user) {
+      toast({ title: "Login Required", description: "Please login first to make a payment.", variant: "destructive" });
+      navigate("/auth");
+      return;
+    }
     setPaymentLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("paystack-initialize", {
         body: {
-          exam_category_id: categoryId,
+          exam_category_id: selectedCategory.id,
           callback_url: window.location.origin + "/exam",
         },
       });
@@ -153,8 +190,9 @@ const Payment = () => {
   };
 
   const handleWhatsApp = () => {
+    const catName = selectedCategory?.name || "Exam";
     const message = encodeURIComponent(
-      `Hi, I want to purchase a ${categoryName} exam access PIN for GENIUSLAB.\n\nAmount: ₦${paymentInfo.amount.toLocaleString()}\nBank: ${paymentInfo.bankName}\nAccount: ${paymentInfo.accountNumber}\nName: ${paymentInfo.accountHolder}`
+      `Hi, I want to purchase a ${catName} exam access PIN for GENIUSLAB.\n\nAmount: ₦${paymentInfo.amount.toLocaleString()}\nBank: ${paymentInfo.bankName}\nAccount: ${paymentInfo.accountNumber}\nName: ${paymentInfo.accountHolder}`
     );
     window.open(`https://wa.me/234${paymentInfo.contact.slice(1)}?text=${message}`, "_blank");
   };
@@ -175,8 +213,14 @@ const Payment = () => {
         <section className="py-12 bg-gradient-to-br from-primary to-secondary text-primary-foreground">
           <div className="container mx-auto px-4 text-center max-w-3xl">
             <ShieldCheck className="h-12 w-12 mx-auto mb-4 opacity-90" />
-            <h1 className="text-3xl md:text-4xl font-bold mb-3">Subscribe to {categoryName}</h1>
-            <p className="opacity-90 text-lg">Get unlimited access to all questions and practice exams</p>
+            <h1 className="text-3xl md:text-4xl font-bold mb-3">
+              {selectedCategory ? `Subscribe to ${selectedCategory.name}` : "Pricing & Subscriptions"}
+            </h1>
+            <p className="opacity-90 text-lg">
+              {selectedCategory
+                ? "Get unlimited access to all questions and practice exams"
+                : "Choose an exam category and unlock unlimited practice"}
+            </p>
           </div>
         </section>
 
@@ -203,85 +247,126 @@ const Payment = () => {
           </div>
         </section>
 
-        {/* Payment Options */}
-        <section className="py-12">
-          <div className="container mx-auto px-4">
-            <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-6">
-              {/* PIN Entry */}
-              <Card>
-                <CardHeader>
-                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-2">
-                    <Key className="h-6 w-6 text-primary" />
-                  </div>
-                  <CardTitle>Enter Access PIN</CardTitle>
-                  <CardDescription>Already have an 8-character PIN? Enter it below.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Input
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8))}
-                    placeholder="XXXXXXXX"
-                    className="text-center text-xl font-mono tracking-widest h-12"
-                    maxLength={8}
-                  />
-                  <p className="text-xs text-center text-muted-foreground">{pin.length}/8 characters</p>
-                  <Button onClick={handlePinSubmit} disabled={pin.length !== 8 || pinLoading} className="w-full">
-                    {pinLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Activate PIN
-                  </Button>
-                </CardContent>
-              </Card>
+        {/* Category Selection or Payment */}
+        {!selectedCategory ? (
+          <section className="py-12">
+            <div className="container mx-auto px-4">
+              <div className="max-w-4xl mx-auto">
+                <h2 className="text-2xl font-bold text-center mb-2">Choose an Exam Category</h2>
+                <p className="text-center text-muted-foreground mb-8">Select the exam type you want to subscribe to</p>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {categories.map((cat) => (
+                    <Card
+                      key={cat.id}
+                      className="cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all group"
+                      onClick={() => setSelectedCategory(cat)}
+                    >
+                      <CardHeader className="pb-3">
+                        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-2 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                          {iconMap[cat.icon_name || ""] || <BookOpen className="h-6 w-6" />}
+                        </div>
+                        <CardTitle className="text-lg">{cat.name}</CardTitle>
+                        <CardDescription className="text-sm">{cat.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center justify-between">
+                          <span className="text-lg font-bold text-primary">₦{cat.monthly_price.toLocaleString()}<span className="text-sm font-normal text-muted-foreground">/month</span></span>
+                          <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : (
+          <section className="py-12">
+            <div className="container mx-auto px-4">
+              <div className="max-w-4xl mx-auto">
+                {/* Back button */}
+                <Button variant="ghost" className="mb-6" onClick={() => setSelectedCategory(null)}>
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back to Categories
+                </Button>
 
-              {/* Payment */}
-              <Card className="border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20">
-                <CardHeader>
-                  <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-2">
-                    <CreditCard className="h-6 w-6 text-green-600" />
-                  </div>
-                  <CardTitle className="text-green-800 dark:text-green-300">Pay ₦{paymentInfo.amount.toLocaleString()}</CardTitle>
-                  <CardDescription className="text-green-700 dark:text-green-400">1 month + 5 days access</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Button onClick={handlePaystack} disabled={paymentLoading || !categoryId} className="w-full bg-green-600 hover:bg-green-700">
-                    {paymentLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
-                    Pay with Paystack
-                  </Button>
-
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-green-50 dark:bg-green-950/20 px-2 text-muted-foreground">or</span></div>
-                  </div>
-
-                  <div className="bg-white dark:bg-background rounded-lg p-3 space-y-2 border text-sm">
-                    <p className="font-medium">Bank Transfer:</p>
-                    <div className="flex justify-between items-center">
-                      <span>Bank: <strong>{paymentInfo.bankName}</strong></span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="font-mono font-bold">{paymentInfo.accountNumber}</span>
-                      <Button variant="ghost" size="sm" onClick={() => copyToClipboard(paymentInfo.accountNumber, "Account number")}>
-                        <Copy className="h-3 w-3" />
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* PIN Entry */}
+                  <Card>
+                    <CardHeader>
+                      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-2">
+                        <Key className="h-6 w-6 text-primary" />
+                      </div>
+                      <CardTitle>Enter Access PIN</CardTitle>
+                      <CardDescription>Already have an 8-character PIN? Enter it below.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {!user && (
+                        <p className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/20 rounded-lg p-3">
+                          You need to <a href="/auth" className="underline font-medium">login</a> first to activate a PIN.
+                        </p>
+                      )}
+                      <Input
+                        value={pin}
+                        onChange={(e) => setPin(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8))}
+                        placeholder="XXXXXXXX"
+                        className="text-center text-xl font-mono tracking-widest h-12"
+                        maxLength={8}
+                        disabled={!user}
+                      />
+                      <p className="text-xs text-center text-muted-foreground">{pin.length}/8 characters</p>
+                      <Button onClick={handlePinSubmit} disabled={pin.length !== 8 || pinLoading || !user} className="w-full">
+                        {pinLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Activate PIN
                       </Button>
-                    </div>
-                    <span className="text-xs text-muted-foreground">{paymentInfo.accountHolder}</span>
-                  </div>
+                    </CardContent>
+                  </Card>
 
-                  <Button onClick={handleWhatsApp} variant="outline" className="w-full border-green-300 text-green-700 hover:bg-green-100">
-                    <MessageCircle className="mr-2 h-4 w-4" />
-                    Send Proof via WhatsApp
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
+                  {/* Payment */}
+                  <Card className="border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20">
+                    <CardHeader>
+                      <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-2">
+                        <CreditCard className="h-6 w-6 text-green-600" />
+                      </div>
+                      <CardTitle className="text-green-800 dark:text-green-300">Pay ₦{selectedCategory.monthly_price.toLocaleString()}</CardTitle>
+                      <CardDescription className="text-green-700 dark:text-green-400">1 month + 5 days access to {selectedCategory.name}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <Button onClick={handlePaystack} disabled={paymentLoading} className="w-full bg-green-600 hover:bg-green-700">
+                        {paymentLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
+                        Pay with Paystack
+                      </Button>
 
-            <div className="mt-8 text-center">
-              <Button variant="ghost" onClick={() => navigate("/exam")}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Exam Categories
-              </Button>
+                      <div className="relative">
+                        <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                        <div className="relative flex justify-center text-xs uppercase"><span className="bg-green-50 dark:bg-green-950/20 px-2 text-muted-foreground">or</span></div>
+                      </div>
+
+                      <div className="bg-white dark:bg-background rounded-lg p-3 space-y-2 border text-sm">
+                        <p className="font-medium">Bank Transfer:</p>
+                        <div className="flex justify-between items-center">
+                          <span>Bank: <strong>{paymentInfo.bankName}</strong></span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="font-mono font-bold">{paymentInfo.accountNumber}</span>
+                          <Button variant="ghost" size="sm" onClick={() => copyToClipboard(paymentInfo.accountNumber, "Account number")}>
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <span className="text-xs text-muted-foreground">{paymentInfo.accountHolder}</span>
+                      </div>
+
+                      <Button onClick={handleWhatsApp} variant="outline" className="w-full border-green-300 text-green-700 hover:bg-green-100">
+                        <MessageCircle className="mr-2 h-4 w-4" />
+                        Send Proof via WhatsApp
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
       </main>
       <Footer />
     </div>
