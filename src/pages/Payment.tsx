@@ -15,6 +15,7 @@ interface PaymentInfo {
   bankName: string;
   accountHolder: string;
   amount: number;
+  manualPaymentEnabled: boolean;
 }
 
 interface ExamCategory {
@@ -50,10 +51,11 @@ const Payment = () => {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({
     contact: "08124269495",
-    accountNumber: "8124269495",
-    bankName: "Opay",
-    accountHolder: "Nsisong Etim",
+    accountNumber: "",
+    bankName: "",
+    accountHolder: "",
     amount: 1000,
+    manualPaymentEnabled: false,
   });
 
   useEffect(() => {
@@ -87,16 +89,17 @@ const Payment = () => {
   const fetchPaymentInfo = async () => {
     const { data } = await supabase
       .from("exam_settings")
-      .select("payment_contact, payment_account_number, payment_bank_name, payment_account_holder, payment_amount")
+      .select("payment_contact, payment_account_number, payment_bank_name, payment_account_holder, payment_amount, manual_payment_enabled")
       .limit(1)
       .maybeSingle();
     if (data) {
       setPaymentInfo({
         contact: data.payment_contact || "08124269495",
-        accountNumber: data.payment_account_number || "8124269495",
-        bankName: data.payment_bank_name || "Opay",
-        accountHolder: data.payment_account_holder || "Nsisong Etim",
+        accountNumber: data.payment_account_number || "",
+        bankName: data.payment_bank_name || "",
+        accountHolder: data.payment_account_holder || "",
         amount: data.payment_amount || 1000,
+        manualPaymentEnabled: (data as any).manual_payment_enabled ?? false,
       });
     }
   };
@@ -323,42 +326,46 @@ const Payment = () => {
                   </Card>
 
                   {/* Payment */}
-                  <Card className="border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20">
+                  <Card className="border-primary/20">
                     <CardHeader>
-                      <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-2">
-                        <CreditCard className="h-6 w-6 text-green-600" />
+                      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-2">
+                        <CreditCard className="h-6 w-6 text-primary" />
                       </div>
-                      <CardTitle className="text-green-800 dark:text-green-300">Pay ₦{selectedCategory.monthly_price.toLocaleString()}</CardTitle>
-                      <CardDescription className="text-green-700 dark:text-green-400">1 month + 5 days access to {selectedCategory.name}</CardDescription>
+                      <CardTitle>Pay ₦{selectedCategory.monthly_price.toLocaleString()}</CardTitle>
+                      <CardDescription>1 month + 5 days access to {selectedCategory.name}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <Button onClick={handlePaystack} disabled={paymentLoading} className="w-full bg-green-600 hover:bg-green-700">
+                      <Button onClick={handlePaystack} disabled={paymentLoading} className="w-full">
                         {paymentLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
                         Pay with Paystack
                       </Button>
 
-                      <div className="relative">
-                        <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-                        <div className="relative flex justify-center text-xs uppercase"><span className="bg-green-50 dark:bg-green-950/20 px-2 text-muted-foreground">or</span></div>
-                      </div>
+                      {paymentInfo.manualPaymentEnabled && paymentInfo.accountNumber && (
+                        <>
+                          <div className="relative">
+                            <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                            <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">or pay manually</span></div>
+                          </div>
 
-                      <div className="bg-white dark:bg-background rounded-lg p-3 space-y-2 border text-sm">
-                        <p className="font-medium">Bank Transfer:</p>
-                        <div className="flex justify-between items-center">
-                          <span>Bank: <strong>{paymentInfo.bankName}</strong></span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="font-mono font-bold">{paymentInfo.accountNumber}</span>
-                          <Button variant="ghost" size="sm" onClick={() => copyToClipboard(paymentInfo.accountNumber, "Account number")}>
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <span className="text-xs text-muted-foreground">{paymentInfo.accountHolder}</span>
-                      </div>
+                          <div className="bg-muted/50 rounded-lg p-3 space-y-2 border text-sm">
+                            <p className="font-medium">Bank Transfer:</p>
+                            <div className="flex justify-between items-center">
+                              <span>Bank: <strong>{paymentInfo.bankName}</strong></span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="font-mono font-bold">{paymentInfo.accountNumber}</span>
+                              <Button variant="ghost" size="sm" onClick={() => copyToClipboard(paymentInfo.accountNumber, "Account number")}>
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            <span className="text-xs text-muted-foreground">{paymentInfo.accountHolder}</span>
+                          </div>
+                        </>
+                      )}
 
-                      <Button onClick={handleWhatsApp} variant="outline" className="w-full border-green-300 text-green-700 hover:bg-green-100">
+                      <Button onClick={handleWhatsApp} variant="outline" className="w-full">
                         <MessageCircle className="mr-2 h-4 w-4" />
-                        Send Proof via WhatsApp
+                        Contact via WhatsApp
                       </Button>
                     </CardContent>
                   </Card>
