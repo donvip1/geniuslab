@@ -25,6 +25,7 @@ const loginSchema = z.object({
 
 const signupSchema = z.object({
   fullName: fullNameSchema,
+  username: usernameSchema,
   email: emailSchema,
   password: passwordSchema,
   confirmPassword: z.string(),
@@ -41,6 +42,7 @@ const Auth = () => {
   const [loginData, setLoginData] = useState({ email: "", password: "", username: "" });
   const [signupData, setSignupData] = useState({ 
     fullName: "", 
+    username: "",
     email: "", 
     password: "", 
     confirmPassword: "" 
@@ -203,6 +205,7 @@ const Auth = () => {
           emailRedirectTo: redirectUrl,
           data: {
             full_name: signupData.fullName,
+            username: signupData.username,
           },
         },
       });
@@ -393,6 +396,18 @@ const Auth = () => {
                     maxLength={100}
                   />
                   {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-username">Username</Label>
+                  <Input
+                    id="signup-username"
+                    placeholder="johndoe123"
+                    value={signupData.username}
+                    onChange={(e) => setSignupData({ ...signupData, username: e.target.value })}
+                    required
+                    maxLength={50}
+                  />
+                  {errors.username && <p className="text-sm text-destructive">{errors.username}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>

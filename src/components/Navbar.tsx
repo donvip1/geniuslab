@@ -1,8 +1,27 @@
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { LogOut, User } from "lucide-react";
 import gecLogo from "@/assets/gec-logo-new.png";
 
 export const Navbar = () => {
+  const navigate = useNavigate();
+  const [session, setSession] = useState<any>(null);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/");
+  };
+
   const navLinks = [
     { to: "/", label: "Home" },
     { to: "/about", label: "About" },
@@ -31,19 +50,39 @@ export const Navbar = () => {
                 {link.label}
               </Link>
             ))}
-            <Link to="/auth">
-              <Button variant="default" className="ml-4">
+            {session ? (
+              <div className="flex items-center gap-3 ml-4">
+                <Link to="/auth" className="flex items-center gap-1 text-foreground/80 hover:text-foreground transition-colors">
+                  <User className="h-4 w-4" />
+                  <span className="text-sm">Profile</span>
+                </Link>
+                <Button variant="outline" size="sm" onClick={handleLogout}>
+                  <LogOut className="h-4 w-4 mr-1" />
+                  Logout
+                </Button>
+              </div>
+            ) : (
+              <Link to="/auth">
+                <Button variant="default" className="ml-4">
+                  Login
+                </Button>
+              </Link>
+            )}
+          </div>
+
+          {/* Mobile: Login/Logout button */}
+          {session ? (
+            <Button variant="outline" size="sm" className="md:hidden" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-1" />
+              Logout
+            </Button>
+          ) : (
+            <Link to="/auth" className="md:hidden">
+              <Button variant="default" size="sm">
                 Login
               </Button>
             </Link>
-          </div>
-
-          {/* Mobile: Login button only (nav is in bottom bar) */}
-          <Link to="/auth" className="md:hidden">
-            <Button variant="default" size="sm">
-              Login
-            </Button>
-          </Link>
+          )}
         </div>
       </div>
     </nav>

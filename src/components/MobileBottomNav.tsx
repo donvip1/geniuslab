@@ -1,7 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, BookOpen, Briefcase, Phone, User, Menu } from "lucide-react";
+import { Home, BookOpen, Briefcase, Phone, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Sheet,
   SheetContent,
@@ -17,16 +18,27 @@ const mainTabs = [
   { to: "/contact", label: "Contact", icon: Phone },
 ];
 
-const moreLinks = [
-  { to: "/about", label: "About Us" },
-  { to: "/auth", label: "Login / Sign Up" },
-  { to: "/jamb-exam", label: "JAMB Exam" },
-  { to: "/jamb-study", label: "Study Materials" },
-];
-
 export const MobileBottomNav = () => {
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const [session, setSession] = useState<any>(null);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const moreLinks = [
+    { to: "/about", label: "About Us" },
+    ...(session
+      ? [{ to: "/auth", label: "My Profile" }]
+      : [{ to: "/auth", label: "Login / Sign Up" }]),
+    { to: "/jamb-exam", label: "JAMB Exam" },
+    { to: "/jamb-study", label: "Study Materials" },
+  ];
 
   const isActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
