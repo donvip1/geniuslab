@@ -24,6 +24,7 @@ serve(async (req) => {
     let subjects: string[] = [];
     let questionsPerSubject = 10;
     let level = "JAMB / UTME";
+    let year: string | null = null;
 
     if (req.method === "POST") {
       try {
@@ -31,46 +32,83 @@ serve(async (req) => {
         subjects = body.subjects || [];
         questionsPerSubject = body.questionsPerSubject || 10;
         level = body.level || "JAMB / UTME";
+        year = body.year || null;
       } catch { /* ignore */ }
     }
 
-    console.log("Request:", { subjects, questionsPerSubject, level });
+    console.log("Request:", { subjects, questionsPerSubject, level, year });
 
     const subjectsToFetch = subjects.length > 0 ? subjects : ["Use of English"];
     const allQuestions: any[] = [];
 
     for (const subject of subjectsToFetch) {
-      // Step 1: Check cache for the requested level
-      const { data: cached, error } = await supabase
-        .from("cached_api_questions")
-        .select("*")
-        .eq("exam_level", level)
-        .eq("subject", subject);
+      let pool: any[] = [];
 
-      if (error) {
-        console.error(`Cache read error for ${subject}:`, error.message);
-      }
-
-      let pool = cached || [];
-
-      // Step 2: If not enough in requested level, also check JAMB cache (same curriculum base)
-      if (pool.length < questionsPerSubject && level !== "JAMB / UTME") {
-        console.log(`${subject}: ${level} cache has ${pool.length}, checking JAMB cache...`);
-        const { data: jambCached } = await supabase
+      if (year) {
+        // Year-specific: first get questions for that year
+        const { data: yearCached, error: yearErr } = await supabase
           .from("cached_api_questions")
           .select("*")
-          .eq("exam_level", "JAMB / UTME")
-          .eq("subject", subject);
-        
-        if (jambCached && jambCached.length > 0) {
+          .eq("exam_level", level)
+          .eq("subject", subject)
+          .eq("year", year);
+
+        if (yearErr) console.error(`Year cache error for ${subject}:`, yearErr.message);
+        pool = yearCached || [];
+        console.log(`${subject}: year=${year} found ${pool.length}, need=${questionsPerSubject}`);
+
+        // Backfill from full pool if not enough
+        if (pool.length < questionsPerSubject) {
           const existingTexts = new Set(pool.map((q: any) => q.question_text));
-          for (const q of jambCached) {
-            if (!existingTexts.has(q.question_text)) {
-              pool.push(q);
-              existingTexts.add(q.question_text);
+          const { data: backfill } = await supabase
+            .from("cached_api_questions")
+            .select("*")
+            .eq("exam_level", level)
+            .eq("subject", subject)
+            .neq("year", year);
+
+          if (backfill && backfill.length > 0) {
+            const shuffledBackfill = backfill.sort(() => Math.random() - 0.5);
+            for (const q of shuffledBackfill) {
+              if (!existingTexts.has(q.question_text)) {
+                pool.push(q);
+                existingTexts.add(q.question_text);
+                if (pool.length >= questionsPerSubject) break;
+              }
             }
           }
-          console.log(`${subject}: merged JAMB cache, pool now ${pool.length}`);
+          console.log(`${subject}: after backfill pool=${pool.length}`);
+        }
+      } else {
+        // No year filter: existing behavior - check cache for requested level
+        const { data: cached, error } = await supabase
+          .from("cached_api_questions")
+          .select("*")
+          .eq("exam_level", level)
+          .eq("subject", subject);
+
+        if (error) console.error(`Cache read error for ${subject}:`, error.message);
+        pool = cached || [];
+
+        // If not enough in requested level, also check JAMB cache
+        if (pool.length < questionsPerSubject && level !== "JAMB / UTME") {
+          console.log(`${subject}: ${level} cache has ${pool.length}, checking JAMB cache...`);
+          const { data: jambCached } = await supabase
+            .from("cached_api_questions")
+            .select("*")
+            .eq("exam_level", "JAMB / UTME")
+            .eq("subject", subject);
+          
+          if (jambCached && jambCached.length > 0) {
+            const existingTexts = new Set(pool.map((q: any) => q.question_text));
+            for (const q of jambCached) {
+              if (!existingTexts.has(q.question_text)) {
+                pool.push(q);
+                existingTexts.add(q.question_text);
+              }
+            }
+            console.log(`${subject}: merged JAMB cache, pool now ${pool.length}`);
+          }
         }
       }
 
