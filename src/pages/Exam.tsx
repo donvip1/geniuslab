@@ -91,6 +91,7 @@ const Exam = () => {
   const [selectedUniversity, setSelectedUniversity] = useState<string | null>(null);
   const [selectedSemester, setSelectedSemester] = useState<"first" | "second">("first");
   const [allowSemesterSelection, setAllowSemesterSelection] = useState(true);
+  const [userDisplayName, setUserDisplayName] = useState<string | null>(null);
 
   useEffect(() => {
     checkUser();
@@ -161,6 +162,16 @@ const Exam = () => {
     }
     
     setUser(session.user);
+
+    // Fetch display name from profile
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("username, full_name")
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+    if (profile) {
+      setUserDisplayName(profile.username || profile.full_name || null);
+    }
 
     const { data: roleData } = await supabase
       .from("user_roles")
@@ -368,7 +379,7 @@ const Exam = () => {
                 </h1>
                 <p className="opacity-90 flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  Welcome, {user?.email}
+                  Welcome, {userDisplayName || user?.email}
                 </p>
               </div>
               <div className="flex gap-3">

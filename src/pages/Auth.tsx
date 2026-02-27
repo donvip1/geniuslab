@@ -48,7 +48,7 @@ const Auth = () => {
     confirmPassword: "" 
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [existingSession, setExistingSession] = useState<{ email: string } | null>(null);
+  const [existingSession, setExistingSession] = useState<{ email: string; displayName: string | null } | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
@@ -56,7 +56,15 @@ const Auth = () => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        setExistingSession({ email: session.user.email || "Unknown" });
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("username, full_name")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+        setExistingSession({ 
+          email: session.user.email || "Unknown",
+          displayName: profile?.username || profile?.full_name || null
+        });
       }
       setCheckingSession(false);
     };
@@ -253,9 +261,9 @@ const Auth = () => {
               <img src={gecLogo} alt="GeniusLab" className="h-16 w-auto" />
             </div>
             <CardTitle className="text-2xl">Already Logged In</CardTitle>
-            <CardDescription>
-              You are currently signed in as <span className="font-medium">{existingSession.email}</span>
-            </CardDescription>
+             <CardDescription>
+               You are currently signed in as <span className="font-medium">{existingSession.displayName || existingSession.email}</span>
+             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Button 
