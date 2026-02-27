@@ -26,7 +26,8 @@ import {
   Calculator,
   Trophy,
   Search,
-  GraduationCap
+  GraduationCap,
+  Calendar
 } from "lucide-react";
 import {
   AlertDialog,
@@ -49,6 +50,7 @@ import "katex/dist/katex.min.css";
 import jambLogo from "@/assets/jamb-logo.webp";
 import { SubscriptionGate } from "@/components/SubscriptionGate";
 import ScientificCalculator from "@/components/ScientificCalculator";
+import { YearSelector } from "@/components/YearSelector";
 
 // Clean HTML tags from question text, converting common ones to markdown
 const cleanHtml = (text: string): string => {
@@ -77,11 +79,12 @@ interface JambQuestion {
 
 type ExamMode = "select" | "practice" | "mock";
 
-const PRACTICE_QUESTIONS = 20;
+const PRACTICE_QUESTIONS = 40;
+const PRACTICE_ENGLISH_QUESTIONS = 60;
 const MOCK_ENGLISH_QUESTIONS = 60;
 const MOCK_OTHER_QUESTIONS = 40;
 const MOCK_REQUIRED_SUBJECTS = 4;
-const PRACTICE_DURATION = 30 * 60; // 30 minutes
+const PRACTICE_DURATION = 60 * 60; // 60 minutes
 const MOCK_DURATION = 2 * 60 * 60; // 2 hours (locked)
 
 // Common JAMB UTME subjects
@@ -123,6 +126,7 @@ interface SavedExamState {
   currentQuestionIndex: number;
   activeSubjectTab: string;
   savedAt: number;
+  selectedYear?: string | null;
 }
 
 // === Results Dialog Component ===
@@ -324,6 +328,7 @@ const JambExam = () => {
   // Mode & subject selection
   const [examMode, setExamMode] = useState<ExamMode>("select");
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [subjectsConfirmed, setSubjectsConfirmed] = useState(false);
 
   // Exam state
@@ -353,6 +358,7 @@ const JambExam = () => {
         currentQuestionIndex,
         activeSubjectTab,
         savedAt: Date.now(),
+        selectedYear,
       };
       localStorage.setItem(JAMB_EXAM_STORAGE_KEY, JSON.stringify(state));
     } catch {}
@@ -373,6 +379,7 @@ const JambExam = () => {
       if (state.questions.length > 0) {
         setExamMode(state.examMode);
         setSelectedSubjects(state.selectedSubjects);
+        setSelectedYear(state.selectedYear || null);
         setQuestions(state.questions);
         setAnswers(state.answers);
         setTimeLeft(state.timeLeft);
@@ -457,7 +464,7 @@ const JambExam = () => {
           const count = subId === "english" ? MOCK_ENGLISH_QUESTIONS : MOCK_OTHER_QUESTIONS;
 
           const { data, error } = await supabase.functions.invoke("jamb-questions", {
-            body: { subjects: [subName], questionsPerSubject: count },
+            body: { subjects: [subName], questionsPerSubject: count, year: selectedYear },
           });
 
           if (error) {
@@ -471,10 +478,12 @@ const JambExam = () => {
           }
         }
       } else {
-        // Practice mode: single subject
+        // Practice mode: single subject, 60 for English, 40 for others
+        const subId = subjects[0];
         const subjectNames = subjects.map(id => JAMB_SUBJECTS.find(s => s.id === id)?.name || id);
+        const count = subId === "english" ? PRACTICE_ENGLISH_QUESTIONS : PRACTICE_QUESTIONS;
         const { data, error } = await supabase.functions.invoke("jamb-questions", {
-          body: { subjects: subjectNames, questionsPerSubject: PRACTICE_QUESTIONS },
+          body: { subjects: subjectNames, questionsPerSubject: count, year: selectedYear },
         });
         if (error) throw error;
         const arr = data?.questions || data;
@@ -622,6 +631,7 @@ const JambExam = () => {
     setExamStarted(false);
     setQuestions([]);
     setRestoredSession(false);
+    setSelectedYear(null);
   };
 
   // ===== AUTH LOADING =====
@@ -677,7 +687,7 @@ const JambExam = () => {
                 <ul className="space-y-2 text-sm text-muted-foreground mb-4">
                   <li className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-blue-500" />
-                    30-minute duration
+                    60-minute duration
                   </li>
                   <li className="flex items-center gap-2">
                     <BookOpen className="h-4 w-4 text-blue-500" />
@@ -685,7 +695,7 @@ const JambExam = () => {
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-blue-500" />
-                    {PRACTICE_QUESTIONS} questions
+                    40 questions (English: 60)
                   </li>
                 </ul>
                 <div className="flex items-center text-primary font-medium text-sm group-hover:gap-2 transition-all">
@@ -805,6 +815,11 @@ const JambExam = () => {
             </p>
           </div>
 
+          {/* Year Selector */}
+          <div className="flex justify-center mb-4">
+            <YearSelector value={selectedYear} onChange={setSelectedYear} />
+          </div>
+
           {/* Selected subjects count */}
           <div className="flex items-center justify-between mb-4 bg-card rounded-lg p-3 shadow-sm border">
             <div className="flex items-center gap-2">
@@ -903,11 +918,16 @@ const JambExam = () => {
               <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="text-sm text-muted-foreground text-center md:text-left">
                   <p className="flex items-center gap-1 justify-center md:justify-start">
-                    <Clock className="h-4 w-4" /> Duration: <strong>{isMock ? "120 Minutes (Locked)" : "30 Minutes"}</strong>
+                    <Clock className="h-4 w-4" /> Duration: <strong>{isMock ? "120 Minutes (Locked)" : "60 Minutes"}</strong>
                   </p>
                   <p className="flex items-center gap-1 justify-center md:justify-start mt-1">
-                    <BookOpen className="h-4 w-4" /> Questions: <strong>{isPractice ? PRACTICE_QUESTIONS : `${MOCK_ENGLISH_QUESTIONS + MOCK_OTHER_QUESTIONS * 3} (English: ${MOCK_ENGLISH_QUESTIONS}, Others: ${MOCK_OTHER_QUESTIONS} each)`}</strong>
+                    <BookOpen className="h-4 w-4" /> Questions: <strong>{isPractice ? `${PRACTICE_QUESTIONS} (English: ${PRACTICE_ENGLISH_QUESTIONS})` : `${MOCK_ENGLISH_QUESTIONS + MOCK_OTHER_QUESTIONS * 3} (English: ${MOCK_ENGLISH_QUESTIONS}, Others: ${MOCK_OTHER_QUESTIONS} each)`}</strong>
                   </p>
+                  {selectedYear && (
+                    <p className="flex items-center gap-1 justify-center md:justify-start mt-1 text-primary">
+                      <Calendar className="h-4 w-4" /> Year: <strong>{selectedYear}</strong>
+                    </p>
+                  )}
                   {isMock && (
                     <p className="flex items-center gap-1 justify-center md:justify-start mt-1 text-amber-600 dark:text-amber-400">
                       <Shield className="h-4 w-4" /> Neural Proctoring: <strong>Enabled</strong>

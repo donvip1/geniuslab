@@ -23,6 +23,7 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { SubscriptionGate } from "@/components/SubscriptionGate";
+import { YearSelector } from "@/components/YearSelector";
 
 interface ApiQuestion {
   text: string;
@@ -108,6 +109,7 @@ const ApiExam = () => {
   const [examCategoryId, setExamCategoryId] = useState<string | null>(null);
   const [selectedTrack, setSelectedTrack] = useState<CourseTrack | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [subjectsConfirmed, setSubjectsConfirmed] = useState(false);
   const [questions, setQuestions] = useState<ApiQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -142,7 +144,7 @@ const ApiExam = () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("jamb-questions", {
-        body: { subjects: [subjectName], questionsPerSubject: QUESTIONS_PER_SUBJECT, level: apiLevel },
+        body: { subjects: [subjectName], questionsPerSubject: QUESTIONS_PER_SUBJECT, level: apiLevel, year: selectedYear },
       });
 
       if (error) throw error;
@@ -220,6 +222,7 @@ const ApiExam = () => {
     setQuestions([]);
     setSelectedSubject(null);
     setSelectedTrack(null);
+    setSelectedYear(null);
   };
 
   // ===== AUTH LOADING =====
@@ -324,13 +327,14 @@ const ApiExam = () => {
             </Card>
           )}
 
-          {/* Selected Subject Badge */}
+          {/* Selected Subject Badge + Year Selector */}
           {selectedSubject && selectedTrack && (
-            <div className="flex flex-wrap gap-2 mb-4">
+            <div className="flex flex-wrap items-center gap-3 mb-4">
               <span className="inline-flex items-center gap-1 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-medium">
                 <CheckCircle className="h-3 w-3" />
                 {TRACK_SUBJECTS[selectedTrack].find(s => s.id === selectedSubject)?.name}
               </span>
+              <YearSelector value={selectedYear} onChange={setSelectedYear} />
             </div>
           )}
 
