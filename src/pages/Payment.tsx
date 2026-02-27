@@ -7,7 +7,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Key, CreditCard, Loader2, MessageCircle, Copy, ArrowLeft, ShieldCheck, Clock, Zap, ChevronRight, BookOpen, GraduationCap, Award, FileText, Wrench } from "lucide-react";
+import {
+  Key,
+  CreditCard,
+  Loader2,
+  MessageCircle,
+  Copy,
+  ArrowLeft,
+  ShieldCheck,
+  Clock,
+  Zap,
+  ChevronRight,
+  BookOpen,
+  GraduationCap,
+  Award,
+  FileText,
+  Wrench,
+} from "lucide-react";
 
 interface PaymentInfo {
   contact: string;
@@ -65,17 +81,15 @@ const Payment = () => {
   }, []);
 
   const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     setUser(session?.user || null);
     setLoading(false);
   };
 
   const fetchCategories = async () => {
-    const { data } = await supabase
-      .from("exam_categories")
-      .select("*")
-      .eq("is_active", true)
-      .order("display_order");
+    const { data } = await supabase.from("exam_categories").select("*").eq("is_active", true).order("display_order");
     if (data) {
       setCategories(data as ExamCategory[]);
       // If category param exists, auto-select it
@@ -89,7 +103,9 @@ const Payment = () => {
   const fetchPaymentInfo = async () => {
     const { data } = await supabase
       .from("exam_settings")
-      .select("payment_contact, payment_account_number, payment_bank_name, payment_account_holder, payment_amount, manual_payment_enabled")
+      .select(
+        "payment_contact, payment_account_number, payment_bank_name, payment_account_holder, payment_amount, manual_payment_enabled",
+      )
       .limit(1)
       .maybeSingle();
     if (data) {
@@ -119,10 +135,19 @@ const Payment = () => {
         return;
       }
       if (pinData.is_used && pinData.used_by !== user.id) {
-        toast({ title: "PIN Already Used", description: "This PIN has been activated by another user.", variant: "destructive" });
+        toast({
+          title: "PIN Already Used",
+          description: "This PIN has been activated by another user.",
+          variant: "destructive",
+        });
         return;
       }
-      if (pinData.is_used && pinData.used_by === user.id && pinData.expires_at && new Date(pinData.expires_at) > new Date()) {
+      if (
+        pinData.is_used &&
+        pinData.used_by === user.id &&
+        pinData.expires_at &&
+        new Date(pinData.expires_at) > new Date()
+      ) {
         toast({ title: "Welcome Back!", description: "Your PIN is still active." });
         navigate("/exam");
         return;
@@ -181,7 +206,11 @@ const Payment = () => {
         window.location.href = data.authorization_url;
       }
     } catch (error: any) {
-      toast({ title: "Payment Error", description: error.message || "Failed to initialize payment.", variant: "destructive" });
+      toast({
+        title: "Payment Error",
+        description: error.message || "Failed to initialize payment.",
+        variant: "destructive",
+      });
     } finally {
       setPaymentLoading(false);
     }
@@ -195,7 +224,7 @@ const Payment = () => {
   const handleWhatsApp = () => {
     const catName = selectedCategory?.name || "Exam";
     const message = encodeURIComponent(
-      `Hi, I want to purchase a ${catName} exam access PIN for GENIUSLAB.\n\nAmount: ₦${paymentInfo.amount.toLocaleString()}\nBank: ${paymentInfo.bankName}\nAccount: ${paymentInfo.accountNumber}\nName: ${paymentInfo.accountHolder}`
+      `Hi, I just made payment via GENIUSLAB, ${catName} kindly confirm and give me access PIN.\n\nAmount: ₦${paymentInfo.amount.toLocaleString()}\nBank: ${paymentInfo.bankName}\nAccount: ${paymentInfo.accountNumber}\nName: ${paymentInfo.accountHolder}`,
     );
     window.open(`https://wa.me/234${paymentInfo.contact.slice(1)}?text=${message}`, "_blank");
   };
@@ -273,7 +302,10 @@ const Payment = () => {
                       </CardHeader>
                       <CardContent>
                         <div className="flex items-center justify-between">
-                          <span className="text-lg font-bold text-primary">₦{cat.monthly_price.toLocaleString()}<span className="text-sm font-normal text-muted-foreground">/month</span></span>
+                          <span className="text-lg font-bold text-primary">
+                            ₦{cat.monthly_price.toLocaleString()}
+                            <span className="text-sm font-normal text-muted-foreground">/month</span>
+                          </span>
                           <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                         </div>
                       </CardContent>
@@ -306,19 +338,34 @@ const Payment = () => {
                     <CardContent className="space-y-4">
                       {!user && (
                         <p className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/20 rounded-lg p-3">
-                          You need to <a href="/auth" className="underline font-medium">login</a> first to activate a PIN.
+                          You need to{" "}
+                          <a href="/auth" className="underline font-medium">
+                            login
+                          </a>{" "}
+                          first to activate a PIN.
                         </p>
                       )}
                       <Input
                         value={pin}
-                        onChange={(e) => setPin(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8))}
+                        onChange={(e) =>
+                          setPin(
+                            e.target.value
+                              .toUpperCase()
+                              .replace(/[^A-Z0-9]/g, "")
+                              .slice(0, 8),
+                          )
+                        }
                         placeholder="XXXXXXXX"
                         className="text-center text-xl font-mono tracking-widest h-12"
                         maxLength={8}
                         disabled={!user}
                       />
                       <p className="text-xs text-center text-muted-foreground">{pin.length}/8 characters</p>
-                      <Button onClick={handlePinSubmit} disabled={pin.length !== 8 || pinLoading || !user} className="w-full">
+                      <Button
+                        onClick={handlePinSubmit}
+                        disabled={pin.length !== 8 || pinLoading || !user}
+                        className="w-full"
+                      >
                         {pinLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Activate PIN
                       </Button>
@@ -336,25 +383,39 @@ const Payment = () => {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <Button onClick={handlePaystack} disabled={paymentLoading} className="w-full">
-                        {paymentLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
+                        {paymentLoading ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <CreditCard className="mr-2 h-4 w-4" />
+                        )}
                         Pay with Paystack
                       </Button>
 
                       {paymentInfo.manualPaymentEnabled && paymentInfo.accountNumber && (
                         <>
                           <div className="relative">
-                            <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-                            <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">or pay manually</span></div>
+                            <div className="absolute inset-0 flex items-center">
+                              <span className="w-full border-t" />
+                            </div>
+                            <div className="relative flex justify-center text-xs uppercase">
+                              <span className="bg-background px-2 text-muted-foreground">or pay manually</span>
+                            </div>
                           </div>
 
                           <div className="bg-muted/50 rounded-lg p-3 space-y-2 border text-sm">
                             <p className="font-medium">Bank Transfer:</p>
                             <div className="flex justify-between items-center">
-                              <span>Bank: <strong>{paymentInfo.bankName}</strong></span>
+                              <span>
+                                Bank: <strong>{paymentInfo.bankName}</strong>
+                              </span>
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="font-mono font-bold">{paymentInfo.accountNumber}</span>
-                              <Button variant="ghost" size="sm" onClick={() => copyToClipboard(paymentInfo.accountNumber, "Account number")}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => copyToClipboard(paymentInfo.accountNumber, "Account number")}
+                              >
                                 <Copy className="h-3 w-3" />
                               </Button>
                             </div>
