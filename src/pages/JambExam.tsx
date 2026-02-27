@@ -23,7 +23,10 @@ import {
   ArrowLeft,
   Shield,
   Zap,
-  Calculator
+  Calculator,
+  Trophy,
+  Search,
+  GraduationCap
 } from "lucide-react";
 import {
   AlertDialog,
@@ -37,6 +40,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
@@ -103,6 +108,186 @@ interface SavedExamState {
   activeSubjectTab: string;
   savedAt: number;
 }
+
+// === Results Dialog Component ===
+const JambResultsDialog = ({ userId, examCategoryId }: { userId?: string; examCategoryId: string | null }) => {
+  const [results, setResults] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open || !userId) return;
+    const fetchResults = async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from("exam_attempts")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      setResults(data || []);
+      setLoading(false);
+    };
+    fetchResults();
+  }, [open, userId]);
+
+  const formatDate = (d: string) => new Date(d).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" });
+  const formatDuration = (s: number | null) => {
+    if (!s) return "—";
+    const m = Math.floor(s / 60);
+    return `${m}m ${s % 60}s`;
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Card className="cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all border-2 border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/30">
+          <CardContent className="p-4 text-center">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center mx-auto mb-2 shadow">
+              <Trophy className="h-5 w-5 text-white" />
+            </div>
+            <p className="text-sm font-semibold">My Results</p>
+            <p className="text-xs text-muted-foreground mt-1">View past scores</p>
+          </CardContent>
+        </Card>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg max-h-[80vh]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-primary" /> My JAMB Results</DialogTitle>
+        </DialogHeader>
+        <ScrollArea className="h-[60vh]">
+          {loading ? (
+            <div className="flex justify-center py-10"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
+          ) : results.length === 0 ? (
+            <p className="text-center text-muted-foreground py-10">No results yet. Take an exam first!</p>
+          ) : (
+            <div className="space-y-3 pr-4">
+              {results.map((r) => {
+                const pct = Math.round((r.score / r.total_questions) * 100);
+                const answersData = r.answers as any;
+                const subjects = answersData?.subjects || "JAMB";
+                return (
+                  <Card key={r.id} className="border-l-4" style={{ borderLeftColor: pct >= 50 ? "hsl(var(--primary))" : "hsl(var(--destructive))" }}>
+                    <CardContent className="p-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-semibold text-sm">{subjects}</p>
+                          <p className="text-xs text-muted-foreground">{formatDate(r.created_at)} · {answersData?.mode || "exam"}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-lg">{r.score}/{r.total_questions}</p>
+                          <p className="text-xs text-muted-foreground">{pct}% · {formatDuration(r.time_taken_seconds)}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// === Search Dialog Component ===
+const JambSearchDialog = () => {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
+
+  const handleSearch = async () => {
+    if (!query.trim()) return;
+    setLoading(true);
+    setSearched(true);
+    const { data } = await supabase
+      .from("cached_api_questions")
+      .select("*")
+      .ilike("question_text", `%${query.trim()}%`)
+      .limit(30);
+    setResults(data || []);
+    setLoading(false);
+  };
+
+  const getOptionLabel = (i: number) => String.fromCharCode(65 + i);
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setQuery(""); setResults([]); setSearched(false); } }}>
+      <DialogTrigger asChild>
+        <Card className="cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all border-2 border-cyan-200 dark:border-cyan-800 bg-cyan-50/50 dark:bg-cyan-950/30">
+          <CardContent className="p-4 text-center">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center mx-auto mb-2 shadow">
+              <Search className="h-5 w-5 text-white" />
+            </div>
+            <p className="text-sm font-semibold">Search</p>
+            <p className="text-xs text-muted-foreground mt-1">Find questions</p>
+          </CardContent>
+        </Card>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[85vh]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Search className="h-5 w-5 text-primary" /> Search JAMB Questions</DialogTitle>
+        </DialogHeader>
+        <div className="flex gap-2">
+          <Input
+            placeholder="Search by keyword..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+          />
+          <Button onClick={handleSearch} disabled={loading}>
+            {loading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground" /> : "Search"}
+          </Button>
+        </div>
+        <ScrollArea className="h-[55vh]">
+          {loading ? (
+            <div className="flex justify-center py-10"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
+          ) : !searched ? (
+            <p className="text-center text-muted-foreground py-10">Enter a keyword and press Search</p>
+          ) : results.length === 0 ? (
+            <p className="text-center text-muted-foreground py-10">No questions found for "{query}"</p>
+          ) : (
+            <div className="space-y-4 pr-4">
+              {results.map((q, idx) => (
+                <Card key={q.id} className="border-l-4 border-l-primary">
+                  <CardContent className="p-3 space-y-2">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="font-medium">{q.subject}</span>
+                      {q.year && <span>· {q.year}</span>}
+                    </div>
+                    <div className="text-sm font-medium">
+                      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                        {q.question_text}
+                      </ReactMarkdown>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1 text-xs">
+                      {[q.option_a, q.option_b, q.option_c, q.option_d].map((opt, i) => (
+                        <div key={i} className={`p-1.5 rounded ${i === q.correct_answer_index ? "bg-primary/10 font-semibold text-primary" : "bg-muted/50"}`}>
+                          {getOptionLabel(i)}. {opt}
+                        </div>
+                      ))}
+                    </div>
+                    {q.explanation && (
+                      <div className="bg-muted/50 rounded p-2 text-xs">
+                        <span className="font-semibold text-primary">Explanation: </span>
+                        <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                          {q.explanation}
+                        </ReactMarkdown>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 const clearSavedExamState = () => {
   try { localStorage.removeItem(JAMB_EXAM_STORAGE_KEY); } catch {}
@@ -370,7 +555,7 @@ const JambExam = () => {
     }));
   };
 
-  const handleFinalize = useCallback(() => {
+  const handleFinalize = useCallback(async () => {
     clearSavedExamState();
     let correctCount = 0;
     questions.forEach((q, index) => {
@@ -380,7 +565,25 @@ const JambExam = () => {
     });
     setScore(correctCount);
     setExamFinished(true);
-  }, [questions, answers]);
+
+    // Persist results to exam_attempts
+    if (user) {
+      try {
+        const subjectLabel = selectedSubjects.map(id => JAMB_SUBJECTS.find(s => s.id === id)?.name || id).join(", ");
+        const timeTaken = examDuration - timeLeft;
+        await supabase.from("exam_attempts").insert({
+          user_id: user.id,
+          subject_id: examCategoryId || "00000000-0000-0000-0000-000000000000",
+          score: correctCount,
+          total_questions: questions.length,
+          time_taken_seconds: timeTaken,
+          answers: { mode: examMode, subjects: subjectLabel, detail: answers },
+        });
+      } catch (e) {
+        console.error("Failed to save exam result:", e);
+      }
+    }
+  }, [questions, answers, user, selectedSubjects, examMode, examDuration, timeLeft, examCategoryId]);
 
   const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
@@ -438,6 +641,7 @@ const JambExam = () => {
           </div>
 
           <div className="grid md:grid-cols-2 gap-6 mb-6">
+            {/* Practice and Mock cards stay in top row */}
             {/* Standard Mode */}
             <Card 
               className="relative overflow-hidden cursor-pointer group hover:shadow-xl hover:-translate-y-2 transition-all border-2 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30"
@@ -511,6 +715,29 @@ const JambExam = () => {
                 </div>
               </CardContent>
             </Card>
+          </div>
+
+          {/* Study Material, Results, Search row */}
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            {/* Study Material */}
+            <Card
+              className="cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all border-2 border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/30"
+              onClick={() => navigate("/jamb-study")}
+            >
+              <CardContent className="p-4 text-center">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mx-auto mb-2 shadow">
+                  <GraduationCap className="h-5 w-5 text-white" />
+                </div>
+                <p className="text-sm font-semibold">Study Material</p>
+                <p className="text-xs text-muted-foreground mt-1">Learn from explanations</p>
+              </CardContent>
+            </Card>
+
+            {/* My Results */}
+            <JambResultsDialog userId={user?.id} examCategoryId={examCategoryId} />
+
+            {/* Search Questions */}
+            <JambSearchDialog />
           </div>
 
           <Button variant="outline" onClick={() => navigate("/exam")} className="w-full md:w-auto">
