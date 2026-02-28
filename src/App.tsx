@@ -18,6 +18,8 @@ import JambStudyMaterial from "./pages/JambStudyMaterial";
 import ApiExam from "./pages/ApiExam";
 import Admin from "./pages/Admin";
 import Payment from "./pages/Payment";
+import Profile from "./pages/Profile";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +45,8 @@ const App = () => (
           <Route path="/api-exam" element={<ApiExam />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/payment" element={<Payment />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
