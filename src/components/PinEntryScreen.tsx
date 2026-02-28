@@ -136,7 +136,7 @@ export const PinEntryScreen = ({ onSuccess, userEmail }: PinEntryScreenProps) =>
       }
 
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 35); // 1 month + 5 days
+      expiresAt.setDate(expiresAt.getDate() + 30); // 1 month
 
       const { error: updateError } = await supabase
         .from("access_pins")
@@ -155,7 +155,7 @@ export const PinEntryScreen = ({ onSuccess, userEmail }: PinEntryScreenProps) =>
       setSuccess(true);
       toast({
         title: "PIN Activated!",
-        description: "You now have exam access for 1 month + 5 days.",
+        description: "You now have exam access for 1 month.",
       });
 
       setTimeout(() => {
@@ -200,7 +200,7 @@ export const PinEntryScreen = ({ onSuccess, userEmail }: PinEntryScreenProps) =>
               </div>
               <h2 className="text-2xl font-bold text-green-600 mb-2">PIN Activated!</h2>
                 <p className="text-muted-foreground mb-4">
-                Your exam access is now active for 1 month + 5 days.
+                Your exam access is now active for 1 month.
               </p>
               <p className="text-sm text-muted-foreground">
                 Redirecting to exams...
@@ -251,7 +251,7 @@ export const PinEntryScreen = ({ onSuccess, userEmail }: PinEntryScreenProps) =>
                   <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2">
                     <p className="font-medium">About Access PINs:</p>
                     <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                      <li>Valid for 1 month + 5 days after first use</li>
+                      <li>Valid for 1 month after first use</li>
                       <li>Can only be used by one person</li>
                       <li>Take unlimited exams during the validity period</li>
                     </ul>

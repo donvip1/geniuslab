@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import {
+  Dialog,
+  DialogContent,
+} from "@/components/ui/dialog";
+import {
   Key,
   CreditCard,
   Loader2,
@@ -23,6 +27,7 @@ import {
   Award,
   FileText,
   Wrench,
+  CheckCircle,
 } from "lucide-react";
 
 interface PaymentInfo {
@@ -65,6 +70,9 @@ const Payment = () => {
   const [pin, setPin] = useState("");
   const [pinLoading, setPinLoading] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [successCategoryName, setSuccessCategoryName] = useState("");
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({
     contact: "08124269495",
     accountNumber: "",
@@ -80,10 +88,16 @@ const Payment = () => {
     fetchCategories();
   }, []);
 
+  // Detect Paystack callback
+  useEffect(() => {
+    const reference = searchParams.get("reference") || searchParams.get("trxref");
+    if (reference && user) {
+      verifyPaystackCallback(reference);
+    }
+  }, [searchParams, user]);
+
   const checkAuth = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const { data: { session } } = await supabase.auth.getSession();
     setUser(session?.user || null);
     setLoading(false);
   };
@@ -92,7 +106,6 @@ const Payment = () => {
     const { data } = await supabase.from("exam_categories").select("*").eq("is_active", true).order("display_order");
     if (data) {
       setCategories(data as ExamCategory[]);
-      // If category param exists, auto-select it
       if (categoryIdParam) {
         const found = data.find((c: any) => c.id === categoryIdParam);
         if (found) setSelectedCategory(found as ExamCategory);
@@ -103,9 +116,7 @@ const Payment = () => {
   const fetchPaymentInfo = async () => {
     const { data } = await supabase
       .from("exam_settings")
-      .select(
-        "payment_contact, payment_account_number, payment_bank_name, payment_account_holder, payment_amount, manual_payment_enabled",
-      )
+      .select("payment_contact, payment_account_number, payment_bank_name, payment_account_holder, payment_amount, manual_payment_enabled")
       .limit(1)
       .maybeSingle();
     if (data) {
@@ -117,6 +128,54 @@ const Payment = () => {
         amount: data.payment_amount || 1000,
         manualPaymentEnabled: (data as any).manual_payment_enabled ?? false,
       });
+    }
+  };
+
+  const verifyPaystackCallback = async (reference: string) => {
+    setVerifyingPayment(true);
+    try {
+      // Poll for payment verification (webhook may not have processed yet)
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const { data: txn } = await supabase
+          .from("payment_transactions")
+          .select("status, exam_category_id")
+          .eq("reference", reference)
+          .maybeSingle();
+
+        if (txn?.status === "success") {
+          // Get category name for the popup
+          if (txn.exam_category_id) {
+            const { data: cat } = await supabase
+              .from("exam_categories")
+              .select("name")
+              .eq("id", txn.exam_category_id)
+              .single();
+            setSuccessCategoryName(cat?.name || "your selected exam");
+          }
+          setShowSuccessPopup(true);
+          setVerifyingPayment(false);
+          return;
+        }
+
+        // Wait 2 seconds before retrying
+        if (attempt < 4) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+      }
+
+      // If we get here, payment wasn't confirmed yet
+      toast({
+        title: "Payment Processing",
+        description: "Your payment is being processed. Access will be granted shortly.",
+      });
+    } catch (error) {
+      console.error("Payment verification error:", error);
+      toast({
+        title: "Verification Issue",
+        description: "We couldn't verify your payment right now. If you paid, access will be granted automatically.",
+      });
+    } finally {
+      setVerifyingPayment(false);
     }
   };
 
@@ -135,26 +194,17 @@ const Payment = () => {
         return;
       }
       if (pinData.is_used && pinData.used_by !== user.id) {
-        toast({
-          title: "PIN Already Used",
-          description: "This PIN has been activated by another user.",
-          variant: "destructive",
-        });
+        toast({ title: "PIN Already Used", description: "This PIN has been activated by another user.", variant: "destructive" });
         return;
       }
-      if (
-        pinData.is_used &&
-        pinData.used_by === user.id &&
-        pinData.expires_at &&
-        new Date(pinData.expires_at) > new Date()
-      ) {
+      if (pinData.is_used && pinData.used_by === user.id && pinData.expires_at && new Date(pinData.expires_at) > new Date()) {
         toast({ title: "Welcome Back!", description: "Your PIN is still active." });
         navigate("/exam");
         return;
       }
 
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 35);
+      expiresAt.setDate(expiresAt.getDate() + 30);
 
       await supabase
         .from("access_pins")
@@ -177,7 +227,7 @@ const Payment = () => {
         expires_at: expiresAt.toISOString(),
       });
 
-      toast({ title: "PIN Activated!", description: "You now have exam access for 1 month + 5 days." });
+      toast({ title: "PIN Activated!", description: "You now have exam access for 1 month." });
       navigate("/exam");
     } catch (error: any) {
       toast({ title: "Error", description: "Failed to activate PIN.", variant: "destructive" });
@@ -198,7 +248,7 @@ const Payment = () => {
       const { data, error } = await supabase.functions.invoke("paystack-initialize", {
         body: {
           exam_category_id: selectedCategory.id,
-          callback_url: window.location.origin + "/exam",
+          callback_url: `${window.location.origin}/payment?category=${selectedCategory.id}&name=${encodeURIComponent(selectedCategory.name)}`,
         },
       });
       if (error) throw error;
@@ -206,11 +256,7 @@ const Payment = () => {
         window.location.href = data.authorization_url;
       }
     } catch (error: any) {
-      toast({
-        title: "Payment Error",
-        description: error.message || "Failed to initialize payment.",
-        variant: "destructive",
-      });
+      toast({ title: "Payment Error", description: error.message || "Failed to initialize payment.", variant: "destructive" });
     } finally {
       setPaymentLoading(false);
     }
@@ -229,10 +275,11 @@ const Payment = () => {
     window.open(`https://wa.me/234${paymentInfo.contact.slice(1)}?text=${message}`, "_blank");
   };
 
-  if (loading) {
+  if (loading || verifyingPayment) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        {verifyingPayment && <p className="text-muted-foreground">Verifying your payment...</p>}
       </div>
     );
   }
@@ -241,6 +288,25 @@ const Payment = () => {
     <div className="min-h-screen flex flex-col pb-16 md:pb-0">
       <Navbar />
       <main className="flex-1 pt-16">
+        {/* Payment Success Popup */}
+        <Dialog open={showSuccessPopup} onOpenChange={setShowSuccessPopup}>
+          <DialogContent className="sm:max-w-md text-center">
+            <div className="flex flex-col items-center py-6 space-y-4">
+              <div className="w-20 h-20 bg-green-100 dark:bg-green-950/30 rounded-full flex items-center justify-center">
+                <CheckCircle className="h-10 w-10 text-green-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-green-600">Payment Successful!</h2>
+              <p className="text-muted-foreground">
+                You now have unlimited access to <strong>{successCategoryName || categoryNameParam || "your exam category"}</strong> for 1 month.
+              </p>
+              <Button onClick={() => navigate("/exam")} className="w-full" size="lg">
+                <Zap className="mr-2 h-4 w-4" />
+                Start Practicing
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Hero */}
         <section className="py-12 bg-gradient-to-br from-primary to-secondary text-primary-foreground">
           <div className="container mx-auto px-4 text-center max-w-3xl">
@@ -262,7 +328,7 @@ const Payment = () => {
             <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
                 { icon: Zap, title: "Unlimited Questions", desc: "Access all practice questions" },
-                { icon: Clock, title: "35 Days Access", desc: "1 month + 5 days grace period" },
+                { icon: Clock, title: "30 Days Access", desc: "1 month of full access" },
                 { icon: ShieldCheck, title: "Instant Activation", desc: "Start practicing immediately" },
               ].map((b, i) => (
                 <div key={i} className="flex items-center gap-3 bg-background rounded-lg p-4 border">
@@ -326,7 +392,7 @@ const Payment = () => {
                 </Button>
 
                 <div className="grid md:grid-cols-2 gap-6">
-                  {/* PIN Entry */}
+                  {/* PIN Entry + Manual Payment */}
                   <Card>
                     <CardHeader>
                       <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-2">
@@ -339,50 +405,79 @@ const Payment = () => {
                       {!user && (
                         <p className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/20 rounded-lg p-3">
                           You need to{" "}
-                          <a href="/auth" className="underline font-medium">
-                            login
-                          </a>{" "}
+                          <a href="/auth" className="underline font-medium">login</a>{" "}
                           first to activate a PIN.
                         </p>
                       )}
                       <Input
                         value={pin}
-                        onChange={(e) =>
-                          setPin(
-                            e.target.value
-                              .toUpperCase()
-                              .replace(/[^A-Z0-9]/g, "")
-                              .slice(0, 8),
-                          )
-                        }
+                        onChange={(e) => setPin(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8))}
                         placeholder="XXXXXXXX"
                         className="text-center text-xl font-mono tracking-widest h-12"
                         maxLength={8}
                         disabled={!user}
                       />
                       <p className="text-xs text-center text-muted-foreground">{pin.length}/8 characters</p>
-                      <Button
-                        onClick={handlePinSubmit}
-                        disabled={pin.length !== 8 || pinLoading || !user}
-                        className="w-full"
-                      >
+                      <Button onClick={handlePinSubmit} disabled={pin.length !== 8 || pinLoading || !user} className="w-full">
                         {pinLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Activate PIN
+                      </Button>
+
+                      {/* Manual Payment Section - under PIN */}
+                      <div className="relative pt-2">
+                        <div className="absolute inset-0 flex items-center">
+                          <span className="w-full border-t" />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                          <span className="bg-background px-2 text-muted-foreground">or pay manually for PIN</span>
+                        </div>
+                      </div>
+
+                      <div className="bg-muted/50 rounded-lg p-3 space-y-2 border text-sm">
+                        <p className="font-medium">Bank Transfer:</p>
+                        <div className="flex justify-between items-center">
+                          <span>Bank: <strong>Opay</strong></span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="font-mono font-bold">8124269495</span>
+                          <Button variant="ghost" size="sm" onClick={() => copyToClipboard("8124269495", "Account number")}>
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <span className="text-xs text-muted-foreground">Nsisong Etim</span>
+                      </div>
+
+                      <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-800 dark:text-amber-200">
+                        <strong>Instructions:</strong> Pay to the account above, then send proof of payment via WhatsApp to receive your PIN.
+                      </div>
+
+                      <Button onClick={handleWhatsApp} variant="outline" className="w-full">
+                        <MessageCircle className="mr-2 h-4 w-4" />
+                        Contact on WhatsApp
                       </Button>
                     </CardContent>
                   </Card>
 
-                  {/* Payment */}
+                  {/* Paystack Payment */}
                   <Card className="border-primary/20">
                     <CardHeader>
                       <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-2">
                         <CreditCard className="h-6 w-6 text-primary" />
                       </div>
                       <CardTitle>Pay ₦{selectedCategory.monthly_price.toLocaleString()}</CardTitle>
-                      <CardDescription>1 month + 5 days access to {selectedCategory.name}</CardDescription>
+                      <CardDescription>1 month access to {selectedCategory.name} — instant activation</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <Button onClick={handlePaystack} disabled={paymentLoading} className="w-full">
+                      <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2 border">
+                        <p className="font-medium">What you get:</p>
+                        <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                          <li>Unlimited practice questions</li>
+                          <li>Download study materials</li>
+                          <li>30 days of full access</li>
+                          <li>Instant activation after payment</li>
+                        </ul>
+                      </div>
+                      <Button onClick={handlePaystack} disabled={paymentLoading} className="w-full" size="lg">
                         {paymentLoading ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
@@ -390,44 +485,9 @@ const Payment = () => {
                         )}
                         Pay with Paystack
                       </Button>
-
-                      {paymentInfo.manualPaymentEnabled && paymentInfo.accountNumber && (
-                        <>
-                          <div className="relative">
-                            <div className="absolute inset-0 flex items-center">
-                              <span className="w-full border-t" />
-                            </div>
-                            <div className="relative flex justify-center text-xs uppercase">
-                              <span className="bg-background px-2 text-muted-foreground">or pay manually</span>
-                            </div>
-                          </div>
-
-                          <div className="bg-muted/50 rounded-lg p-3 space-y-2 border text-sm">
-                            <p className="font-medium">Bank Transfer:</p>
-                            <div className="flex justify-between items-center">
-                              <span>
-                                Bank: <strong>{paymentInfo.bankName}</strong>
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="font-mono font-bold">{paymentInfo.accountNumber}</span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => copyToClipboard(paymentInfo.accountNumber, "Account number")}
-                              >
-                                <Copy className="h-3 w-3" />
-                              </Button>
-                            </div>
-                            <span className="text-xs text-muted-foreground">{paymentInfo.accountHolder}</span>
-                          </div>
-                        </>
-                      )}
-
-                      <Button onClick={handleWhatsApp} variant="outline" className="w-full">
-                        <MessageCircle className="mr-2 h-4 w-4" />
-                        Contact via WhatsApp
-                      </Button>
+                      <p className="text-xs text-center text-muted-foreground">
+                        Secure payment powered by Paystack
+                      </p>
                     </CardContent>
                   </Card>
                 </div>
