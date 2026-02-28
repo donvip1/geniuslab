@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { 
-  BookOpen, Clock, User, LogOut, ChevronRight, ArrowLeft, 
-  GraduationCap, Award, FileText, Wrench
+  BookOpen, Clock, User, ChevronRight, ArrowLeft, 
+  GraduationCap, Award, FileText, Wrench, Trophy
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ExamLockedScreen } from "@/components/ExamLockedScreen";
@@ -92,8 +92,24 @@ const Exam = () => {
   const [selectedSemester, setSelectedSemester] = useState<"first" | "second">("first");
   const [allowSemesterSelection, setAllowSemesterSelection] = useState(true);
   const [userDisplayName, setUserDisplayName] = useState<string | null>(null);
+  const [bestScorePct, setBestScorePct] = useState<number | null>(null);
+  const [motivationalQuote, setMotivationalQuote] = useState("");
+
+  const motivationalQuotes = [
+    "Success is not final, failure is not fatal — it is the courage to continue that counts.",
+    "The expert in anything was once a beginner.",
+    "Education is the passport to the future.",
+    "Believe you can and you're halfway there.",
+    "Every accomplishment starts with the decision to try.",
+    "Your potential is unlimited. Go do what you were created to do.",
+    "The only way to do great work is to love what you do.",
+    "Don't watch the clock; do what it does — keep going.",
+    "Dream big, work hard, stay focused.",
+    "Knowledge is power. Practice is perfection.",
+  ];
 
   useEffect(() => {
+    setMotivationalQuote(motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)]);
     checkUser();
     fetchExamCategories();
     checkExamLock();
@@ -182,6 +198,20 @@ const Exam = () => {
 
     setIsAdmin(!!roleData);
     await checkUserRestriction(session.user.id);
+
+    // Fetch best score
+    const { data: bestAttempt } = await supabase
+      .from("exam_attempts")
+      .select("score, total_questions")
+      .eq("user_id", session.user.id)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (bestAttempt && bestAttempt.length > 0) {
+      const best = Math.round(Math.max(...bestAttempt.map((a: any) => (a.score / a.total_questions) * 100)));
+      setBestScorePct(best);
+    }
+
     setLoading(false);
   };
 
@@ -208,10 +238,6 @@ const Exam = () => {
     }
   }, [selectedLevel, selectedCategorySlug]);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/");
-  };
 
   const createSlug = (name: string) => name.replace(/\s+/g, '-').toLowerCase();
 
@@ -381,6 +407,17 @@ const Exam = () => {
                   <User className="h-4 w-4" />
                   Welcome, {userDisplayName || user?.email}
                 </p>
+                {/* Motivational content or best score */}
+                <p className="mt-2 text-sm opacity-80 italic flex items-center gap-2">
+                  {bestScorePct !== null ? (
+                    <>
+                      <Trophy className="h-4 w-4" />
+                      Your best score: {bestScorePct}% — Can you beat it? 🏆
+                    </>
+                  ) : (
+                    <>💡 {motivationalQuote}</>
+                  )}
+                </p>
               </div>
               <div className="flex gap-3">
                 {selectedCategorySlug && (
@@ -389,10 +426,6 @@ const Exam = () => {
                     Back to Categories
                   </Button>
                 )}
-                <Button variant="secondary" onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-                </Button>
               </div>
             </div>
           </div>
