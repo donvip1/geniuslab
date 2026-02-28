@@ -141,14 +141,15 @@ serve(async (req) => {
 
     // Validate and clean questions before insert
     const validQuestions = allQuestions.filter((q, index) => {
-      const text = (q.question || '').trim();
-      if (text.length < 15) {
-        console.warn(`process-bulk-questions: Skipping too-short question at index ${index}: "${text.substring(0, 50)}"`);
+      const rawText = (q.question || '').trim();
+      const plainText = rawText.replace(/<[^>]*>/g, '').trim();
+      if (plainText.length < 25) {
+        console.warn(`process-bulk-questions: Skipping too-short question at index ${index}: "${plainText.substring(0, 50)}"`);
         return false;
       }
-      const wordCount = text.split(/\s+/).filter((w: string) => w.length > 0).length;
-      if (wordCount < 3) {
-        console.warn(`process-bulk-questions: Skipping incomplete question at index ${index}: "${text.substring(0, 50)}"`);
+      const wordCount = plainText.split(/\s+/).filter((w: string) => w.length > 0).length;
+      if (wordCount < 5) {
+        console.warn(`process-bulk-questions: Skipping incomplete question at index ${index}: "${plainText.substring(0, 50)}"`);
         return false;
       }
       const opts = [q.options?.[0], q.options?.[1], q.options?.[2], q.options?.[3]];

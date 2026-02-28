@@ -340,11 +340,12 @@ const ExamTaking = () => {
         return;
       }
 
-      // Filter out incomplete/malformed questions
+      // Filter out incomplete/malformed questions - strict validation
       const qualityQuestions = questionsData.filter(q => {
-        const text = (q.question_text || '').trim();
-        const wordCount = text.split(/\s+/).filter((w: string) => w.length > 0).length;
-        if (text.length < 15 || wordCount < 3) return false;
+        const rawText = (q.question_text || '').trim();
+        const plainText = rawText.replace(/<[^>]*>/g, '').trim();
+        const wordCount = plainText.split(/\s+/).filter((w: string) => w.length > 0).length;
+        if (plainText.length < 25 || wordCount < 5) return false;
         const options = [q.option_a, q.option_b, q.option_c, q.option_d];
         const validOpts = options.filter(o => o && o.trim().length >= 1);
         if (validOpts.length < 4) return false;
