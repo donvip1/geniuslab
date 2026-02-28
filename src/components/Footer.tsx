@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin } from "lucide-react";
+import { Mail, Phone, MapPin, Facebook, Instagram, Globe, MessageCircle } from "lucide-react";
 
 export const Footer = () => {
   return (
@@ -49,17 +49,17 @@ export const Footer = () => {
           <div>
             <h3 className="font-bold text-lg mb-4">Follow Us</h3>
             <div className="flex gap-4">
-              <a href="#" className="hover:opacity-80 transition-opacity">
+              <a href="https://www.facebook.com/share/1AZsQNp3Nr/" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
                 <Facebook size={24} />
               </a>
-              <a href="#" className="hover:opacity-80 transition-opacity">
-                <Twitter size={24} />
+              <a href="https://whatsapp.com/channel/0029Vb6kqDVISTkQR9ZxN73x" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
+                <MessageCircle size={24} />
               </a>
-              <a href="#" className="hover:opacity-80 transition-opacity">
+              <a href="https://www.instagram.com" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
                 <Instagram size={24} />
               </a>
-              <a href="#" className="hover:opacity-80 transition-opacity">
-                <Linkedin size={24} />
+              <a href="https://geniuslabz.xyz/" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
+                <Globe size={24} />
               </a>
             </div>
           </div>
