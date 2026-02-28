@@ -226,9 +226,10 @@ const Profile = () => {
         </Card>
 
         {/* Overview Stats */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           {[
             { label: "Exams Taken", value: totalExams, icon: BookOpen },
+            { label: "Questions", value: totalQuestions, icon: Target },
             { label: "Avg Score", value: `${avgScore}%`, icon: BarChart3 },
             { label: "Best Score", value: `${bestScore}%`, icon: Trophy },
             { label: "Pass Rate", value: `${passRate}%`, icon: Target },
@@ -337,22 +338,32 @@ const Profile = () => {
           </CardHeader>
           <CardContent>
             {attempts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No exams taken yet.</p>
+              <div className="text-center py-8 space-y-3">
+                <BookOpen className="h-12 w-12 mx-auto text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">No exams taken yet.</p>
+                <Button size="sm" onClick={() => navigate("/exam")}>Take Your First Exam</Button>
+              </div>
             ) : (
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {attempts.map((a) => {
                   const pct = Math.round((a.score / a.total_questions) * 100);
+                  const passed = pct >= 50;
                   return (
                     <div key={a.id} className="flex items-center justify-between border rounded-lg p-3">
                       <div className="space-y-0.5">
-                        <p className="font-medium text-sm">{a.subject_name}</p>
-                        <p className="text-xs text-muted-foreground flex items-center gap-2">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm">{a.subject_name}</p>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${passed ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}>
+                            {passed ? "Passed" : "Failed"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
                           <span className="text-primary/70">{a.category_name}</span>
                           <span>{format(new Date(a.created_at), "MMM d, yyyy")}</span>
                           <span className="flex items-center gap-0.5"><Clock className="h-3 w-3" />{formatTime(a.time_taken_seconds)}</span>
                         </p>
                       </div>
-                      <div className={`text-sm font-bold ${pct >= 50 ? "text-green-600" : "text-destructive"}`}>
+                      <div className={`text-sm font-bold whitespace-nowrap ${passed ? "text-green-600" : "text-destructive"}`}>
                         {a.score}/{a.total_questions} ({pct}%)
                       </div>
                     </div>

@@ -596,7 +596,7 @@ const JambExam = () => {
       try {
         const subjectLabel = selectedSubjects.map(id => JAMB_SUBJECTS.find(s => s.id === id)?.name || id).join(", ");
         const timeTaken = examDuration - timeLeft;
-        await supabase.from("exam_attempts").insert({
+        const { error: saveError } = await supabase.from("exam_attempts").insert({
           user_id: user.id,
           subject_id: examCategoryId || "00000000-0000-0000-0000-000000000000",
           score: correctCount,
@@ -604,8 +604,13 @@ const JambExam = () => {
           time_taken_seconds: timeTaken,
           answers: { mode: examMode, subjects: subjectLabel, detail: answers },
         });
+        if (saveError) {
+          console.error("Failed to save exam result:", saveError);
+          toast({ title: "Warning", description: "Exam completed but result could not be saved. Please screenshot your score.", variant: "destructive" });
+        }
       } catch (e) {
         console.error("Failed to save exam result:", e);
+        toast({ title: "Warning", description: "Exam completed but result could not be saved.", variant: "destructive" });
       }
     }
   }, [questions, answers, user, selectedSubjects, examMode, examDuration, timeLeft, examCategoryId]);

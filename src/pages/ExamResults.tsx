@@ -163,6 +163,10 @@ const ExamResults = () => {
                   <RotateCcw className="h-4 w-4" />
                   Retake Exam
                 </Button>
+                <Button onClick={() => navigate("/profile")} variant="secondary" className="gap-2">
+                  <Trophy className="h-4 w-4" />
+                  View My Profile
+                </Button>
               </div>
 
               {/* Toggle Details */}
