@@ -200,7 +200,7 @@ serve(async (req) => {
         text: q.question_text,
         options: [q.option_a, q.option_b, q.option_c, q.option_d],
         correctAnswerIndex: q.correct_answer_index,
-        year: q.year || "",
+        year: year || q.year || "",
         explanation: q.explanation || "",
         subject: subject,
       }));
