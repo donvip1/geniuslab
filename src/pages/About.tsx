@@ -10,6 +10,8 @@ import colossusProfile from "@/assets/colossus-profile.jpg";
 import greenarrowProfile from "@/assets/greenarrow-profile.jpg";
 import mathleteProfile from "@/assets/mathlete-profile.jpg";
 import sonofgodProfile from "@/assets/sonofgod-profile.jpg";
+import mrwealthProfile from "@/assets/mrwealth-profile.jpg";
+import donvipProfile from "@/assets/donvip-profile.jpg";
 
 interface TeamExpert {
   id: string;
@@ -125,8 +127,12 @@ We are not just a tutorial center, we are an excellence factory." />
                 <Card className="shadow-lg overflow-hidden">
                   <CardContent className="pt-8">
                     <div className="flex flex-col items-center mb-6">
-                      <div className="w-48 h-48 rounded-full overflow-hidden mb-4 shadow-xl border-4 border-secondary/20 bg-muted flex items-center justify-center">
-                        <Users className="h-20 w-20 text-muted-foreground/40" />
+                      <div className="w-48 h-48 rounded-full overflow-hidden mb-4 shadow-xl border-4 border-secondary/20">
+                        <img 
+                          src={mrwealthProfile} 
+                          alt="Robinson Nwankwuda (Mr. Wealth)"
+                          className="w-full h-full object-cover"
+                        />
                       </div>
                       <h3 className="text-2xl font-bold text-secondary mb-2">Robinson Nwankwuda (Mr. Wealth)</h3>
                       <p className="text-sm text-muted-foreground font-medium">Co-Founder</p>
@@ -139,8 +145,12 @@ We are not just a tutorial center, we are an excellence factory." />
                 <Card className="shadow-lg overflow-hidden">
                   <CardContent className="pt-8">
                     <div className="flex flex-col items-center mb-6">
-                      <div className="w-48 h-48 rounded-full overflow-hidden mb-4 shadow-xl border-4 border-accent/20 bg-muted flex items-center justify-center">
-                        <Users className="h-20 w-20 text-muted-foreground/40" />
+                      <div className="w-48 h-48 rounded-full overflow-hidden mb-4 shadow-xl border-4 border-accent/20">
+                        <img 
+                          src={donvipProfile} 
+                          alt="Philip Awazie (Donvip)"
+                          className="w-full h-full object-cover"
+                        />
                       </div>
                       <h3 className="text-2xl font-bold text-accent mb-2">Philip Awazie (Donvip)</h3>
                       <p className="text-sm text-muted-foreground font-medium">Co-Founder</p>
