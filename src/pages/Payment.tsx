@@ -270,7 +270,7 @@ const Payment = () => {
   const handleWhatsApp = () => {
     const catName = selectedCategory?.name || "Exam";
     const message = encodeURIComponent(
-      `Hi, I just made payment via GENIUSLAB, ${catName} kindly confirm and give me access PIN.\n\nAmount: ₦${paymentInfo.amount.toLocaleString()}\nBank: ${paymentInfo.bankName}\nAccount: ${paymentInfo.accountNumber}\nName: ${paymentInfo.accountHolder}`,
+      `I just made payment via manual method for ${catName}.\nVerify and send me activation pin.`,
     );
     window.open(`https://wa.me/234${paymentInfo.contact.slice(1)}?text=${message}`, "_blank");
   };

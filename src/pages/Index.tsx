@@ -107,21 +107,27 @@ const Index = () => {
       
       <main className="flex-1 pt-16">
         {/* Blinking Exam Alert Banner */}
-        <div className="bg-accent/10 border-b border-accent/20 overflow-hidden">
+        <div className="bg-red-50 dark:bg-red-950/30 border-b border-red-200 dark:border-red-800 overflow-hidden">
           <div className="container mx-auto px-4 py-2">
-            <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
-              {examAlerts.map((alert, i) => (
-                <Link
-                  key={i}
-                  to={alert.link}
-                  className="animate-blink-glow flex-shrink-0 inline-flex items-center gap-2 bg-accent/20 text-accent-foreground px-4 py-1.5 rounded-full text-sm font-semibold border border-accent/30 hover:bg-accent/30 transition-colors"
-                  style={{ animationDelay: `${i * 0.5}s` }}
-                >
-                  {alert.text}
-                  <ChevronRight className="h-3 w-3" />
-                </Link>
-              ))}
-            </div>
+            <Carousel
+              opts={{ align: "start", loop: true }}
+              plugins={[Autoplay({ delay: 3000, stopOnInteraction: false })]}
+              className="w-full"
+            >
+              <CarouselContent>
+                {examAlerts.map((alert, i) => (
+                  <CarouselItem key={i} className="basis-full">
+                    <Link
+                      to={alert.link}
+                      className="flex items-center justify-center gap-2 text-red-600 dark:text-red-400 px-4 py-1 text-sm md:text-base font-bold hover:underline transition-colors"
+                    >
+                      {alert.text}
+                      <ChevronRight className="h-4 w-4" />
+                    </Link>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+            </Carousel>
           </div>
         </div>
 
