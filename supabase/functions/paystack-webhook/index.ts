@@ -63,9 +63,9 @@ serve(async (req) => {
       });
     }
 
-    // Create subscription: 1 month + 5 days = 35 days
+    // Create subscription: 1 month = 30 days
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 35);
+    expiresAt.setDate(expiresAt.getDate() + 30);
 
     await supabase.from("subscription_plans").insert({
       user_id: userId,
