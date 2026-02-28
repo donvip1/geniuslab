@@ -1,47 +1,36 @@
 
 
-## Plan: JAMB Scoring, Leaderboard & Semester Management
+## Plan: Paystack Auto-Access, Payment Success Flow, and PIN Section Restructure
 
-### 1. JAMB-specific scoring in Profile (`src/pages/Profile.tsx`)
-- Separate JAMB stats from other exam categories using the latest JAMB marking scheme: each correct answer = 2.5 marks (score * 2.5 for 40-question subjects, raw aggregate for mock mode with 180 questions = 400 marks total)
-- Show JAMB stats card with "JAMB Score" (out of 400 for mock, out of 100 for single subject practice) alongside percentage
-- Keep other exam categories using the existing fraction/percentage system
+### 1. Add Paystack Payment Callback Handler
+- In `Payment.tsx`, detect `?trxref=` and `?reference=` URL params (added by Paystack redirect)
+- When detected, verify payment by checking `payment_transactions` table for a matching reference with `status = 'success'`
+- If the webhook hasn't processed yet, poll a few times with short delays
+- Show a success popup/dialog confirming payment was successful and access is granted
 
-### 2. Leaderboard section on Profile page (`src/pages/Profile.tsx`)
-- Add a "Leaderboard — Top 10" card below the exam history
-- Query `exam_attempts` table joined with `profiles` table to get top 10 scores (highest percentage) across all users
-- Display position, username/full_name, score, and exam subject
-- Highlight the logged-in user's row with "You" label and different background color
-- If user is not in top 10, show their rank separately below the table
+### 2. Payment Success Popup
+- Create a success dialog in `Payment.tsx` that appears after Paystack callback verification
+- Content: checkmark icon, "Payment Successful!", "You now have unlimited access to [Category Name] for 1 month", and a "Start Practicing" button that navigates to `/exam`
 
-### 3. Leaderboard RLS policy
-- Database migration: Add a permissive SELECT policy on `exam_attempts` allowing all authenticated users to read all attempts (needed for leaderboard aggregation)
-- Alternative: Create a database function `get_leaderboard()` that returns top 10 without exposing raw data — this is more secure
+### 3. Restructure the Payment Page Layout
+- Move the manual bank transfer details (Opay, 8124269495, Nsisong Etim) and WhatsApp contact button **under the PIN entry card**, below the "Activate PIN" button
+- Remove the separate payment card for manual transfer — keep only Paystack as the dedicated payment card
+- The PIN card will contain: PIN input + Activate button, then a divider "or pay manually", then bank details + WhatsApp button
 
-### 4. Semester selector in Admin subject creation (`src/pages/Admin.tsx`)
-- Add `semester` state (default "first") to subject creation form
-- Add semester dropdown ("1st Semester" / "2nd Semester") in the create subject form
-- Pass `semester` field in the insert call (column already exists on `subjects` table)
-- Add semester field to the edit subject form as well
-- Show semester badge next to level badge in subject list
+### 4. Change PIN Duration to 1 Month (30 days)
+- Update `Payment.tsx` PIN activation: change `expiresAt.setDate(expiresAt.getDate() + 35)` → `+ 30`
+- Update `PinEntryScreen.tsx` PIN activation: same change from 35 → 30 days
+- Update `paystack-webhook/index.ts`: change subscription duration from 35 → 30 days
+- Update UI text from "1 month + 5 days" → "1 month" everywhere
 
-### 5. Semester selector in Admin question upload forms (`src/pages/Admin.tsx`)
-- In "Add New Question" form: the subject selector already determines semester (since subjects have semester). No change needed here — questions inherit semester from their subject.
-- In "Bulk Import" form: same — subject already carries semester info.
+### 5. Paystack Webhook Already Handles Auto-Access
+- The existing `paystack-webhook` edge function already creates a `subscription_plans` record on `charge.success`
+- The `SubscriptionGate` already checks `subscription_plans` for active subscriptions
+- No changes needed here — just ensure the callback URL includes the category info for the success popup
 
-### 6. Semester selector in PastQuestionUpload (`src/components/admin/PastQuestionUpload.tsx`)
-- This is for JAMB/WAEC/NECO uploads which don't use semesters — no change needed.
-
-### 7. Admin ExamMode semester switch (`src/components/admin/ExamModeManagement.tsx`)
-- The semester toggle already exists (allow_semester_selection). This controls whether students see the 1st/2nd semester toggle. No additional changes needed — admin already has this feature.
-
-### Files to modify
-1. `src/pages/Profile.tsx` — JAMB scoring scheme + leaderboard
-2. `src/pages/Admin.tsx` — Add semester field to subject create/edit forms
-3. Database migration — Create `get_leaderboard()` function for secure top-10 query
-
-### Technical details
-- JAMB marking: For practice mode (single subject, 40 questions), JAMB score = correctAnswers × 2.5 (out of 100). For mock mode (4 subjects, 180 questions), JAMB score = correctAnswers × (400/180) ≈ 2.22 per question (out of 400).
-- Leaderboard function will use `SECURITY DEFINER` to bypass RLS and return only username, score, total_questions, and rank.
-- The `subjects.semester` column already exists in the database schema (nullable text field), so no schema migration needed for that.
+### Files to Modify
+- `src/pages/Payment.tsx` — callback detection, success popup, restructured layout, PIN duration
+- `src/components/PinEntryScreen.tsx` — PIN duration change
+- `supabase/functions/paystack-webhook/index.ts` — duration change from 35 → 30
+- `supabase/functions/paystack-initialize/index.ts` — update callback_url to include category params
 
