@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Navbar } from "@/components/Navbar";
-import { Loader2, ArrowLeft, LogOut, Edit2, Save, X, Trophy, Target, Clock, BookOpen, BarChart3, TrendingDown, TrendingUp, CheckCircle, XCircle, RefreshCw } from "lucide-react";
+import { Loader2, ArrowLeft, LogOut, Edit2, Save, X, Trophy, Target, Clock, BookOpen, BarChart3, TrendingDown, TrendingUp, CheckCircle, XCircle, RefreshCw, Medal, Crown } from "lucide-react";
 import { format } from "date-fns";
 
 interface Profile {
@@ -37,6 +37,46 @@ interface CategoryStats {
   bestScore: number;
 }
 
+interface LeaderboardEntry {
+  rank: number;
+  user_id: string;
+  username: string | null;
+  full_name: string;
+  score: number;
+  total_questions: number;
+  percentage: number;
+  subject_name: string;
+  created_at: string;
+}
+
+interface UserRank {
+  rank: number;
+  score: number;
+  total_questions: number;
+  percentage: number;
+}
+
+// JAMB scoring helpers
+const isJambAttempt = (a: ExamAttempt) => {
+  const ans = a.answers as any;
+  return ans?.mode === "practice" || ans?.mode === "mock";
+};
+
+const getJambScore = (a: ExamAttempt) => {
+  const ans = a.answers as any;
+  if (ans?.mode === "mock") {
+    // Mock: 180 questions → 400 marks total
+    return Math.round(a.score * (400 / a.total_questions) * 10) / 10;
+  }
+  // Practice: single subject, score × 2.5
+  return Math.round(a.score * 2.5 * 10) / 10;
+};
+
+const getJambMaxScore = (a: ExamAttempt) => {
+  const ans = a.answers as any;
+  return ans?.mode === "mock" ? 400 : 100;
+};
+
 const Profile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -49,6 +89,8 @@ const Profile = () => {
   const [attempts, setAttempts] = useState<ExamAttempt[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [categoryStats, setCategoryStats] = useState<CategoryStats[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [userRank, setUserRank] = useState<UserRank | null>(null);
 
   const loadProfileData = async (uid?: string) => {
     const currentUid = uid || userId;
@@ -60,6 +102,19 @@ const Profile = () => {
       supabase.from("subjects").select("id, name, exam_category_id"),
       supabase.from("exam_categories").select("id, name"),
     ]);
+
+    // Load leaderboard data
+    const [leaderboardRes, userRankRes] = await Promise.all([
+      supabase.rpc("get_leaderboard"),
+      supabase.rpc("get_user_rank", { p_user_id: currentUid }),
+    ]);
+
+    if (leaderboardRes.data) {
+      setLeaderboard(leaderboardRes.data as any);
+    }
+    if (userRankRes.data && (userRankRes.data as any[]).length > 0) {
+      setUserRank((userRankRes.data as any[])[0]);
+    }
 
     if (profileRes.data) {
       setProfile(profileRes.data);
@@ -187,12 +242,19 @@ const Profile = () => {
   const bestAttempt = totalExams > 0 ? attempts.reduce((best, a) => (a.score / a.total_questions) > (best.score / best.total_questions) ? a : best) : null;
   const worstAttempt = totalExams > 0 ? attempts.reduce((worst, a) => (a.score / a.total_questions) < (worst.score / worst.total_questions) ? a : worst) : null;
 
+  // JAMB-specific stats
+  const jambAttempts = attempts.filter(isJambAttempt);
+  const jambPracticeAttempts = jambAttempts.filter(a => (a.answers as any)?.mode === "practice");
+  const jambMockAttempts = jambAttempts.filter(a => (a.answers as any)?.mode === "mock");
+
   const formatTime = (s: number | null) => {
     if (!s) return "—";
     const m = Math.floor(s / 60);
     const sec = s % 60;
     return `${m}m ${sec}s`;
   };
+
+  const userInTop10 = leaderboard.some(e => e.user_id === userId);
 
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-8">
@@ -256,6 +318,70 @@ const Profile = () => {
           ))}
         </div>
 
+        {/* JAMB Stats Card */}
+        {jambAttempts.length > 0 && (
+          <Card className="border-primary/30">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Crown className="h-5 w-5 text-primary" />
+                JAMB UTME Performance
+              </CardTitle>
+              <CardDescription>Scored using JAMB marking scheme (2.5 marks per correct answer)</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Practice Mode Stats */}
+              {jambPracticeAttempts.length > 0 && (
+                <div className="border rounded-lg p-3 space-y-2">
+                  <p className="font-semibold text-sm">Practice Mode (Single Subject)</p>
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div>
+                      <p className="font-bold text-foreground">{jambPracticeAttempts.length}</p>
+                      <p className="text-muted-foreground">Attempts</p>
+                    </div>
+                    <div>
+                      <p className="font-bold text-primary text-base">
+                        {Math.round(Math.max(...jambPracticeAttempts.map(a => getJambScore(a))) * 10) / 10}/100
+                      </p>
+                      <p className="text-muted-foreground">Best JAMB Score</p>
+                    </div>
+                    <div>
+                      <p className="font-bold text-foreground">
+                        {Math.round(jambPracticeAttempts.reduce((s, a) => s + getJambScore(a), 0) / jambPracticeAttempts.length * 10) / 10}/100
+                      </p>
+                      <p className="text-muted-foreground">Avg JAMB Score</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Mock Mode Stats */}
+              {jambMockAttempts.length > 0 && (
+                <div className="border rounded-lg p-3 space-y-2">
+                  <p className="font-semibold text-sm">Mock UTME (4 Subjects)</p>
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div>
+                      <p className="font-bold text-foreground">{jambMockAttempts.length}</p>
+                      <p className="text-muted-foreground">Attempts</p>
+                    </div>
+                    <div>
+                      <p className="font-bold text-primary text-base">
+                        {Math.round(Math.max(...jambMockAttempts.map(a => getJambScore(a))) * 10) / 10}/400
+                      </p>
+                      <p className="text-muted-foreground">Best JAMB Score</p>
+                    </div>
+                    <div>
+                      <p className="font-bold text-foreground">
+                        {Math.round(jambMockAttempts.reduce((s, a) => s + getJambScore(a), 0) / jambMockAttempts.length * 10) / 10}/400
+                      </p>
+                      <p className="text-muted-foreground">Avg JAMB Score</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Per-Category Breakdown */}
         {categoryStats.length > 0 && (
           <Card>
@@ -299,6 +425,9 @@ const Profile = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {bestAttempt && (() => {
               const pct = Math.round((bestAttempt.score / bestAttempt.total_questions) * 100);
+              const isJamb = isJambAttempt(bestAttempt);
+              const jambScore = isJamb ? getJambScore(bestAttempt) : null;
+              const jambMax = isJamb ? getJambMaxScore(bestAttempt) : null;
               return (
                 <Card className="border-green-200 dark:border-green-900">
                   <CardHeader className="pb-2">
@@ -309,7 +438,9 @@ const Profile = () => {
                   </CardHeader>
                   <CardContent className="space-y-1 text-sm">
                     <p className="font-semibold">{bestAttempt.subject_name}</p>
-                    <p className="text-green-600 font-bold text-lg">{bestAttempt.score}/{bestAttempt.total_questions} ({pct}%)</p>
+                    <p className="text-green-600 font-bold text-lg">
+                      {isJamb ? `${jambScore}/${jambMax} JAMB` : `${bestAttempt.score}/${bestAttempt.total_questions}`} ({pct}%)
+                    </p>
                     <p className="text-xs text-muted-foreground flex items-center gap-2">
                       <span>{format(new Date(bestAttempt.created_at), "MMM d, yyyy")}</span>
                       <span className="flex items-center gap-0.5"><Clock className="h-3 w-3" />{formatTime(bestAttempt.time_taken_seconds)}</span>
@@ -320,6 +451,9 @@ const Profile = () => {
             })()}
             {worstAttempt && (() => {
               const pct = Math.round((worstAttempt.score / worstAttempt.total_questions) * 100);
+              const isJamb = isJambAttempt(worstAttempt);
+              const jambScore = isJamb ? getJambScore(worstAttempt) : null;
+              const jambMax = isJamb ? getJambMaxScore(worstAttempt) : null;
               return (
                 <Card className="border-red-200 dark:border-red-900">
                   <CardHeader className="pb-2">
@@ -330,7 +464,9 @@ const Profile = () => {
                   </CardHeader>
                   <CardContent className="space-y-1 text-sm">
                     <p className="font-semibold">{worstAttempt.subject_name}</p>
-                    <p className="text-destructive font-bold text-lg">{worstAttempt.score}/{worstAttempt.total_questions} ({pct}%)</p>
+                    <p className="text-destructive font-bold text-lg">
+                      {isJamb ? `${jambScore}/${jambMax} JAMB` : `${worstAttempt.score}/${worstAttempt.total_questions}`} ({pct}%)
+                    </p>
                     <p className="text-xs text-muted-foreground flex items-center gap-2">
                       <span>{format(new Date(worstAttempt.created_at), "MMM d, yyyy")}</span>
                       <span className="flex items-center gap-0.5"><Clock className="h-3 w-3" />{formatTime(worstAttempt.time_taken_seconds)}</span>
@@ -365,6 +501,9 @@ const Profile = () => {
                 {attempts.map((a) => {
                   const pct = Math.round((a.score / a.total_questions) * 100);
                   const passed = pct >= 50;
+                  const isJamb = isJambAttempt(a);
+                  const jambScore = isJamb ? getJambScore(a) : null;
+                  const jambMax = isJamb ? getJambMaxScore(a) : null;
                   return (
                     <div key={a.id} className="flex items-center justify-between border rounded-lg p-3">
                       <div className="space-y-0.5">
@@ -381,11 +520,75 @@ const Profile = () => {
                         </p>
                       </div>
                       <div className={`text-sm font-bold whitespace-nowrap ${passed ? "text-green-600" : "text-destructive"}`}>
-                        {a.score}/{a.total_questions} ({pct}%)
+                        {isJamb ? (
+                          <span>{jambScore}/{jambMax}</span>
+                        ) : (
+                          <span>{a.score}/{a.total_questions} ({pct}%)</span>
+                        )}
                       </div>
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Leaderboard */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Medal className="h-5 w-5 text-primary" />
+              Leaderboard — Top 10
+            </CardTitle>
+            <CardDescription>Best performances across all users</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {leaderboard.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No exam attempts yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {leaderboard.map((entry) => {
+                  const isYou = entry.user_id === userId;
+                  return (
+                    <div
+                      key={`${entry.rank}-${entry.user_id}`}
+                      className={`flex items-center justify-between p-3 rounded-lg border ${isYou ? "bg-primary/10 border-primary/30" : ""}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`text-lg font-bold w-8 text-center ${entry.rank <= 3 ? "text-primary" : "text-muted-foreground"}`}>
+                          {entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : `#${entry.rank}`}
+                        </span>
+                        <div>
+                          <p className="font-medium text-sm">
+                            {isYou ? <span className="text-primary font-bold">You</span> : (entry.username || entry.full_name)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{entry.subject_name}</p>
+                        </div>
+                      </div>
+                      <div className="text-sm font-bold text-primary">
+                        {entry.score}/{entry.total_questions} ({entry.percentage}%)
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Show user's rank if not in top 10 */}
+                {!userInTop10 && userRank && (
+                  <div className="mt-4 pt-4 border-t">
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/30">
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg font-bold w-8 text-center text-muted-foreground">#{userRank.rank}</span>
+                        <div>
+                          <p className="font-medium text-sm text-primary font-bold">Your Best</p>
+                        </div>
+                      </div>
+                      <div className="text-sm font-bold text-primary">
+                        {userRank.score}/{userRank.total_questions} ({userRank.percentage}%)
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

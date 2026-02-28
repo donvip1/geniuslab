@@ -39,6 +39,7 @@ interface Subject {
   level: string | null;
   is_active: boolean;
   contributors: string | null;
+  semester: string | null;
 }
 
 interface Advertisement {
@@ -76,12 +77,14 @@ const Admin = () => {
   const [subjectDescription, setSubjectDescription] = useState("");
   const [subjectLevel, setSubjectLevel] = useState("100L");
   const [subjectContributors, setSubjectContributors] = useState("");
+  const [subjectSemester, setSubjectSemester] = useState("first");
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editLevel, setEditLevel] = useState("");
   const [editContributors, setEditContributors] = useState("");
+  const [editSemester, setEditSemester] = useState("first");
 
   // Advertisements State
   const [advertisements, setAdvertisements] = useState<Advertisement[]>([]);
@@ -264,6 +267,7 @@ const Admin = () => {
           description: subjectDescription,
           level: subjectLevel,
           contributors: subjectContributors || null,
+          semester: subjectSemester,
           created_by: user.id,
         },
       ]);
@@ -283,6 +287,7 @@ const Admin = () => {
       setSubjectDescription("");
       setSubjectLevel("100L");
       setSubjectContributors("");
+      setSubjectSemester("first");
       fetchSubjects();
     }
   };
@@ -295,6 +300,7 @@ const Admin = () => {
         description: editDescription,
         level: editLevel,
         contributors: editContributors || null,
+        semester: editSemester,
       })
       .eq("id", subjectId);
 
@@ -344,6 +350,7 @@ const Admin = () => {
     setEditDescription(subject.description || "");
     setEditLevel(subject.level || "100L");
     setEditContributors(subject.contributors || "");
+    setEditSemester(subject.semester || "first");
   };
 
   // Advertisement Functions
@@ -1013,6 +1020,19 @@ const Admin = () => {
                         </select>
                       </div>
                       <div>
+                        <Label htmlFor="subject-semester">Semester</Label>
+                        <select
+                          id="subject-semester"
+                          className="w-full mt-1 p-2 border rounded-md bg-background"
+                          value={subjectSemester}
+                          onChange={(e) => setSubjectSemester(e.target.value)}
+                          required
+                        >
+                          <option value="first">1st Semester</option>
+                          <option value="second">2nd Semester</option>
+                        </select>
+                      </div>
+                      <div>
                         <Label htmlFor="subject-description">Description (Optional)</Label>
                         <Textarea
                           id="subject-description"
@@ -1074,6 +1094,14 @@ const Admin = () => {
                                   <option value="400L">400 Level</option>
                                   <option value="500L">500 Level</option>
                                 </select>
+                                <select
+                                  className="w-full p-2 border rounded-md bg-background text-sm"
+                                  value={editSemester}
+                                  onChange={(e) => setEditSemester(e.target.value)}
+                                >
+                                  <option value="first">1st Semester</option>
+                                  <option value="second">2nd Semester</option>
+                                </select>
                                 <Textarea
                                   value={editDescription}
                                   onChange={(e) => setEditDescription(e.target.value)}
@@ -1120,6 +1148,11 @@ const Admin = () => {
                                   {subject.level && (
                                     <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-1 rounded">
                                       {subject.level}
+                                    </span>
+                                  )}
+                                  {subject.semester && (
+                                    <span className="text-xs font-semibold bg-secondary text-secondary-foreground px-2 py-1 rounded">
+                                      {subject.semester === "second" ? "2nd Sem" : "1st Sem"}
                                     </span>
                                   )}
                                   <Button

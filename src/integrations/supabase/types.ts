@@ -973,6 +973,29 @@ export type Database = {
       }
     }
     Functions: {
+      get_leaderboard: {
+        Args: never
+        Returns: {
+          created_at: string
+          full_name: string
+          percentage: number
+          rank: number
+          score: number
+          subject_name: string
+          total_questions: number
+          user_id: string
+          username: string
+        }[]
+      }
+      get_user_rank: {
+        Args: { p_user_id: string }
+        Returns: {
+          percentage: number
+          rank: number
+          score: number
+          total_questions: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
