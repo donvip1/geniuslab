@@ -1,20 +1,50 @@
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { BookOpen, Users, Award, Target, Star } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { TestimonialsCarousel } from "@/components/TestimonialsCarousel";
 import { AdvertisementPopup } from "@/components/AdvertisementPopup";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import tutorialClass1 from "@/assets/tutorial-class-1.jpg";
 import tutorialClass2 from "@/assets/tutorial-class-2.jpg";
 import tutorialClass3 from "@/assets/tutorial-class-3.jpg";
 
 const Index = () => {
+  const [showJambPopup, setShowJambPopup] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (sessionStorage.getItem("jamb2026PopupShown")) return;
+    const timer = setTimeout(() => {
+      setShowJambPopup(true);
+      sessionStorage.setItem("jamb2026PopupShown", "true");
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col pb-16 md:pb-0">
       <Navbar />
       <AdvertisementPopup />
+
+      <Dialog open={showJambPopup} onOpenChange={setShowJambPopup}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl text-center">🎯 JAMB 2026</DialogTitle>
+            <DialogDescription className="text-center text-base pt-2">
+              Prepare for JAMB 2026: Practice Exams Are Now Available — Participate Now.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center pt-4">
+            <Button size="lg" onClick={() => { setShowJambPopup(false); navigate("/exam"); }}>
+              Participate Now
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       
       {/* Hero Section */}
       <main className="flex-1 pt-16">

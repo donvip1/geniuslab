@@ -93,34 +93,62 @@ We are not just a tutorial center, we are an excellence factory." />
           </div>
         </section>
 
-        {/* Founder Section */}
+        {/* Co-Founders Section */}
         <section className="py-16 bg-gradient-to-br from-primary/5 to-secondary/5">
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto">
               <div className="text-center mb-8">
                 <Award className="h-16 w-16 text-primary mx-auto mb-4" />
-                <h2 className="text-3xl font-bold">Our Founder</h2>
+                <h2 className="text-3xl font-bold">Our Co-Founders</h2>
               </div>
               
-              <Card className="shadow-lg overflow-hidden">
-                <CardContent className="pt-8">
-                  <div className="flex flex-col items-center mb-6">
-                    <div className="w-48 h-48 rounded-full overflow-hidden mb-4 shadow-xl border-4 border-primary/20">
-                      <img 
-                        src={holysinnerProfile} 
-                        alt="Etim Nsisong Enefiok (Holysinner)"
-                        className="w-full h-full object-cover"
-                      />
+              <div className="space-y-8">
+                {/* Etim Nsisong Enefiok */}
+                <Card className="shadow-lg overflow-hidden">
+                  <CardContent className="pt-8">
+                    <div className="flex flex-col items-center mb-6">
+                      <div className="w-48 h-48 rounded-full overflow-hidden mb-4 shadow-xl border-4 border-primary/20">
+                        <img 
+                          src={holysinnerProfile} 
+                          alt="Etim Nsisong Enefiok (Holysinner)"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <h3 className="text-2xl font-bold text-primary mb-2">Etim Nsisong Enefiok (Holysinner)</h3>
+                      <p className="text-sm text-muted-foreground font-medium">Co-Founder & Lead Tutor</p>
                     </div>
-                    <h3 className="text-2xl font-bold text-primary mb-2">Etim Nsisong Enefiok (Holysinner)</h3>
-                    <p className="text-sm text-muted-foreground font-medium">Founder & Lead Tutor</p>
-                  </div>
-                  
-                  <ExpandableText text="Etim Nsisong Enefiok, widely known by his academic moniker 'Holysinner,' is a distinguished tutor and rising scholar from the Department of Mathematics, Federal University Oye-Ekiti (FUOYE). Born with an innate passion for teaching and intellectual exploration, he has grown into one of the most influential young educators within his academic community.
+                    <ExpandableText text="Etim Nsisong Enefiok, is a distinguished tutor and rising scholar from the Department of Mathematics, Federal University Oye-Ekiti (FUOYE). Born with an innate passion for teaching and intellectual exploration, he has grown into one of the most influential young educators within his academic community." />
+                  </CardContent>
+                </Card>
 
-From his earliest years in elementary school, Etim discovered that teaching was more than something he could do — it was something he was called to do. What began as a simple desire to help his classmates gradually evolved into a deep-seated commitment to impact, mentorship, and excellence. Over the years, this same commitment to service and effective representation inspired him to step into leadership, where he stood out as a voice for student welfare. This conviction led him to contest for the position of Senator representing the Faculty of Physical Sciences in the Federal University Oye Ekiti Student Union Senate." />
-                </CardContent>
-              </Card>
+                {/* Robinson Nwankwuda */}
+                <Card className="shadow-lg overflow-hidden">
+                  <CardContent className="pt-8">
+                    <div className="flex flex-col items-center mb-6">
+                      <div className="w-48 h-48 rounded-full overflow-hidden mb-4 shadow-xl border-4 border-secondary/20 bg-muted flex items-center justify-center">
+                        <Users className="h-20 w-20 text-muted-foreground/40" />
+                      </div>
+                      <h3 className="text-2xl font-bold text-secondary mb-2">Robinson Nwankwuda (Mr. Wealth)</h3>
+                      <p className="text-sm text-muted-foreground font-medium">Co-Founder</p>
+                    </div>
+                    <ExpandableText text="Product Strategist, Blockchain Contributor, and Software Quality Specialist, actively involved in emerging technologies, driving innovation, and shaping strategic product development." />
+                  </CardContent>
+                </Card>
+
+                {/* Philip Awazie */}
+                <Card className="shadow-lg overflow-hidden">
+                  <CardContent className="pt-8">
+                    <div className="flex flex-col items-center mb-6">
+                      <div className="w-48 h-48 rounded-full overflow-hidden mb-4 shadow-xl border-4 border-accent/20 bg-muted flex items-center justify-center">
+                        <Users className="h-20 w-20 text-muted-foreground/40" />
+                      </div>
+                      <h3 className="text-2xl font-bold text-accent mb-2">Philip Awazie (Donvip)</h3>
+                      <p className="text-sm text-muted-foreground font-medium">Co-Founder</p>
+                    </div>
+                    <ExpandableText text="Full-stack Web and App Developer, Web Instructor, Blockchain Contributor, and Graphic Designer — passionate about building scalable digital solutions and delivering impactful tech-driven results." />
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </div>
         </section>
