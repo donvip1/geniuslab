@@ -3,10 +3,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Eye, UserPlus, Activity, MousePointerClick, RefreshCw, TrendingUp } from "lucide-react";
+import { Users, Eye, UserPlus, Activity, MousePointerClick, RefreshCw, TrendingUp, Trash2, Trophy, BarChart3, AlertTriangle } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface AnalyticsData {
   totalPageViews: number;
@@ -22,6 +34,9 @@ interface AnalyticsData {
 export const AnalyticsDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [resettingLeaderboard, setResettingLeaderboard] = useState(false);
+  const [resettingStats, setResettingStats] = useState(false);
+  const { toast } = useToast();
   const [timeRange, setTimeRange] = useState("7d");
   const [analytics, setAnalytics] = useState<AnalyticsData>({
     totalPageViews: 0,
@@ -178,6 +193,47 @@ export const AnalyticsDashboard = () => {
   const handleRefresh = () => {
     setRefreshing(true);
     fetchAnalytics();
+  };
+
+  const handleResetLeaderboard = async () => {
+    setResettingLeaderboard(true);
+    try {
+      // Delete all exam_attempts — this resets the leaderboard
+      const { error } = await supabase.from("exam_attempts").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      if (error) throw error;
+      toast({ title: "Leaderboard Reset", description: "All exam attempts and leaderboard data have been cleared." });
+      fetchAnalytics();
+    } catch (error: any) {
+      console.error("Error resetting leaderboard:", error);
+      toast({ title: "Error", description: error.message || "Failed to reset leaderboard.", variant: "destructive" });
+    } finally {
+      setResettingLeaderboard(false);
+    }
+  };
+
+  const handleResetAllStats = async () => {
+    setResettingStats(true);
+    try {
+      // Delete exam attempts
+      const { error: attemptsErr } = await supabase.from("exam_attempts").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      if (attemptsErr) throw attemptsErr;
+
+      // Delete user trials
+      const { error: trialsErr } = await supabase.from("user_trials").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      if (trialsErr) throw trialsErr;
+
+      // Delete page views
+      const { error: viewsErr } = await supabase.from("page_views").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      if (viewsErr) throw viewsErr;
+
+      toast({ title: "All Statistics Reset", description: "Leaderboard, exam history, trial data, and page views have been cleared for all users." });
+      fetchAnalytics();
+    } catch (error: any) {
+      console.error("Error resetting all stats:", error);
+      toast({ title: "Error", description: error.message || "Failed to reset statistics.", variant: "destructive" });
+    } finally {
+      setResettingStats(false);
+    }
   };
 
   if (loading) {
@@ -410,6 +466,92 @@ export const AnalyticsDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Data Reset Section */}
+      <Card className="border-destructive/30">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2 text-destructive">
+            <AlertTriangle className="h-5 w-5" />
+            Danger Zone — Data Reset
+          </CardTitle>
+          <CardDescription>Permanently delete data for all users. These actions cannot be undone.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {/* Reset Leaderboard */}
+            <div className="border rounded-lg p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-muted-foreground" />
+                <h3 className="font-semibold">Reset Leaderboard</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Deletes all exam attempts for every user. This clears the leaderboard rankings and exam history from all student profiles.
+              </p>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm" disabled={resettingLeaderboard}>
+                    {resettingLeaderboard ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                    Reset Leaderboard
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reset Leaderboard?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete ALL exam attempts for every user. The leaderboard will be empty and all students' exam history will be cleared. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleResetLeaderboard} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Yes, Reset Leaderboard
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+
+            {/* Reset All Statistics */}
+            <div className="border border-destructive/50 rounded-lg p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-destructive" />
+                <h3 className="font-semibold text-destructive">Reset All Statistics</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Deletes ALL data: exam attempts, leaderboard, trial usage, and page view analytics for every user. Full wipe.
+              </p>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm" disabled={resettingStats}>
+                    {resettingStats ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                    Reset Everything
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>⚠️ Reset ALL Statistics?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete ALL of the following for EVERY user:
+                      <br />• All exam attempts & scores
+                      <br />• Leaderboard rankings
+                      <br />• Trial usage data
+                      <br />• Page view analytics
+                      <br /><br />
+                      <strong>This action is irreversible.</strong>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleResetAllStats} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Yes, Reset Everything
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
