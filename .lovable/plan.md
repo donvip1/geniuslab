@@ -1,48 +1,38 @@
 
 
-## Plan: Fix Year Selection & Enhance Profile Stats
+## Plan: Fix Exam Stats Not Recording & Enhance Profile
 
-### Issue 1: Year Selection Not Working
+### Root Cause Analysis
 
-**Root cause:** The edge function `jamb-questions` correctly prioritizes year-specific questions and backfills from other years, BUT the backfilled questions retain their original `year` value in the response. When a user selects "2021", they see questions labeled with other years like "2018", "2015", etc.
+The JAMB exam result save in `JambExam.tsx` (line 599) does NOT check the Supabase error response. Supabase client returns `{ data, error }` but never throws — so the `try/catch` silently swallows failures. This means JAMB exam results may fail to save without any user notification.
 
-**Fix in `supabase/functions/jamb-questions/index.ts`:**
-- After selecting questions (line ~199), when a `year` parameter was provided, override the `year` field on ALL returned questions to show the selected year
-- This hides the backfill from users — all questions appear as the selected year
-- The backend already does the right thing (prioritizes year-specific questions first), we just need to mask the year on backfilled ones
+Confirmed: Only 2 exam attempts exist in the entire database across all users.
 
-```
-// Line ~199-205: Change formatted output
-const formatted = selected.map((q: any) => ({
-  text: q.question_text,
-  options: [...],
-  correctAnswerIndex: q.correct_answer_index,
-  year: year || q.year || "",  // <-- use selected year if provided
-  explanation: q.explanation || "",
-  subject: subject,
-}));
-```
+### Changes
 
-### Issue 2: Profile Stats Need Detailed Breakdown
+#### 1. Fix JAMB exam result saving (`src/pages/JambExam.tsx`)
+- Destructure `{ error }` from the insert call and check it
+- Show a toast error if saving fails so users know
+- Log the actual error for debugging
 
-**Current state:** Profile shows generic stats (total exams, avg/best/worst score, pass rate) but doesn't break down by exam type (JAMB, WAEC, University, etc.).
+#### 2. Fix University exam result saving (`src/pages/ExamTaking.tsx`)
+- Add a toast notification confirming successful save, or showing error
+- Currently if the edge function fails, user gets a generic "Failed to submit" but the actual insert error inside the edge function is hidden
 
-**Fix in `src/pages/Profile.tsx`:**
-- Group attempts by exam type: detect from `answers.mode` (JAMB has "practice"/"mock"), or from subject/category lookup
-- For each exam type group, show: total attempts, pass/fail count, avg score, best score
-- Replace the simple "Performance Summary" card with a detailed breakdown section showing per-category stats
-- Each category card shows: category name (JAMB, University CBT, etc.), attempts count, passed/failed counts, average score
-- Keep Best/Worst performance cards as they are
+#### 3. Enhance Profile page (`src/pages/Profile.tsx`)
+- Add **Total Questions Answered** stat alongside existing stats
+- Add **subject-level breakdown** within each category (not just category-level) showing per-subject attempts, avg score, pass/fail
+- Add **pass/fail badge** on each exam history entry (green "Passed" or red "Failed" chip)
+- Add **score as fraction AND percentage** in history entries
+- Add a **"View Profile"** link from the ExamResults page so students know where to find their stats
+- Show an **empty state prompt** encouraging users to take exams when no history exists
 
-**Categorization logic:**
-- If `answers.mode` is "practice" or "mock" → "JAMB UTME"
-- If `subject_id` matches an `exam_categories` entry → use that category name
-- If `subject_id` matches a `subjects` entry → look up its `exam_category_id` → get category name
-- Fallback → "Other"
+#### 4. Link to Profile from Exam Results (`src/pages/ExamResults.tsx`)
+- Add a "View My Profile" button alongside the existing action buttons so users discover the profile stats page after completing an exam
 
-**Additional data needed:** Also fetch `subjects.exam_category_id` to map subjects back to their exam category for grouping.
-
-### Files to modify:
-1. **`supabase/functions/jamb-questions/index.ts`** — Override year on all questions when year filter is active
-2. **`src/pages/Profile.tsx`** — Add detailed per-category performance breakdown
+### Files to modify
+1. `src/pages/JambExam.tsx` — Fix silent insert failure
+2. `src/pages/ExamTaking.tsx` — Add success/error feedback
+3. `src/pages/Profile.tsx` — Enhanced detailed stats with subject breakdown
+4. `src/pages/ExamResults.tsx` — Add profile link button
 
