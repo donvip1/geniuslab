@@ -27,7 +27,8 @@ import {
   Trophy,
   Search,
   GraduationCap,
-  Calendar
+  Calendar,
+  BarChart3
 } from "lucide-react";
 import {
   AlertDialog,
@@ -1057,10 +1058,14 @@ const JambExam = () => {
                 </div>
               </div>
 
-              <div className="flex gap-4 mt-6 justify-center">
+              <div className="flex gap-4 mt-6 justify-center flex-wrap">
                 <Button variant="outline" onClick={() => navigate("/")}>
                   <Home className="mr-2 h-4 w-4" />
                   Home
+                </Button>
+                <Button variant="outline" onClick={() => navigate("/profile")}>
+                  <BarChart3 className="mr-2 h-4 w-4" />
+                  View My Profile
                 </Button>
                 <Button onClick={restartExam}>
                   <RotateCcw className="mr-2 h-4 w-4" />

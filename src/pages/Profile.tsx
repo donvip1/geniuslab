@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Navbar } from "@/components/Navbar";
-import { Loader2, ArrowLeft, LogOut, Edit2, Save, X, Trophy, Target, Clock, BookOpen, BarChart3, TrendingDown, TrendingUp, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, ArrowLeft, LogOut, Edit2, Save, X, Trophy, Target, Clock, BookOpen, BarChart3, TrendingDown, TrendingUp, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 
 interface Profile {
@@ -41,6 +41,7 @@ const Profile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState({ username: "", full_name: "" });
@@ -48,6 +49,79 @@ const Profile = () => {
   const [attempts, setAttempts] = useState<ExamAttempt[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [categoryStats, setCategoryStats] = useState<CategoryStats[]>([]);
+
+  const loadProfileData = async (uid?: string) => {
+    const currentUid = uid || userId;
+    if (!currentUid) return;
+
+    const [profileRes, attemptsRes, subjectsRes, categoriesRes] = await Promise.all([
+      supabase.from("profiles").select("username, full_name, email").eq("user_id", currentUid).maybeSingle(),
+      supabase.from("exam_attempts").select("*").eq("user_id", currentUid).order("created_at", { ascending: false }),
+      supabase.from("subjects").select("id, name, exam_category_id"),
+      supabase.from("exam_categories").select("id, name"),
+    ]);
+
+    if (profileRes.data) {
+      setProfile(profileRes.data);
+      setEditData({ username: profileRes.data.username || "", full_name: profileRes.data.full_name });
+    }
+
+    const categoryNameMap = new Map<string, string>();
+    categoriesRes.data?.forEach((c: any) => categoryNameMap.set(c.id, c.name));
+
+    const subjectNameMap = new Map<string, string>();
+    const subjectToCategoryMap = new Map<string, string>();
+    subjectsRes.data?.forEach((s: any) => {
+      subjectNameMap.set(s.id, s.name);
+      if (s.exam_category_id) subjectToCategoryMap.set(s.id, s.exam_category_id);
+    });
+
+    if (attemptsRes.data) {
+      const enriched = attemptsRes.data.map((a: any) => {
+        let name = subjectNameMap.get(a.subject_id) || categoryNameMap.get(a.subject_id);
+        if (!name && a.answers && typeof a.answers === "object") {
+          const ans = a.answers as any;
+          if (ans.subjects) name = String(ans.subjects);
+          else if (ans.subject) name = String(ans.subject);
+        }
+
+        let catName = "Other";
+        const ans = a.answers as any;
+        if (ans?.mode === "practice" || ans?.mode === "mock") {
+          catName = "JAMB UTME";
+        } else if (categoryNameMap.has(a.subject_id)) {
+          catName = categoryNameMap.get(a.subject_id)!;
+        } else if (subjectToCategoryMap.has(a.subject_id)) {
+          const catId = subjectToCategoryMap.get(a.subject_id)!;
+          catName = categoryNameMap.get(catId) || "Other";
+        }
+
+        return { ...a, subject_name: name || "Unknown Subject", category_name: catName };
+      });
+      setAttempts(enriched);
+
+      const grouped = new Map<string, ExamAttempt[]>();
+      enriched.forEach((a: ExamAttempt) => {
+        const cat = a.category_name || "Other";
+        if (!grouped.has(cat)) grouped.set(cat, []);
+        grouped.get(cat)!.push(a);
+      });
+
+      const stats: CategoryStats[] = [];
+      grouped.forEach((items, name) => {
+        const total = items.length;
+        const passed = items.filter(a => (a.score / a.total_questions) * 100 >= 50).length;
+        const avgScore = Math.round(items.reduce((s, a) => s + (a.score / a.total_questions) * 100, 0) / total);
+        const bestScore = Math.round(Math.max(...items.map(a => (a.score / a.total_questions) * 100)));
+        stats.push({ name, attempts: total, passed, failed: total - passed, avgScore, bestScore });
+      });
+      stats.sort((a, b) => b.attempts - a.attempts);
+      setCategoryStats(stats);
+    } else {
+      setAttempts([]);
+      setCategoryStats([]);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -57,80 +131,18 @@ const Profile = () => {
         return;
       }
       setUserId(session.user.id);
-
-      const [profileRes, attemptsRes, subjectsRes, categoriesRes] = await Promise.all([
-        supabase.from("profiles").select("username, full_name, email").eq("user_id", session.user.id).maybeSingle(),
-        supabase.from("exam_attempts").select("*").eq("user_id", session.user.id).order("created_at", { ascending: false }),
-        supabase.from("subjects").select("id, name, exam_category_id"),
-        supabase.from("exam_categories").select("id, name"),
-      ]);
-
-      if (profileRes.data) {
-        setProfile(profileRes.data);
-        setEditData({ username: profileRes.data.username || "", full_name: profileRes.data.full_name });
-      }
-
-      // Build maps
-      const categoryNameMap = new Map<string, string>();
-      categoriesRes.data?.forEach((c: any) => categoryNameMap.set(c.id, c.name));
-
-      const subjectNameMap = new Map<string, string>();
-      const subjectToCategoryMap = new Map<string, string>();
-      subjectsRes.data?.forEach((s: any) => {
-        subjectNameMap.set(s.id, s.name);
-        if (s.exam_category_id) subjectToCategoryMap.set(s.id, s.exam_category_id);
-      });
-
-      if (attemptsRes.data) {
-        const enriched = attemptsRes.data.map((a: any) => {
-          // Resolve subject name
-          let name = subjectNameMap.get(a.subject_id) || categoryNameMap.get(a.subject_id);
-          if (!name && a.answers && typeof a.answers === "object") {
-            const ans = a.answers as any;
-            if (ans.subjects) name = String(ans.subjects);
-            else if (ans.subject) name = String(ans.subject);
-          }
-
-          // Resolve category
-          let catName = "Other";
-          const ans = a.answers as any;
-          if (ans?.mode === "practice" || ans?.mode === "mock") {
-            catName = "JAMB UTME";
-          } else if (categoryNameMap.has(a.subject_id)) {
-            catName = categoryNameMap.get(a.subject_id)!;
-          } else if (subjectToCategoryMap.has(a.subject_id)) {
-            const catId = subjectToCategoryMap.get(a.subject_id)!;
-            catName = categoryNameMap.get(catId) || "Other";
-          }
-
-          return { ...a, subject_name: name || "Unknown Subject", category_name: catName };
-        });
-        setAttempts(enriched);
-
-        // Build category stats
-        const grouped = new Map<string, ExamAttempt[]>();
-        enriched.forEach((a: ExamAttempt) => {
-          const cat = a.category_name || "Other";
-          if (!grouped.has(cat)) grouped.set(cat, []);
-          grouped.get(cat)!.push(a);
-        });
-
-        const stats: CategoryStats[] = [];
-        grouped.forEach((items, name) => {
-          const total = items.length;
-          const passed = items.filter(a => (a.score / a.total_questions) * 100 >= 50).length;
-          const avgScore = Math.round(items.reduce((s, a) => s + (a.score / a.total_questions) * 100, 0) / total);
-          const bestScore = Math.round(Math.max(...items.map(a => (a.score / a.total_questions) * 100)));
-          stats.push({ name, attempts: total, passed, failed: total - passed, avgScore, bestScore });
-        });
-        stats.sort((a, b) => b.attempts - a.attempts);
-        setCategoryStats(stats);
-      }
-
+      await loadProfileData(session.user.id);
       setLoading(false);
     };
     load();
   }, [navigate]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadProfileData();
+    setRefreshing(false);
+    toast({ title: "Profile refreshed!" });
+  };
 
   const handleSaveProfile = async () => {
     if (!userId) return;
@@ -332,9 +344,14 @@ const Profile = () => {
 
         {/* Exam History */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Exam History</CardTitle>
-            <CardDescription>{totalExams} attempt{totalExams !== 1 ? "s" : ""}</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-lg">Exam History</CardTitle>
+              <CardDescription>{totalExams} attempt{totalExams !== 1 ? "s" : ""}</CardDescription>
+            </div>
+            <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={refreshing}>
+              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            </Button>
           </CardHeader>
           <CardContent>
             {attempts.length === 0 ? (
