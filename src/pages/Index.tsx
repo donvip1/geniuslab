@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { SEOHead } from "@/components/SEOHead";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,12 @@ const Index = () => {
 
   return (
     <div className="min-h-screen flex flex-col pb-16 md:pb-0">
+      <SEOHead
+        title="GeniusLab – Free JAMB CBT Practice, WAEC, NECO & University Past Questions 2025"
+        description="Practice 20,000+ JAMB UTME, WAEC, NECO past questions with answers & explanations. Free CBT mock exams. University departmental exam prep. Start now!"
+        canonical="https://geniuslabz.xyz/"
+        keywords="JAMB CBT practice, JAMB past questions 2025, WAEC past questions, NECO, NABTEB, university exams, CBT practice Nigeria, JAMB mock exam, free JAMB app"
+      />
       <Navbar />
       <AdvertisementPopup />
 
@@ -377,6 +384,30 @@ const Index = () => {
                   Join Our Tutorial
                 </Button>
               </a>
+            </div>
+          </div>
+        </section>
+        {/* SEO FAQ Section - crawlable by search engines */}
+        <section className="py-16 bg-muted/30">
+          <div className="container mx-auto px-4 max-w-4xl">
+            <h2 className="text-3xl font-bold text-center mb-10">Frequently Asked Questions</h2>
+            <div className="space-y-4">
+              {[
+                { q: "Where can I practice JAMB CBT past questions for free?", a: "GeniusLab offers 20,000+ free JAMB CBT past questions from 2001 to 2025 with detailed answers and explanations. Practice Use of English, Mathematics, Physics, Chemistry, Biology, Government, Economics, Literature, and many more subjects." },
+                { q: "How can I get WAEC past questions and answers?", a: "GeniusLab provides thousands of WAEC SSCE past questions with correct answers and step-by-step explanations across all subjects. Practice online for free and prepare for your WAEC examination." },
+                { q: "What is the JAMB marking scheme?", a: "Each correct answer in JAMB UTME is worth 2.5 marks. The exam has 4 subjects: Use of English (60 questions) and 3 other subjects (40 questions each), giving a maximum score of 400. GeniusLab's mock exams use this exact marking scheme." },
+                { q: "Can I practice NECO and NABTEB past questions online?", a: "Yes! GeniusLab has comprehensive NECO and NABTEB past questions with answers for all subjects. Practice in CBT format to simulate the real exam experience." },
+                { q: "How do I prepare for university departmental exams?", a: "GeniusLab offers past questions for university departmental exams including 100-level, 200-level courses and above across various departments. Access both 1st and 2nd semester exams." },
+                { q: "Where can I find summaries for JAMB literature texts?", a: "GeniusLab provides study materials including summaries, themes, and character analysis for recommended JAMB literature texts. Access comprehensive study guides at geniuslabz.xyz." },
+              ].map((faq, i) => (
+                <details key={i} className="group bg-card rounded-lg border p-4 cursor-pointer">
+                  <summary className="font-semibold text-base list-none flex items-center justify-between">
+                    <span>{faq.q}</span>
+                    <ChevronRight className="h-5 w-5 transition-transform group-open:rotate-90 text-muted-foreground" />
+                  </summary>
+                  <p className="mt-3 text-muted-foreground leading-relaxed">{faq.a}</p>
+                </details>
+              ))}
             </div>
           </div>
         </section>
