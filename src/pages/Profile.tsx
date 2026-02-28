@@ -47,10 +47,11 @@ const Profile = () => {
       setUserId(session.user.id);
 
       // Fetch profile and exam attempts in parallel
-      const [profileRes, attemptsRes, subjectsRes] = await Promise.all([
+      const [profileRes, attemptsRes, subjectsRes, categoriesRes] = await Promise.all([
         supabase.from("profiles").select("username, full_name, email").eq("user_id", session.user.id).maybeSingle(),
         supabase.from("exam_attempts").select("*").eq("user_id", session.user.id).order("created_at", { ascending: false }),
         supabase.from("subjects").select("id, name"),
+        supabase.from("exam_categories").select("id, name"),
       ]);
 
       if (profileRes.data) {
@@ -58,14 +59,22 @@ const Profile = () => {
         setEditData({ username: profileRes.data.username || "", full_name: profileRes.data.full_name });
       }
 
-      const subjectMap = new Map<string, string>();
-      subjectsRes.data?.forEach((s: any) => subjectMap.set(s.id, s.name));
+      // Build combined name map: subjects first, then exam_categories as fallback
+      const nameMap = new Map<string, string>();
+      subjectsRes.data?.forEach((s: any) => nameMap.set(s.id, s.name));
+      categoriesRes.data?.forEach((c: any) => { if (!nameMap.has(c.id)) nameMap.set(c.id, c.name); });
 
       if (attemptsRes.data) {
-        setAttempts(attemptsRes.data.map((a: any) => ({
-          ...a,
-          subject_name: subjectMap.get(a.subject_id) || "Unknown Subject",
-        })));
+        setAttempts(attemptsRes.data.map((a: any) => {
+          let name = nameMap.get(a.subject_id);
+          // Fallback: check answers JSON for subjects string (JAMB stores subject list there)
+          if (!name && a.answers && typeof a.answers === "object") {
+            const ans = a.answers as any;
+            if (ans.subjects) name = String(ans.subjects);
+            else if (ans.subject) name = String(ans.subject);
+          }
+          return { ...a, subject_name: name || "Unknown Subject" };
+        }));
       }
 
       setLoading(false);
