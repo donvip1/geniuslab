@@ -4,16 +4,24 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { BookOpen, Users, Award, Target, Star, Zap, GraduationCap, ChevronRight, Sparkles, TrendingUp, ArrowRight } from "lucide-react";
+import {
+  BookOpen,
+  Users,
+  Award,
+  Target,
+  Star,
+  Zap,
+  GraduationCap,
+  ChevronRight,
+  Sparkles,
+  TrendingUp,
+  ArrowRight,
+} from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { TestimonialsCarousel } from "@/components/TestimonialsCarousel";
 import { AdvertisementPopup } from "@/components/AdvertisementPopup";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-} from "@/components/ui/carousel";
+import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import Autoplay from "embla-carousel-autoplay";
 import tutorialClass1 from "@/assets/tutorial-class-1.jpg";
 import tutorialClass2 from "@/assets/tutorial-class-2.jpg";
@@ -28,8 +36,10 @@ const useCountUp = (end: number, duration = 2000) => {
 
   useEffect(() => {
     const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setStarted(true); },
-      { threshold: 0.3 }
+      ([entry]) => {
+        if (entry.isIntersecting) setStarted(true);
+      },
+      { threshold: 0.3 },
     );
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
@@ -41,8 +51,10 @@ const useCountUp = (end: number, duration = 2000) => {
     const step = end / (duration / 16);
     const timer = setInterval(() => {
       start += step;
-      if (start >= end) { setCount(end); clearInterval(timer); }
-      else setCount(Math.floor(start));
+      if (start >= end) {
+        setCount(end);
+        clearInterval(timer);
+      } else setCount(Math.floor(start));
     }, 16);
     return () => clearInterval(timer);
   }, [started, end, duration]);
@@ -54,9 +66,7 @@ const Index = () => {
   const [showJambPopup, setShowJambPopup] = useState(false);
   const navigate = useNavigate();
 
-  const heroCarouselPlugin = useRef(
-    Autoplay({ delay: 4000, stopOnInteraction: false })
-  );
+  const heroCarouselPlugin = useRef(Autoplay({ delay: 4000, stopOnInteraction: false }));
 
   const stat1 = useCountUp(500, 2000);
   const stat2 = useCountUp(95, 2000);
@@ -98,13 +108,19 @@ const Index = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-center pt-4">
-            <Button size="lg" onClick={() => { setShowJambPopup(false); navigate("/exam"); }}>
+            <Button
+              size="lg"
+              onClick={() => {
+                setShowJambPopup(false);
+                navigate("/exam");
+              }}
+            >
               Participate Now
             </Button>
           </div>
         </DialogContent>
       </Dialog>
-      
+
       <main className="flex-1 pt-16">
         {/* Blinking Exam Alert Banner */}
         <div className="bg-red-50 dark:bg-red-950/30 border-b border-red-200 dark:border-red-800 overflow-hidden">
@@ -154,10 +170,16 @@ const Index = () => {
 
             {/* Floating decorative elements */}
             <div className="absolute top-20 left-10 w-20 h-20 bg-accent/20 rounded-full blur-xl animate-float" />
-            <div className="absolute bottom-32 right-16 w-32 h-32 bg-secondary/20 rounded-full blur-2xl animate-float" style={{ animationDelay: "1s" }} />
-            <div className="absolute top-1/2 left-1/4 w-16 h-16 bg-primary-foreground/10 rounded-full blur-lg animate-float" style={{ animationDelay: "2s" }} />
+            <div
+              className="absolute bottom-32 right-16 w-32 h-32 bg-secondary/20 rounded-full blur-2xl animate-float"
+              style={{ animationDelay: "1s" }}
+            />
+            <div
+              className="absolute top-1/2 left-1/4 w-16 h-16 bg-primary-foreground/10 rounded-full blur-lg animate-float"
+              style={{ animationDelay: "2s" }}
+            />
           </div>
-          
+
           <div className="container mx-auto px-4 relative z-10">
             <div className="max-w-4xl mx-auto text-center text-primary-foreground space-y-6">
               <div className="inline-flex items-center gap-2 bg-primary-foreground/15 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium animate-fade-in">
@@ -173,20 +195,33 @@ const Index = () => {
                   </span>
                 </span>
               </h1>
-              
-              <p className="text-lg md:text-2xl opacity-90 max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: "0.2s" }}>
+
+              <p
+                className="text-lg md:text-2xl opacity-90 max-w-2xl mx-auto animate-fade-in"
+                style={{ animationDelay: "0.2s" }}
+              >
                 Where Learning Meets Excellence — Your Success, Our Mission
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in" style={{ animationDelay: "0.4s" }}>
+              <div
+                className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in"
+                style={{ animationDelay: "0.4s" }}
+              >
                 <Link to="/exam">
-                  <Button size="lg" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6">
+                  <Button
+                    size="lg"
+                    className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6"
+                  >
                     <Zap className="h-5 w-5 mr-2" />
                     Start Practice Exam
                   </Button>
                 </Link>
                 <a href="https://wa.me/2348124269495" target="_blank" rel="noopener noreferrer">
-                  <Button size="lg" variant="outline" className="w-full sm:w-auto bg-primary-foreground/10 hover:bg-primary-foreground/20 border-primary-foreground/30 text-primary-foreground shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="w-full sm:w-auto bg-primary-foreground/10 hover:bg-primary-foreground/20 border-primary-foreground/30 text-primary-foreground shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6"
+                  >
                     Join Our Tutorial
                   </Button>
                 </a>
@@ -200,17 +235,46 @@ const Index = () => {
           <div className="container mx-auto px-4">
             <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
               {[
-                { ref: stat1.ref, count: stat1.count, suffix: "+", label: "Students Trained", icon: Users, color: "text-primary" },
-                { ref: stat2.ref, count: stat2.count, suffix: "%", label: "Pass Rate", icon: TrendingUp, color: "text-secondary" },
-                { ref: stat3.ref, count: stat3.count, suffix: "+", label: "Expert Tutors", icon: GraduationCap, color: "text-accent" },
-                { ref: stat4.ref, count: stat4.count, suffix: "+", label: "JAMB Score", icon: Award, color: "text-primary" },
+                {
+                  ref: stat1.ref,
+                  count: stat1.count,
+                  suffix: "+",
+                  label: "Students Trained",
+                  icon: Users,
+                  color: "text-primary",
+                },
+                {
+                  ref: stat2.ref,
+                  count: stat2.count,
+                  suffix: "%",
+                  label: "Pass Rate",
+                  icon: TrendingUp,
+                  color: "text-secondary",
+                },
+                {
+                  ref: stat3.ref,
+                  count: stat3.count,
+                  suffix: "+",
+                  label: "Expert Tutors",
+                  icon: GraduationCap,
+                  color: "text-accent",
+                },
+                {
+                  ref: stat4.ref,
+                  count: stat4.count,
+                  suffix: "+",
+                  label: "JAMB Score",
+                  icon: Award,
+                  color: "text-primary",
+                },
               ].map((stat, i) => (
                 <div key={i} ref={stat.ref}>
                   <Card className="shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 border-t-4 border-t-primary/20">
                     <CardContent className="pt-6 pb-4 flex flex-col items-center text-center gap-2">
                       <stat.icon className={`h-8 w-8 ${stat.color}`} />
                       <span className={`text-3xl md:text-4xl font-extrabold ${stat.color}`}>
-                        {stat.count}{stat.suffix}
+                        {stat.count}
+                        {stat.suffix}
                       </span>
                       <span className="text-sm text-muted-foreground font-medium">{stat.label}</span>
                     </CardContent>
@@ -245,7 +309,9 @@ const Index = () => {
                       </span>
                     </div>
                     <CardContent className="pt-8 pb-6 flex flex-col items-center text-center gap-3">
-                      <span className="text-4xl group-hover:scale-110 transition-transform inline-block">{exam.icon}</span>
+                      <span className="text-4xl group-hover:scale-110 transition-transform inline-block">
+                        {exam.icon}
+                      </span>
                       <h3 className="text-lg font-bold">{exam.name}</h3>
                       <p className="text-sm text-muted-foreground">{exam.desc}</p>
                       <ArrowRight className="h-5 w-5 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -272,9 +338,12 @@ const Index = () => {
                 { img: tutorialClass2, title: "Modern CBT Practice Center" },
                 { img: tutorialClass3, title: "Collaborative Learning" },
               ].map((item, i) => (
-                <div key={i} className="group relative overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all hover:-translate-y-1">
-                  <img 
-                    src={item.img} 
+                <div
+                  key={i}
+                  className="group relative overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all hover:-translate-y-1"
+                >
+                  <img
+                    src={item.img}
                     alt={item.title}
                     className="w-full h-64 md:h-72 object-cover group-hover:scale-110 transition-transform duration-700"
                   />
@@ -300,8 +369,8 @@ const Index = () => {
                     <h2 className="text-2xl font-bold">Our Mission</h2>
                   </div>
                   <p className="text-muted-foreground leading-relaxed">
-                    To raise a new generation of students who learn with confidence, think with clarity, 
-                    and perform with excellence at every level of their academic journey.
+                    To raise a new generation of students who learn with confidence, think with clarity, and perform
+                    with excellence at every level of their academic journey.
                   </p>
                 </CardContent>
               </Card>
@@ -315,8 +384,8 @@ const Index = () => {
                     <h2 className="text-2xl font-bold">Our Vision</h2>
                   </div>
                   <p className="text-muted-foreground leading-relaxed">
-                    To become the most trusted educational support system in FUOYE by consistently 
-                    delivering life-changing academic results.
+                    To become the most trusted educational support system in NIGERIA by consistently delivering
+                    life-changing academic results.
                   </p>
                 </CardContent>
               </Card>
@@ -331,9 +400,7 @@ const Index = () => {
               <div className="inline-block p-4 rounded-full bg-secondary-foreground/10 mb-4 animate-float">
                 <Star className="h-16 w-16 text-secondary-foreground" />
               </div>
-              <h2 className="text-3xl md:text-5xl font-bold mb-4 text-secondary-foreground">
-                Student Success Stories
-              </h2>
+              <h2 className="text-3xl md:text-5xl font-bold mb-4 text-secondary-foreground">Student Success Stories</h2>
               <p className="text-secondary-foreground/80 text-lg max-w-2xl mx-auto">
                 Hear from our students who transformed their academic journey
               </p>
@@ -350,11 +417,29 @@ const Index = () => {
             </div>
             <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
               {[
-                { icon: BookOpen, color: "text-secondary", title: "CBT Practice System", desc: "State-of-the-art Computer-Based Testing system for JAMB/UTME preparation with realistic exam simulations and instant feedback." },
-                { icon: Users, color: "text-accent", title: "Expert Tutoring", desc: "Personalized tutorial sessions by experienced educators in Mathematics, Physics, Chemistry, and university-level courses." },
-                { icon: Award, color: "text-secondary", title: "Proven Track Record", desc: "Our students consistently achieve JAMB scores of 300+, WAEC distinctions, and maintain excellent GPAs at top universities." },
+                {
+                  icon: BookOpen,
+                  color: "text-secondary",
+                  title: "CBT Practice System",
+                  desc: "State-of-the-art Computer-Based Testing system for JAMB/UTME preparation with realistic exam simulations and instant feedback.",
+                },
+                {
+                  icon: Users,
+                  color: "text-accent",
+                  title: "Expert Tutoring",
+                  desc: "Personalized tutorial sessions by experienced educators in Mathematics, Physics, Chemistry, and university-level courses.",
+                },
+                {
+                  icon: Award,
+                  color: "text-secondary",
+                  title: "Proven Track Record",
+                  desc: "Our students consistently achieve JAMB scores of 300+, WAEC distinctions, and maintain excellent GPAs at top universities.",
+                },
               ].map((item, i) => (
-                <Card key={i} className="shadow-lg hover:shadow-xl transition-all hover:-translate-y-2 bg-primary-foreground/10 border-primary-foreground/20 group">
+                <Card
+                  key={i}
+                  className="shadow-lg hover:shadow-xl transition-all hover:-translate-y-2 bg-primary-foreground/10 border-primary-foreground/20 group"
+                >
                   <CardContent className="pt-6">
                     <item.icon className={`h-12 w-12 ${item.color} mb-4 group-hover:scale-110 transition-transform`} />
                     <h3 className="text-xl font-bold mb-2 text-primary-foreground">{item.title}</h3>
@@ -371,7 +456,10 @@ const Index = () => {
           {/* Animated background shapes */}
           <div className="absolute inset-0">
             <div className="absolute top-10 left-10 w-40 h-40 bg-primary-foreground/5 rounded-full blur-3xl animate-float" />
-            <div className="absolute bottom-10 right-10 w-60 h-60 bg-primary-foreground/5 rounded-full blur-3xl animate-float" style={{ animationDelay: "1.5s" }} />
+            <div
+              className="absolute bottom-10 right-10 w-60 h-60 bg-primary-foreground/5 rounded-full blur-3xl animate-float"
+              style={{ animationDelay: "1.5s" }}
+            />
           </div>
           <div className="container mx-auto px-4 text-center relative z-10">
             <h2 className="text-3xl md:text-5xl font-extrabold mb-4">Ready to Excel?</h2>
@@ -380,13 +468,21 @@ const Index = () => {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link to="/exam">
-                <Button size="lg" variant="secondary" className="shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6">
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  className="shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6"
+                >
                   <Zap className="h-5 w-5 mr-2" />
                   Start Practicing Now
                 </Button>
               </Link>
               <a href="https://wa.me/2348124269495" target="_blank" rel="noopener noreferrer">
-                <Button size="lg" variant="outline" className="bg-primary-foreground/10 hover:bg-primary-foreground/20 border-primary-foreground/30 shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="bg-primary-foreground/10 hover:bg-primary-foreground/20 border-primary-foreground/30 shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6"
+                >
                   Join Our Tutorial
                 </Button>
               </a>
@@ -399,12 +495,30 @@ const Index = () => {
             <h2 className="text-3xl font-bold text-center mb-10">Frequently Asked Questions</h2>
             <div className="space-y-4">
               {[
-                { q: "Where can I practice JAMB CBT past questions for free?", a: "GeniusLab offers 20,000+ free JAMB CBT past questions from 2001 to 2025 with detailed answers and explanations. Practice Use of English, Mathematics, Physics, Chemistry, Biology, Government, Economics, Literature, and many more subjects." },
-                { q: "How can I get WAEC past questions and answers?", a: "GeniusLab provides thousands of WAEC SSCE past questions with correct answers and step-by-step explanations across all subjects. Practice online for free and prepare for your WAEC examination." },
-                { q: "What is the JAMB marking scheme?", a: "Each correct answer in JAMB UTME is worth 2.5 marks. The exam has 4 subjects: Use of English (60 questions) and 3 other subjects (40 questions each), giving a maximum score of 400. GeniusLab's mock exams use this exact marking scheme." },
-                { q: "Can I practice NECO and NABTEB past questions online?", a: "Yes! GeniusLab has comprehensive NECO and NABTEB past questions with answers for all subjects. Practice in CBT format to simulate the real exam experience." },
-                { q: "How do I prepare for university departmental exams?", a: "GeniusLab offers past questions for university departmental exams including 100-level, 200-level courses and above across various departments. Access both 1st and 2nd semester exams." },
-                { q: "Where can I find summaries for JAMB literature texts?", a: "GeniusLab provides study materials including summaries, themes, and character analysis for recommended JAMB literature texts. Access comprehensive study guides at geniuslabz.xyz." },
+                {
+                  q: "Where can I practice JAMB CBT past questions for free?",
+                  a: "GeniusLab offers 20,000+ free JAMB CBT past questions from 2001 to 2025 with detailed answers and explanations. Practice Use of English, Mathematics, Physics, Chemistry, Biology, Government, Economics, Literature, and many more subjects.",
+                },
+                {
+                  q: "How can I get WAEC past questions and answers?",
+                  a: "GeniusLab provides thousands of WAEC SSCE past questions with correct answers and step-by-step explanations across all subjects. Practice online for free and prepare for your WAEC examination.",
+                },
+                {
+                  q: "What is the JAMB marking scheme?",
+                  a: "Each correct answer in JAMB UTME is worth 2.5 marks. The exam has 4 subjects: Use of English (60 questions) and 3 other subjects (40 questions each), giving a maximum score of 400. GeniusLab's mock exams use this exact marking scheme.",
+                },
+                {
+                  q: "Can I practice NECO and NABTEB past questions online?",
+                  a: "Yes! GeniusLab has comprehensive NECO and NABTEB past questions with answers for all subjects. Practice in CBT format to simulate the real exam experience.",
+                },
+                {
+                  q: "How do I prepare for university departmental exams?",
+                  a: "GeniusLab offers past questions for university departmental exams including 100-level, 200-level courses and above across various departments. Access both 1st and 2nd semester exams.",
+                },
+                {
+                  q: "Where can I find summaries for JAMB literature texts?",
+                  a: "GeniusLab provides study materials including summaries, themes, and character analysis for recommended JAMB literature texts. Access comprehensive study guides at geniuslabz.xyz.",
+                },
               ].map((faq, i) => (
                 <details key={i} className="group bg-card rounded-lg border p-4 cursor-pointer">
                   <summary className="font-semibold text-base list-none flex items-center justify-between">
