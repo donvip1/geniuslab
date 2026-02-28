@@ -1,27 +1,48 @@
 
 
-## Plan: Fix Profile Stats & Redesign Exam Header
+## Plan: Fix Year Selection & Enhance Profile Stats
 
-### Problem 1: Profile stats not showing for JAMB/API exams
-JAMB exams insert `exam_category_id` (from `exam_categories` table) as `subject_id`, not a real `subjects` table ID. The Profile page only looks up names from `subjects`, so JAMB attempts show "Unknown Subject". Also, API exams (WAEC/NECO/NABTEB) via `submit-exam` use the actual `subject_id` from `subjects` table, which should work. Need to also check `exam_categories` table for fallback name resolution.
+### Issue 1: Year Selection Not Working
+
+**Root cause:** The edge function `jamb-questions` correctly prioritizes year-specific questions and backfills from other years, BUT the backfilled questions retain their original `year` value in the response. When a user selects "2021", they see questions labeled with other years like "2018", "2015", etc.
+
+**Fix in `supabase/functions/jamb-questions/index.ts`:**
+- After selecting questions (line ~199), when a `year` parameter was provided, override the `year` field on ALL returned questions to show the selected year
+- This hides the backfill from users — all questions appear as the selected year
+- The backend already does the right thing (prioritizes year-specific questions first), we just need to mask the year on backfilled ones
+
+```
+// Line ~199-205: Change formatted output
+const formatted = selected.map((q: any) => ({
+  text: q.question_text,
+  options: [...],
+  correctAnswerIndex: q.correct_answer_index,
+  year: year || q.year || "",  // <-- use selected year if provided
+  explanation: q.explanation || "",
+  subject: subject,
+}));
+```
+
+### Issue 2: Profile Stats Need Detailed Breakdown
+
+**Current state:** Profile shows generic stats (total exams, avg/best/worst score, pass rate) but doesn't break down by exam type (JAMB, WAEC, University, etc.).
 
 **Fix in `src/pages/Profile.tsx`:**
-- Also fetch `exam_categories` alongside `subjects`
-- Build a combined name map: first check subjects, then check exam_categories, then check `answers.subjects` JSON field
-- This ensures JAMB attempts show the category name (e.g., "JAMB UTME") or the subjects string from the answers JSON
+- Group attempts by exam type: detect from `answers.mode` (JAMB has "practice"/"mock"), or from subject/category lookup
+- For each exam type group, show: total attempts, pass/fail count, avg score, best score
+- Replace the simple "Performance Summary" card with a detailed breakdown section showing per-category stats
+- Each category card shows: category name (JAMB, University CBT, etc.), attempts count, passed/failed counts, average score
+- Keep Best/Worst performance cards as they are
 
-### Problem 2: Remove Logout button from Exam header, replace with motivational content
-Currently the exam page header (`src/pages/Exam.tsx` lines 384-395) shows a Logout button next to "Back to Categories".
+**Categorization logic:**
+- If `answers.mode` is "practice" or "mock" → "JAMB UTME"
+- If `subject_id` matches an `exam_categories` entry → use that category name
+- If `subject_id` matches a `subjects` entry → look up its `exam_category_id` → get category name
+- Fallback → "Other"
 
-**Fix in `src/pages/Exam.tsx`:**
-- Remove the Logout button entirely from the header
-- Fetch user's best exam performance on load (query `exam_attempts` for their highest score percentage)
-- Display either:
-  - If they have past attempts: "Your best score: X% — Can you beat it?" with a trophy icon
-  - If no past attempts: A random motivational quote from a predefined array (changes on each visit)
-- Show this below the "Welcome, username" line in the header
+**Additional data needed:** Also fetch `subjects.exam_category_id` to map subjects back to their exam category for grouping.
 
 ### Files to modify:
-1. **`src/pages/Profile.tsx`** — Fix subject name resolution to handle JAMB category IDs and answers JSON
-2. **`src/pages/Exam.tsx`** — Remove Logout button, add motivational quote or best performance display
+1. **`supabase/functions/jamb-questions/index.ts`** — Override year on all questions when year filter is active
+2. **`src/pages/Profile.tsx`** — Add detailed per-category performance breakdown
 
