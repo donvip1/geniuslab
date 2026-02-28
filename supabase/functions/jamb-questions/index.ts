@@ -149,7 +149,13 @@ serve(async (req) => {
                   year: (q.year || "").toString(),
                   explanation: (q.explanation || "").toString(),
                 }))
-                .filter((q: any) => q.question_text.length > 5);
+                .filter((q: any) => {
+                  const text = q.question_text;
+                  if (text.length < 15) return false;
+                  const wordCount = text.split(/\s+/).filter((w: string) => w.length > 0).length;
+                  if (wordCount < 3) return false;
+                  return true;
+                });
 
               console.log(`${subject}: fetched ${toCache.length} from API, storing in cache...`);
 
@@ -192,8 +198,21 @@ serve(async (req) => {
         }
       }
 
-      // Step 4: Shuffle and pick exact requested count from our bank
-      const shuffled = pool.sort(() => Math.random() - 0.5);
+      // Step 4: Filter out incomplete/malformed questions, then shuffle and pick
+      const qualityPool = pool.filter((q: any) => {
+        const text = (q.question_text || '').trim();
+        const wordCount = text.split(/\s+/).filter((w: string) => w.length > 0).length;
+        if (text.length < 15 || wordCount < 3) return false;
+        const opts = [q.option_a, q.option_b, q.option_c, q.option_d];
+        const validOpts = opts.filter((o: string) => o && o.trim().length >= 1);
+        if (validOpts.length < 4) return false;
+        const unique = new Set(validOpts.map((o: string) => o.trim().toLowerCase()));
+        if (unique.size < 2) return false;
+        return true;
+      });
+      console.log(`${subject}: filtered ${pool.length - qualityPool.length} bad questions, quality pool=${qualityPool.length}`);
+
+      const shuffled = qualityPool.sort(() => Math.random() - 0.5);
       const selected = shuffled.slice(0, questionsPerSubject);
 
       const formatted = selected.map((q: any) => ({

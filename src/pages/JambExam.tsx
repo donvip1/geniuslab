@@ -491,11 +491,25 @@ const JambExam = () => {
         if (Array.isArray(arr)) allQuestions.push(...arr);
       }
 
-      if (allQuestions.length === 0) {
-        throw new Error("No questions available from the question bank for the selected subjects");
+      // Filter out incomplete/malformed questions
+      const qualityQuestions = allQuestions.filter(q => {
+        const text = (q.text || '').trim();
+        const wordCount = text.split(/\s+/).filter((w: string) => w.length > 0).length;
+        if (text.length < 15 || wordCount < 3) return false;
+        if (!q.options || q.options.length < 4) return false;
+        const validOpts = q.options.filter((o: string) => o && o.trim().length >= 1);
+        if (validOpts.length < 4) return false;
+        const unique = new Set(validOpts.map((o: string) => o.trim().toLowerCase()));
+        if (unique.size < 2) return false;
+        return true;
+      });
+
+      if (qualityQuestions.length === 0) {
+        throw new Error("No valid questions available from the question bank for the selected subjects");
       }
 
-      setQuestions(allQuestions);
+      console.log(`Filtered ${allQuestions.length - qualityQuestions.length} incomplete questions`);
+      setQuestions(qualityQuestions);
       setExamStarted(true);
       setTimeLeft(examDuration);
     } catch (error: any) {
