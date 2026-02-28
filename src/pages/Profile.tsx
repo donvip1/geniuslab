@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Navbar } from "@/components/Navbar";
-import { Loader2, ArrowLeft, LogOut, Edit2, Save, X, Trophy, Target, Clock, BookOpen, BarChart3 } from "lucide-react";
+import { Loader2, ArrowLeft, LogOut, Edit2, Save, X, Trophy, Target, Clock, BookOpen, BarChart3, TrendingDown, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 
 interface Profile {
@@ -121,7 +121,12 @@ const Profile = () => {
   const totalQuestions = attempts.reduce((s, a) => s + a.total_questions, 0);
   const avgScore = totalExams > 0 ? Math.round(attempts.reduce((s, a) => s + (a.score / a.total_questions) * 100, 0) / totalExams) : 0;
   const bestScore = totalExams > 0 ? Math.round(Math.max(...attempts.map((a) => (a.score / a.total_questions) * 100))) : 0;
+  const worstScore = totalExams > 0 ? Math.round(Math.min(...attempts.map((a) => (a.score / a.total_questions) * 100))) : 0;
   const passRate = totalExams > 0 ? Math.round((attempts.filter((a) => (a.score / a.total_questions) * 100 >= 50).length / totalExams) * 100) : 0;
+
+  // Best and worst attempts
+  const bestAttempt = totalExams > 0 ? attempts.reduce((best, a) => (a.score / a.total_questions) > (best.score / best.total_questions) ? a : best) : null;
+  const worstAttempt = totalExams > 0 ? attempts.reduce((worst, a) => (a.score / a.total_questions) < (worst.score / worst.total_questions) ? a : worst) : null;
 
   const formatTime = (s: number | null) => {
     if (!s) return "—";
@@ -202,6 +207,54 @@ const Profile = () => {
             <p>Total correct answers: <span className="font-medium text-foreground">{attempts.reduce((s, a) => s + a.score, 0)}</span></p>
           </CardContent>
         </Card>
+
+        {/* Best & Worst Performances */}
+        {totalExams > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {bestAttempt && (() => {
+              const pct = Math.round((bestAttempt.score / bestAttempt.total_questions) * 100);
+              return (
+                <Card className="border-green-200 dark:border-green-900">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5 text-green-600" />
+                      Best Performance
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-1 text-sm">
+                    <p className="font-semibold">{bestAttempt.subject_name}</p>
+                    <p className="text-green-600 font-bold text-lg">{bestAttempt.score}/{bestAttempt.total_questions} ({pct}%)</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-2">
+                      <span>{format(new Date(bestAttempt.created_at), "MMM d, yyyy")}</span>
+                      <span className="flex items-center gap-0.5"><Clock className="h-3 w-3" />{formatTime(bestAttempt.time_taken_seconds)}</span>
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+            {worstAttempt && (() => {
+              const pct = Math.round((worstAttempt.score / worstAttempt.total_questions) * 100);
+              return (
+                <Card className="border-red-200 dark:border-red-900">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <TrendingDown className="h-5 w-5 text-destructive" />
+                      Worst Performance
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-1 text-sm">
+                    <p className="font-semibold">{worstAttempt.subject_name}</p>
+                    <p className="text-destructive font-bold text-lg">{worstAttempt.score}/{worstAttempt.total_questions} ({pct}%)</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-2">
+                      <span>{format(new Date(worstAttempt.created_at), "MMM d, yyyy")}</span>
+                      <span className="flex items-center gap-0.5"><Clock className="h-3 w-3" />{formatTime(worstAttempt.time_taken_seconds)}</span>
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+          </div>
+        )}
 
         {/* Exam History */}
         <Card>
