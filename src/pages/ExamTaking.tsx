@@ -419,7 +419,7 @@ const ExamTaking = () => {
       console.error("Error submitting exam:", error);
       toast({
         title: "Error",
-        description: "Failed to submit exam. Please try again.",
+        description: error?.message || "Failed to submit exam. Please try again.",
         variant: "destructive",
       });
     } finally {
