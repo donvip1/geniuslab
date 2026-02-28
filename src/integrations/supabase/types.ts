@@ -295,15 +295,7 @@ export type Database = {
           total_questions?: number
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "exam_attempts_subject_id_fkey"
-            columns: ["subject_id"]
-            isOneToOne: false
-            referencedRelation: "subjects"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       exam_categories: {
         Row: {
