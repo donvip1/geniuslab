@@ -150,10 +150,11 @@ serve(async (req) => {
                   explanation: (q.explanation || "").toString(),
                 }))
                 .filter((q: any) => {
-                  const text = q.question_text;
-                  if (text.length < 15) return false;
-                  const wordCount = text.split(/\s+/).filter((w: string) => w.length > 0).length;
-                  if (wordCount < 3) return false;
+                  const rawText = (q.question_text || '').trim();
+                  const plainText = rawText.replace(/<[^>]*>/g, '').trim();
+                  if (plainText.length < 25) return false;
+                  const wordCount = plainText.split(/\s+/).filter((w: string) => w.length > 0).length;
+                  if (wordCount < 5) return false;
                   return true;
                 });
 
@@ -198,11 +199,12 @@ serve(async (req) => {
         }
       }
 
-      // Step 4: Filter out incomplete/malformed questions, then shuffle and pick
+      // Step 4: Filter out incomplete/malformed questions (strip HTML), then shuffle and pick
       const qualityPool = pool.filter((q: any) => {
-        const text = (q.question_text || '').trim();
-        const wordCount = text.split(/\s+/).filter((w: string) => w.length > 0).length;
-        if (text.length < 15 || wordCount < 3) return false;
+        const rawText = (q.question_text || '').trim();
+        const plainText = rawText.replace(/<[^>]*>/g, '').trim();
+        const wordCount = plainText.split(/\s+/).filter((w: string) => w.length > 0).length;
+        if (plainText.length < 25 || wordCount < 5) return false;
         const opts = [q.option_a, q.option_b, q.option_c, q.option_d];
         const validOpts = opts.filter((o: string) => o && o.trim().length >= 1);
         if (validOpts.length < 4) return false;

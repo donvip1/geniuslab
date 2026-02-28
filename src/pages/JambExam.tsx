@@ -491,11 +491,14 @@ const JambExam = () => {
         if (Array.isArray(arr)) allQuestions.push(...arr);
       }
 
-      // Filter out incomplete/malformed questions
+      // Filter out incomplete/malformed questions - strict validation
       const qualityQuestions = allQuestions.filter(q => {
-        const text = (q.text || '').trim();
-        const wordCount = text.split(/\s+/).filter((w: string) => w.length > 0).length;
-        if (text.length < 15 || wordCount < 3) return false;
+        const rawText = (q.text || '').trim();
+        // Strip HTML tags to get actual text length
+        const plainText = rawText.replace(/<[^>]*>/g, '').trim();
+        const wordCount = plainText.split(/\s+/).filter((w: string) => w.length > 0).length;
+        // Must be at least 25 chars and 5 words to be a real question
+        if (plainText.length < 25 || wordCount < 5) return false;
         if (!q.options || q.options.length < 4) return false;
         const validOpts = q.options.filter((o: string) => o && o.trim().length >= 1);
         if (validOpts.length < 4) return false;

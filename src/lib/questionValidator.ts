@@ -3,7 +3,8 @@
  * Filters out incomplete, nonsensical, or malformed questions.
  */
 
-const MIN_QUESTION_LENGTH = 15;
+const MIN_QUESTION_LENGTH = 25;
+const MIN_WORD_COUNT = 5;
 const MIN_OPTION_LENGTH = 1;
 
 // A question must have a verb, punctuation, or recognizable structure
@@ -21,17 +22,18 @@ const QUESTION_PATTERNS = [
 export function isValidQuestion(questionText: string): boolean {
   if (!questionText || typeof questionText !== 'string') return false;
   
-  const trimmed = questionText.trim();
+  // Strip HTML tags to get actual content length
+  const stripped = questionText.replace(/<[^>]*>/g, '').trim();
   
   // Too short to be a real question
-  if (trimmed.length < MIN_QUESTION_LENGTH) return false;
+  if (stripped.length < MIN_QUESTION_LENGTH) return false;
   
-  // Just a single word or two words (like "Hair", "Go there")
-  const wordCount = trimmed.split(/\s+/).filter(w => w.length > 0).length;
-  if (wordCount < 3) return false;
+  // Not enough words
+  const wordCount = stripped.split(/\s+/).filter(w => w.length > 0).length;
+  if (wordCount < MIN_WORD_COUNT) return false;
   
   // Check if it matches at least one question-like pattern
-  const hasQuestionPattern = QUESTION_PATTERNS.some(p => p.test(trimmed));
+  const hasQuestionPattern = QUESTION_PATTERNS.some(p => p.test(stripped));
   
   // If no question pattern found, it's likely incomplete/garbage
   if (!hasQuestionPattern) return false;
