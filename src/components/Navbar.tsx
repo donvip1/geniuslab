@@ -51,14 +51,14 @@ export const Navbar = () => {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-14 md:h-16">
+        <div className="flex items-center justify-between h-14 lg:h-16">
           <Link to="/" className="flex items-center gap-2 font-bold text-xl">
-            <img src={gecLogo} alt="GeniusLab Educational Consult" className="h-20 md:h-28 w-auto" />
+            <img src={gecLogo} alt="GeniusLab Educational Consult" className="h-20 lg:h-28 w-auto" />
             <span className="hidden sm:inline">GeniusLab</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-6">
+          <div className="hidden lg:flex items-center gap-6">
             {navLinks.map((link) => (
               <Link key={link.to} to={link.to} className="text-foreground/80 hover:text-foreground transition-colors">
                 {link.label}
@@ -90,7 +90,7 @@ export const Navbar = () => {
           {/* Mobile: More menu button */}
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
+              <Button variant="ghost" size="icon" className="lg:hidden">
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
