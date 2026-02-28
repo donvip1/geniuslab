@@ -154,7 +154,24 @@ const ApiExam = () => {
         throw new Error("No questions available for the selected subject");
       }
 
-      setQuestions(questionsArray);
+      // Filter out incomplete/malformed questions
+      const qualityQuestions = questionsArray.filter((q: any) => {
+        const text = (q.text || '').trim();
+        const wordCount = text.split(/\s+/).filter((w: string) => w.length > 0).length;
+        if (text.length < 15 || wordCount < 3) return false;
+        if (!q.options || q.options.length < 4) return false;
+        const validOpts = q.options.filter((o: string) => o && o.trim().length >= 1);
+        if (validOpts.length < 4) return false;
+        const unique = new Set(validOpts.map((o: string) => o.trim().toLowerCase()));
+        if (unique.size < 2) return false;
+        return true;
+      });
+
+      if (qualityQuestions.length === 0) {
+        throw new Error("No valid questions available for the selected subject");
+      }
+
+      setQuestions(qualityQuestions);
       setExamStarted(true);
       setTimeLeft(EXAM_DURATION);
     } catch (error: any) {

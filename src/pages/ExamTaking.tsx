@@ -340,8 +340,31 @@ const ExamTaking = () => {
         return;
       }
 
+      // Filter out incomplete/malformed questions
+      const qualityQuestions = questionsData.filter(q => {
+        const text = (q.question_text || '').trim();
+        const wordCount = text.split(/\s+/).filter((w: string) => w.length > 0).length;
+        if (text.length < 15 || wordCount < 3) return false;
+        const options = [q.option_a, q.option_b, q.option_c, q.option_d];
+        const validOpts = options.filter(o => o && o.trim().length >= 1);
+        if (validOpts.length < 4) return false;
+        const unique = new Set(validOpts.map(o => (o || '').trim().toLowerCase()));
+        if (unique.size < 2) return false;
+        return true;
+      });
+
+      if (qualityQuestions.length === 0) {
+        toast({
+          title: "No Valid Questions",
+          description: "All questions for this subject are incomplete. Please contact admin.",
+          variant: "destructive",
+        });
+        navigate("/exam");
+        return;
+      }
+
       // Shuffle questions for each exam attempt
-      const shuffledQuestions = shuffleArray(questionsData);
+      const shuffledQuestions = shuffleArray(qualityQuestions);
       
       // Apply question limit based on subject
       const questionLimit = getQuestionLimit(subjectData.name);

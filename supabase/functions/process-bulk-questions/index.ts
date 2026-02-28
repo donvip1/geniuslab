@@ -141,8 +141,20 @@ serve(async (req) => {
 
     // Validate and clean questions before insert
     const validQuestions = allQuestions.filter((q, index) => {
-      if (!q.question || typeof q.question !== "string" || q.question.trim().length < 5) {
-        console.warn(`process-bulk-questions: Skipping invalid question at index ${index}`);
+      const text = (q.question || '').trim();
+      if (text.length < 15) {
+        console.warn(`process-bulk-questions: Skipping too-short question at index ${index}: "${text.substring(0, 50)}"`);
+        return false;
+      }
+      const wordCount = text.split(/\s+/).filter((w: string) => w.length > 0).length;
+      if (wordCount < 3) {
+        console.warn(`process-bulk-questions: Skipping incomplete question at index ${index}: "${text.substring(0, 50)}"`);
+        return false;
+      }
+      const opts = [q.options?.[0], q.options?.[1], q.options?.[2], q.options?.[3]];
+      const validOpts = opts.filter((o: any) => o && String(o).trim().length >= 1);
+      if (validOpts.length < 4) {
+        console.warn(`process-bulk-questions: Skipping question with missing options at index ${index}`);
         return false;
       }
       return true;
