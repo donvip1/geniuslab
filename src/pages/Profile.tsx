@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Navbar } from "@/components/Navbar";
-import { Loader2, ArrowLeft, LogOut, Edit2, Save, X, Trophy, Target, Clock, BookOpen, BarChart3, TrendingDown, TrendingUp } from "lucide-react";
+import { Loader2, ArrowLeft, LogOut, Edit2, Save, X, Trophy, Target, Clock, BookOpen, BarChart3, TrendingDown, TrendingUp, CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
 
 interface Profile {
@@ -24,6 +24,17 @@ interface ExamAttempt {
   created_at: string;
   subject_id: string;
   subject_name?: string;
+  answers?: any;
+  category_name?: string;
+}
+
+interface CategoryStats {
+  name: string;
+  attempts: number;
+  passed: number;
+  failed: number;
+  avgScore: number;
+  bestScore: number;
 }
 
 const Profile = () => {
@@ -36,6 +47,7 @@ const Profile = () => {
   const [saving, setSaving] = useState(false);
   const [attempts, setAttempts] = useState<ExamAttempt[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [categoryStats, setCategoryStats] = useState<CategoryStats[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -46,11 +58,10 @@ const Profile = () => {
       }
       setUserId(session.user.id);
 
-      // Fetch profile and exam attempts in parallel
       const [profileRes, attemptsRes, subjectsRes, categoriesRes] = await Promise.all([
         supabase.from("profiles").select("username, full_name, email").eq("user_id", session.user.id).maybeSingle(),
         supabase.from("exam_attempts").select("*").eq("user_id", session.user.id).order("created_at", { ascending: false }),
-        supabase.from("subjects").select("id, name"),
+        supabase.from("subjects").select("id, name, exam_category_id"),
         supabase.from("exam_categories").select("id, name"),
       ]);
 
@@ -59,22 +70,61 @@ const Profile = () => {
         setEditData({ username: profileRes.data.username || "", full_name: profileRes.data.full_name });
       }
 
-      // Build combined name map: subjects first, then exam_categories as fallback
-      const nameMap = new Map<string, string>();
-      subjectsRes.data?.forEach((s: any) => nameMap.set(s.id, s.name));
-      categoriesRes.data?.forEach((c: any) => { if (!nameMap.has(c.id)) nameMap.set(c.id, c.name); });
+      // Build maps
+      const categoryNameMap = new Map<string, string>();
+      categoriesRes.data?.forEach((c: any) => categoryNameMap.set(c.id, c.name));
+
+      const subjectNameMap = new Map<string, string>();
+      const subjectToCategoryMap = new Map<string, string>();
+      subjectsRes.data?.forEach((s: any) => {
+        subjectNameMap.set(s.id, s.name);
+        if (s.exam_category_id) subjectToCategoryMap.set(s.id, s.exam_category_id);
+      });
 
       if (attemptsRes.data) {
-        setAttempts(attemptsRes.data.map((a: any) => {
-          let name = nameMap.get(a.subject_id);
-          // Fallback: check answers JSON for subjects string (JAMB stores subject list there)
+        const enriched = attemptsRes.data.map((a: any) => {
+          // Resolve subject name
+          let name = subjectNameMap.get(a.subject_id) || categoryNameMap.get(a.subject_id);
           if (!name && a.answers && typeof a.answers === "object") {
             const ans = a.answers as any;
             if (ans.subjects) name = String(ans.subjects);
             else if (ans.subject) name = String(ans.subject);
           }
-          return { ...a, subject_name: name || "Unknown Subject" };
-        }));
+
+          // Resolve category
+          let catName = "Other";
+          const ans = a.answers as any;
+          if (ans?.mode === "practice" || ans?.mode === "mock") {
+            catName = "JAMB UTME";
+          } else if (categoryNameMap.has(a.subject_id)) {
+            catName = categoryNameMap.get(a.subject_id)!;
+          } else if (subjectToCategoryMap.has(a.subject_id)) {
+            const catId = subjectToCategoryMap.get(a.subject_id)!;
+            catName = categoryNameMap.get(catId) || "Other";
+          }
+
+          return { ...a, subject_name: name || "Unknown Subject", category_name: catName };
+        });
+        setAttempts(enriched);
+
+        // Build category stats
+        const grouped = new Map<string, ExamAttempt[]>();
+        enriched.forEach((a: ExamAttempt) => {
+          const cat = a.category_name || "Other";
+          if (!grouped.has(cat)) grouped.set(cat, []);
+          grouped.get(cat)!.push(a);
+        });
+
+        const stats: CategoryStats[] = [];
+        grouped.forEach((items, name) => {
+          const total = items.length;
+          const passed = items.filter(a => (a.score / a.total_questions) * 100 >= 50).length;
+          const avgScore = Math.round(items.reduce((s, a) => s + (a.score / a.total_questions) * 100, 0) / total);
+          const bestScore = Math.round(Math.max(...items.map(a => (a.score / a.total_questions) * 100)));
+          stats.push({ name, attempts: total, passed, failed: total - passed, avgScore, bestScore });
+        });
+        stats.sort((a, b) => b.attempts - a.attempts);
+        setCategoryStats(stats);
       }
 
       setLoading(false);
@@ -116,15 +166,12 @@ const Profile = () => {
     );
   }
 
-  // Stats
   const totalExams = attempts.length;
   const totalQuestions = attempts.reduce((s, a) => s + a.total_questions, 0);
   const avgScore = totalExams > 0 ? Math.round(attempts.reduce((s, a) => s + (a.score / a.total_questions) * 100, 0) / totalExams) : 0;
   const bestScore = totalExams > 0 ? Math.round(Math.max(...attempts.map((a) => (a.score / a.total_questions) * 100))) : 0;
-  const worstScore = totalExams > 0 ? Math.round(Math.min(...attempts.map((a) => (a.score / a.total_questions) * 100))) : 0;
   const passRate = totalExams > 0 ? Math.round((attempts.filter((a) => (a.score / a.total_questions) * 100 >= 50).length / totalExams) * 100) : 0;
 
-  // Best and worst attempts
   const bestAttempt = totalExams > 0 ? attempts.reduce((best, a) => (a.score / a.total_questions) > (best.score / best.total_questions) ? a : best) : null;
   const worstAttempt = totalExams > 0 ? attempts.reduce((worst, a) => (a.score / a.total_questions) < (worst.score / worst.total_questions) ? a : worst) : null;
 
@@ -139,7 +186,6 @@ const Profile = () => {
     <div className="min-h-screen bg-background pb-24 md:pb-8">
       <Navbar />
       <div className="container mx-auto px-4 pt-20 md:pt-24 max-w-2xl space-y-6">
-        {/* Back button */}
         <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="gap-1">
           <ArrowLeft className="h-4 w-4" /> Back to Home
         </Button>
@@ -179,7 +225,7 @@ const Profile = () => {
           )}
         </Card>
 
-        {/* Exam Stats */}
+        {/* Overview Stats */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
             { label: "Exams Taken", value: totalExams, icon: BookOpen },
@@ -197,16 +243,43 @@ const Profile = () => {
           ))}
         </div>
 
-        {/* Performance Summary */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Performance Summary</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm space-y-1 text-muted-foreground">
-            <p>Total questions answered: <span className="font-medium text-foreground">{totalQuestions}</span></p>
-            <p>Total correct answers: <span className="font-medium text-foreground">{attempts.reduce((s, a) => s + a.score, 0)}</span></p>
-          </CardContent>
-        </Card>
+        {/* Per-Category Breakdown */}
+        {categoryStats.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Performance by Category</CardTitle>
+              <CardDescription>Detailed breakdown across exam types</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {categoryStats.map((cat) => (
+                <div key={cat.name} className="border rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-sm">{cat.name}</p>
+                    <span className="text-xs text-muted-foreground">{cat.attempts} attempt{cat.attempts !== 1 ? "s" : ""}</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                    <div>
+                      <p className="font-bold text-foreground">{cat.avgScore}%</p>
+                      <p className="text-muted-foreground">Avg</p>
+                    </div>
+                    <div>
+                      <p className="font-bold text-foreground">{cat.bestScore}%</p>
+                      <p className="text-muted-foreground">Best</p>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <p className="font-bold text-green-600 flex items-center gap-0.5"><CheckCircle className="h-3 w-3" />{cat.passed}</p>
+                      <p className="text-muted-foreground">Passed</p>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <p className="font-bold text-destructive flex items-center gap-0.5"><XCircle className="h-3 w-3" />{cat.failed}</p>
+                      <p className="text-muted-foreground">Failed</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Best & Worst Performances */}
         {totalExams > 0 && (
@@ -274,6 +347,7 @@ const Profile = () => {
                       <div className="space-y-0.5">
                         <p className="font-medium text-sm">{a.subject_name}</p>
                         <p className="text-xs text-muted-foreground flex items-center gap-2">
+                          <span className="text-primary/70">{a.category_name}</span>
                           <span>{format(new Date(a.created_at), "MMM d, yyyy")}</span>
                           <span className="flex items-center gap-0.5"><Clock className="h-3 w-3" />{formatTime(a.time_taken_seconds)}</span>
                         </p>
@@ -289,7 +363,6 @@ const Profile = () => {
           </CardContent>
         </Card>
 
-        {/* Logout */}
         <Button variant="outline" className="w-full" onClick={handleLogout}>
           <LogOut className="h-4 w-4 mr-2" /> Logout
         </Button>
