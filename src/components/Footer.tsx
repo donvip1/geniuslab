@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Mail, Phone, MapPin, Facebook, Instagram, Globe, MessageCircle } from "lucide-react";
+import { Mail, Phone, MapPin, Facebook, Twitter, Globe, MessageCircle } from "lucide-react";
 
 export const Footer = () => {
   return (
@@ -55,8 +55,8 @@ export const Footer = () => {
               <a href="https://whatsapp.com/channel/0029Vb6kqDVISTkQR9ZxN73x" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
                 <MessageCircle size={24} />
               </a>
-              <a href="https://www.instagram.com" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
-                <Instagram size={24} />
+              <a href="https://x.com/geniuslab_edu" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
+                <Twitter size={24} />
               </a>
               <a href="https://geniuslabz.xyz/" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
                 <Globe size={24} />
