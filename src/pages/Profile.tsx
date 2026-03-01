@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Navbar } from "@/components/Navbar";
-import { Loader2, ArrowLeft, LogOut, Edit2, Save, X, Trophy, Target, Clock, BookOpen, BarChart3, TrendingDown, TrendingUp, CheckCircle, XCircle, RefreshCw, Medal, Crown } from "lucide-react";
+import { Loader2, ArrowLeft, Edit2, Save, X, Trophy, Target, Clock, BookOpen, BarChart3, TrendingDown, TrendingUp, CheckCircle, XCircle, RefreshCw, Medal, Crown } from "lucide-react";
 import { format } from "date-fns";
 
 interface Profile {
@@ -217,10 +217,6 @@ const Profile = () => {
     setSaving(false);
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/");
-  };
 
   if (loading) {
     return (
@@ -594,9 +590,6 @@ const Profile = () => {
           </CardContent>
         </Card>
 
-        <Button variant="outline" className="w-full" onClick={handleLogout}>
-          <LogOut className="h-4 w-4 mr-2" /> Logout
-        </Button>
       </div>
     </div>
   );

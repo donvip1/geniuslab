@@ -259,9 +259,6 @@ const Auth = () => {
             <Button onClick={() => navigate("/exam")} className="w-full">
               <GraduationCap className="mr-2 h-4 w-4" /> Go to Exams
             </Button>
-            <Button variant="outline" onClick={handleLogout} className="w-full" disabled={loading}>
-              {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Logging out...</> : "Logout"}
-            </Button>
             <Button variant="link" onClick={() => navigate("/")} className="w-full text-sm">Back to Home</Button>
           </CardContent>
         </Card>
