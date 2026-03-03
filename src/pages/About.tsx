@@ -116,8 +116,9 @@ We are not just a tutorial center, we are an excellence factory." />
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      <h3 className="text-2xl font-bold text-primary mb-2">Etim Nsisong Enefiok (Holysinner)</h3>
-                      <p className="text-sm text-muted-foreground font-medium">Co-Founder & Lead Tutor</p>
+                      <h3 className="text-2xl font-bold text-primary text-center">Etim Nsisong Enefiok</h3>
+                      <p className="text-base font-semibold text-primary/70 text-center mb-2">(Holysinner)</p>
+                      <p className="text-sm text-muted-foreground font-medium text-center">Co-Founder & Lead Tutor</p>
                     </div>
                     <ExpandableText text="Etim Nsisong Enefiok, is a distinguished tutor and rising scholar from the Department of Mathematics, Federal University Oye-Ekiti (FUOYE). Born with an innate passion for teaching and intellectual exploration, he has grown into one of the most influential young educators within his academic community." />
                   </CardContent>
@@ -134,8 +135,9 @@ We are not just a tutorial center, we are an excellence factory." />
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      <h3 className="text-2xl font-bold text-secondary mb-2">Robinson Nwankwuda (Mr. Wealth)</h3>
-                      <p className="text-sm text-muted-foreground font-medium">Co-Founder</p>
+                      <h3 className="text-2xl font-bold text-secondary text-center">Robinson Nwankwuda</h3>
+                      <p className="text-base font-semibold text-secondary/70 text-center mb-2">(Mr. Wealth)</p>
+                      <p className="text-sm text-muted-foreground font-medium text-center">Co-Founder</p>
                     </div>
                     <ExpandableText text="Product Strategist, Blockchain Contributor, and Software Quality Specialist, actively involved in emerging technologies, driving innovation, and shaping strategic product development." />
                   </CardContent>
@@ -152,8 +154,9 @@ We are not just a tutorial center, we are an excellence factory." />
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      <h3 className="text-2xl font-bold text-accent mb-2">Philip Awazie (Donvip)</h3>
-                      <p className="text-sm text-muted-foreground font-medium">Co-Founder</p>
+                      <h3 className="text-2xl font-bold text-accent text-center">Philip Awazie</h3>
+                      <p className="text-base font-semibold text-accent/70 text-center mb-2">(Donvip)</p>
+                      <p className="text-sm text-muted-foreground font-medium text-center">Co-Founder</p>
                     </div>
                     <ExpandableText text="Full-stack Web and App Developer, Web Instructor, Blockchain Contributor, and Graphic Designer — passionate about building scalable digital solutions and delivering impactful tech-driven results." />
                   </CardContent>
@@ -223,12 +226,12 @@ Our learning model goes beyond teaching; we create an environment where students
                               </div>
                             )}
                             {expert.alias && (
-                              <h3 className={`text-2xl font-bold ${colorSet.name} mb-1`}>
+                              <h3 className={`text-2xl font-bold ${colorSet.name} mb-1 text-center`}>
                                 {expert.alias.toUpperCase()}
                               </h3>
                             )}
-                            <p className={`text-lg font-semibold ${colorSet.title} mb-2`}>{expert.title}</p>
-                            <p className="text-sm text-muted-foreground">{expert.name}</p>
+                            <p className={`text-lg font-semibold ${colorSet.title} mb-2 text-center`}>{expert.title}</p>
+                            <p className="text-sm text-muted-foreground text-center">{expert.name}</p>
                           </div>
                           
                           <ExpandableText text={expert.description} />
