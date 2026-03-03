@@ -16,11 +16,12 @@ import {
   Sparkles,
   TrendingUp,
   ArrowRight,
+  X,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { TestimonialsCarousel } from "@/components/TestimonialsCarousel";
 import { AdvertisementPopup } from "@/components/AdvertisementPopup";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import Autoplay from "embla-carousel-autoplay";
 import tutorialClass1 from "@/assets/tutorial-class-1.jpg";
@@ -100,23 +101,96 @@ const Index = () => {
       <AdvertisementPopup />
 
       <Dialog open={showJambPopup} onOpenChange={setShowJambPopup}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-2xl text-center">🎯 JAMB 2026</DialogTitle>
-            <DialogDescription className="text-center text-base pt-2">
-              Prepare for JAMB 2026: Practice Exams Are Now Available — Participate Now.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-center pt-4">
+        <DialogContent className="sm:max-w-lg p-0 overflow-hidden border-0 bg-[#0a0a0a] text-white">
+          <DialogTitle className="sr-only">GeniusLab is Now Live</DialogTitle>
+          <div className="relative">
+            {/* Close button */}
             <Button
-              size="lg"
-              onClick={() => {
-                setShowJambPopup(false);
-                navigate("/exam");
-              }}
+              variant="ghost"
+              size="icon"
+              className="absolute top-2 right-2 z-10 text-white/70 hover:text-white hover:bg-white/10"
+              onClick={() => setShowJambPopup(false)}
             >
-              Participate Now
+              <X className="h-4 w-4" />
             </Button>
+
+            {/* Grid background overlay */}
+            <div className="absolute inset-0 opacity-30" style={{
+              backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+              backgroundSize: '40px 40px'
+            }} />
+
+            <div className="relative p-6 space-y-5">
+              {/* Breaking News badge */}
+              <div className="flex justify-center">
+                <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-purple-300">
+                  🚀 Breaking News
+                </span>
+              </div>
+
+              {/* Title */}
+              <div className="text-center space-y-1">
+                <h2 className="text-3xl sm:text-4xl font-black tracking-tight">
+                  <span className="bg-gradient-to-r from-[#667eea] to-[#764ba2] bg-clip-text text-transparent">GENIUSLAB</span>
+                </h2>
+                <p className="text-2xl sm:text-3xl font-black">IS NOW LIVE 🎉</p>
+              </div>
+
+              {/* Subtitle */}
+              <p className="text-center text-sm text-gray-400 max-w-sm mx-auto">
+                Conquer <span className="text-white font-semibold">JAMB 2026</span> and beyond with the ultimate CBT practice platform built for Nigerian students
+              </p>
+
+              {/* CTA */}
+              <div className="flex flex-col items-center gap-2">
+                <Button
+                  size="lg"
+                  className="w-full max-w-xs bg-gradient-to-r from-[#667eea] to-[#764ba2] hover:from-[#5a6fd6] hover:to-[#6a4292] text-white font-bold text-base shadow-lg shadow-purple-500/25"
+                  onClick={() => {
+                    setShowJambPopup(false);
+                    navigate("/exam");
+                  }}
+                >
+                  Start Free Trial →
+                </Button>
+                <p className="text-xs text-gray-500">5 Days Free Access • No Credit Card Required</p>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-4 gap-2 pt-2">
+                {[
+                  { value: "10k+", label: "Past Questions" },
+                  { value: "100%", label: "CBT Simulation" },
+                  { value: "Real-time", label: "Analytics" },
+                  { value: "24/7", label: "Access" },
+                ].map((stat) => (
+                  <div key={stat.label} className="text-center p-2 rounded-lg bg-white/5 border border-white/10">
+                    <p className="text-sm sm:text-base font-bold bg-gradient-to-r from-[#667eea] to-[#764ba2] bg-clip-text text-transparent">{stat.value}</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">{stat.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Features */}
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { icon: "⏱️", title: "Real JAMB CBT Timing" },
+                  { icon: "📚", title: "Massive Question Bank" },
+                  { icon: "📊", title: "Smart Analytics" },
+                  { icon: "🎯", title: "Exam Confidence" },
+                ].map((feat) => (
+                  <div key={feat.title} className="flex items-center gap-2 p-2 rounded-lg bg-white/5 border border-white/10">
+                    <span className="text-lg">{feat.icon}</span>
+                    <span className="text-xs font-medium text-gray-300">{feat.title}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Footer */}
+              <p className="text-center text-[10px] text-gray-600">
+                Built for Nigerian students • JAMB • WAEC • ICAN • University Exams
+              </p>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
