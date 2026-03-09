@@ -134,40 +134,31 @@ const Payment = () => {
   const verifyPaystackCallback = async (reference: string) => {
     setVerifyingPayment(true);
     try {
-      // Poll for payment verification (webhook may not have processed yet)
-      for (let attempt = 0; attempt < 5; attempt++) {
-        const { data: txn } = await supabase
-          .from("payment_transactions")
-          .select("status, exam_category_id")
-          .eq("reference", reference)
-          .maybeSingle();
+      // Directly verify with Paystack API via edge function and grant access
+      const { data, error } = await supabase.functions.invoke("verify-paystack-payment", {
+        body: { reference },
+      });
 
-        if (txn?.status === "success") {
-          // Get category name for the popup
-          if (txn.exam_category_id) {
-            const { data: cat } = await supabase
-              .from("exam_categories")
-              .select("name")
-              .eq("id", txn.exam_category_id)
-              .single();
-            setSuccessCategoryName(cat?.name || "your selected exam");
-          }
-          setShowSuccessPopup(true);
-          setVerifyingPayment(false);
-          return;
-        }
-
-        // Wait 2 seconds before retrying
-        if (attempt < 4) {
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-        }
+      if (error) {
+        console.error("Verification function error:", error);
+        toast({
+          title: "Verification Issue",
+          description: "We couldn't verify your payment right now. Please contact support.",
+          variant: "destructive",
+        });
+        return;
       }
 
-      // If we get here, payment wasn't confirmed yet
-      toast({
-        title: "Payment Processing",
-        description: "Your payment is being processed. Access will be granted shortly.",
-      });
+      if (data?.success) {
+        setSuccessCategoryName(data.category_name || categoryNameParam || "your selected exam");
+        setShowSuccessPopup(true);
+      } else {
+        // Payment not yet confirmed — maybe still processing
+        toast({
+          title: "Payment Processing",
+          description: data?.message || "Your payment is being processed. Please wait a moment and refresh.",
+        });
+      }
     } catch (error) {
       console.error("Payment verification error:", error);
       toast({

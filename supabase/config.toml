@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.extract-past-questions]
 verify_jwt = false
+
+[functions.verify-paystack-payment]
+verify_jwt = false
