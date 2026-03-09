@@ -62,12 +62,6 @@ export const SubscriptionGate = ({
     checkAccessMode();
   }, [examCategoryId, userId, userEmail]);
 
-  // VIP emails that get free access to all exams
-  const VIP_EMAILS = [
-    "robinsonwealth1@gmail.com",
-    "chekwubedorcas9@gmail.com",
-  ];
-
   const checkAccessMode = async () => {
     setLoading(true);
     try {
