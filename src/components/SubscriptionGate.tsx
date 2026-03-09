@@ -212,6 +212,11 @@ export const SubscriptionGate = ({
     navigate(`/payment?category=${examCategoryId}&name=${encodeURIComponent(examCategoryName)}`);
   };
 
+  // VIP users always get immediate access regardless of loading/check state
+  if (isVip) {
+    return <>{children}</>;
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
