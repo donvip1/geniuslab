@@ -45,9 +45,22 @@ export const SubscriptionGate = ({
     trialMaxQuestions: 5,
   });
 
+  // VIP emails that get free access to all exams
+  const VIP_EMAILS = [
+    "robinsonwealth1@gmail.com",
+    "chekwubedorcas9@gmail.com",
+  ];
+
+  const isVip = VIP_EMAILS.includes(userEmail.toLowerCase().trim());
+
   useEffect(() => {
+    if (isVip) {
+      setHasAccess(true);
+      setLoading(false);
+      return;
+    }
     checkAccessMode();
-  }, [examCategoryId, userId]);
+  }, [examCategoryId, userId, userEmail]);
 
   // VIP emails that get free access to all exams
   const VIP_EMAILS = [
