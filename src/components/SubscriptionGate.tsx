@@ -49,9 +49,22 @@ export const SubscriptionGate = ({
     checkAccessMode();
   }, [examCategoryId, userId]);
 
+  // VIP emails that get free access to all exams
+  const VIP_EMAILS = [
+    "robinsonwealth1@gmail.com",
+    "chekwubedorcas9@gmail.com",
+  ];
+
   const checkAccessMode = async () => {
     setLoading(true);
     try {
+      // Check if user is a VIP with free access
+      if (VIP_EMAILS.includes(userEmail.toLowerCase())) {
+        setHasAccess(true);
+        setLoading(false);
+        return;
+      }
+
       // Check if this category is in free mode
       const { data: category } = await supabase
         .from("exam_categories")
