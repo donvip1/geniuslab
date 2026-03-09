@@ -45,25 +45,26 @@ export const SubscriptionGate = ({
     trialMaxQuestions: 5,
   });
 
-  useEffect(() => {
-    checkAccessMode();
-  }, [examCategoryId, userId]);
-
   // VIP emails that get free access to all exams
   const VIP_EMAILS = [
     "robinsonwealth1@gmail.com",
     "chekwubedorcas9@gmail.com",
   ];
 
+  const isVip = VIP_EMAILS.includes(userEmail.toLowerCase().trim());
+
+  useEffect(() => {
+    if (isVip) {
+      setHasAccess(true);
+      setLoading(false);
+      return;
+    }
+    checkAccessMode();
+  }, [examCategoryId, userId, userEmail]);
+
   const checkAccessMode = async () => {
     setLoading(true);
     try {
-      // Check if user is a VIP with free access
-      if (VIP_EMAILS.includes(userEmail.toLowerCase())) {
-        setHasAccess(true);
-        setLoading(false);
-        return;
-      }
 
       // Check if this category is in free mode
       const { data: category } = await supabase
@@ -210,6 +211,11 @@ export const SubscriptionGate = ({
   const goToPayment = () => {
     navigate(`/payment?category=${examCategoryId}&name=${encodeURIComponent(examCategoryName)}`);
   };
+
+  // VIP users always get immediate access regardless of loading/check state
+  if (isVip) {
+    return <>{children}</>;
+  }
 
   if (loading) {
     return (
