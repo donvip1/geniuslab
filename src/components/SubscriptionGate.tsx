@@ -65,12 +65,6 @@ export const SubscriptionGate = ({
   const checkAccessMode = async () => {
     setLoading(true);
     try {
-      // Check if user is a VIP with free access
-      if (VIP_EMAILS.includes(userEmail.toLowerCase())) {
-        setHasAccess(true);
-        setLoading(false);
-        return;
-      }
 
       // Check if this category is in free mode
       const { data: category } = await supabase
