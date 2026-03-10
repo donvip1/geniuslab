@@ -342,7 +342,7 @@ const Payment = () => {
             <div className="container mx-auto px-4">
               <div className="max-w-4xl mx-auto">
                 <h2 className="text-2xl font-bold text-center mb-2">Choose an Exam Category</h2>
-                <p className="text-center text-muted-foreground mb-8">Select the exam type you want to subscribe to</p>
+                <p className="text-center text-muted-foreground mb-8">Select the exam type you want to activate</p>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {categories.map((cat) => (
                     <Card

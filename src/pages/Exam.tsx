@@ -515,7 +515,7 @@ const Exam = () => {
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-primary font-bold">5.</span>
-                      <span>Free trial: 5 questions per day for 5 days. Subscribe for unlimited access.</span>
+                      <span>Free trial: 5 questions per day for 5 days. Activate for unlimited access.</span>
                     </li>
                   </ul>
                 </CardContent>

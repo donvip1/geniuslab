@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Gift, Clock, CreditCard, ArrowLeft } from "lucide-react";
+import { Loader2, Gift, Clock, CreditCard, ArrowLeft, CheckCircle2, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface SubscriptionGateProps {

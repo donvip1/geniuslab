@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 const mainTabs = [
   { to: "/", label: "Home", icon: Home },
   { to: "/exam", label: "Exams", icon: BookOpen },
-  { to: "/payment", label: "Subscribe", icon: CreditCard },
+  { to: "/payment", label: "Activate", icon: CreditCard },
   { to: "/services", label: "Services", icon: Briefcase },
   { to: "/profile", label: "Profile", icon: User },
 ];
