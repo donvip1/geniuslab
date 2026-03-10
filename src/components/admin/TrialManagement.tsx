@@ -107,8 +107,8 @@ export const TrialManagement = () => {
               <Label className="text-base font-medium">Enable Free Trials</Label>
               <p className="text-sm text-muted-foreground">
                 {trialsEnabled
-                  ? "New users get a free trial before needing to subscribe"
-                  : "Users must subscribe or enter a PIN to access exams"}
+                  ? "New users get a free trial before needing to activate"
+                   : "Users must activate or enter a PIN to access exams"}
               </p>
             </div>
             <Switch checked={trialsEnabled} onCheckedChange={setTrialsEnabled} />

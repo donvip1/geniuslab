@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Gift, Clock, CreditCard, ArrowLeft } from "lucide-react";
+import { Loader2, Gift, Clock, CreditCard, ArrowLeft, CheckCircle2, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface SubscriptionGateProps {
@@ -231,12 +231,7 @@ export const SubscriptionGate = ({
 
   // No access — show upgrade prompt
   return (
-    <div className="max-w-2xl mx-auto px-4 py-12">
-      <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold mb-2">Access {examCategoryName}</h2>
-        <p className="text-muted-foreground">Subscribe or enter an access PIN to unlock exam content</p>
-      </div>
-
+    <div className="max-w-md mx-auto px-4 py-12">
       {/* Trial status banners */}
       {trialInfo && trialInfo.isTrialActive && (
         <Card className="mb-6 border-primary/30 bg-primary/5">
@@ -264,7 +259,7 @@ export const SubscriptionGate = ({
             <div>
               <p className="font-medium text-destructive">Trial Expired</p>
               <p className="text-sm text-muted-foreground">
-                Your free trial has ended. Subscribe or enter a PIN to continue.
+                Your free trial has ended. Activate a plan or enter a PIN to continue.
               </p>
             </div>
           </CardContent>
@@ -276,21 +271,59 @@ export const SubscriptionGate = ({
           <CardContent className="py-4 flex items-center gap-3">
             <CreditCard className="h-5 w-5 text-amber-600" />
             <div>
-              <p className="font-medium text-amber-800 dark:text-amber-300">Subscription Required</p>
+              <p className="font-medium text-amber-800 dark:text-amber-300">Activation Required</p>
               <p className="text-sm text-muted-foreground">
-                A subscription or access PIN is required to access this exam category.
+                An activation or access PIN is required to access this exam category.
               </p>
             </div>
           </CardContent>
         </Card>
       )}
 
-      <Button onClick={goToPayment} size="lg" className="w-full mb-4">
-        <CreditCard className="mr-2 h-5 w-5" />
-        Subscribe — ₦1,000/month
-      </Button>
+      {/* Benefits Card — Prepmate-style */}
+      <Card className="border-primary/20 shadow-lg">
+        <CardContent className="pt-6 pb-6 space-y-5">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <ShieldCheck className="h-6 w-6 text-primary" />
+            </div>
+          </div>
+          <div>
+            <h2 className="text-xl font-bold">Activate GeniusLab for unlimited access</h2>
+            <p className="text-sm text-muted-foreground mt-1">{examCategoryName}</p>
+          </div>
 
-      <div className="text-center">
+          <ul className="space-y-3">
+            {[
+              "Unlock all Subjects",
+              "Unlock all Years",
+              "Unlock all Past Questions",
+              "Unlimited Practice Exams",
+              "Access Detailed Explanations",
+              "Track Your Performance",
+              "No ads or interruptions",
+              "Activation lasts for 1 month",
+            ].map((benefit, i) => (
+              <li key={i} className="flex items-center gap-3">
+                <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
+                <span className="text-sm font-medium">{benefit}</span>
+              </li>
+            ))}
+          </ul>
+
+          <Button onClick={goToPayment} size="lg" className="w-full">
+            <CreditCard className="mr-2 h-5 w-5" />
+            Activate Now — ₦1,000/month
+          </Button>
+
+          <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
+            <ShieldCheck className="h-3 w-3" />
+            Secure Payment
+          </p>
+        </CardContent>
+      </Card>
+
+      <div className="text-center mt-4">
         <Button variant="ghost" onClick={() => navigate("/exam")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Exam Categories
