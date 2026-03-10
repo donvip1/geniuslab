@@ -75,19 +75,31 @@ const JambStudyMaterial = () => {
         </div>
 
         {!selectedSubject ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {JAMB_SUBJECTS.map((subject) => (
-              <Card
-                key={subject}
-                className="cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all border-2 hover:border-primary/50"
-                onClick={() => setSelectedSubject(subject)}
-              >
-                <CardContent className="p-4 text-center">
-                  <BookOpen className="h-8 w-8 mx-auto mb-2 text-primary" />
-                  <p className="text-sm font-medium">{subject}</p>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="space-y-6">
+            {/* Lekki Headmaster - Featured #1 */}
+            <LekkiHeadmasterStudy />
+
+            {/* Other Subjects */}
+            <div>
+              <h2 className="text-lg font-bold text-foreground mb-3 flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-primary" />
+                Subject-Based Study Notes
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {JAMB_SUBJECTS.map((subject) => (
+                  <Card
+                    key={subject}
+                    className="cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all border-2 hover:border-primary/50"
+                    onClick={() => setSelectedSubject(subject)}
+                  >
+                    <CardContent className="p-4 text-center">
+                      <BookOpen className="h-8 w-8 mx-auto mb-2 text-primary" />
+                      <p className="text-sm font-medium">{subject}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
           </div>
         ) : loading ? (
           <div className="flex items-center justify-center py-20">
