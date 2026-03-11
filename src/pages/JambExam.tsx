@@ -826,28 +826,6 @@ const JambExam = () => {
             </CardContent>
           </Card>
 
-          {/* Study Material, Results, Search row */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            {/* Study Material */}
-            <Card
-              className="cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all border-2 border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/30"
-              onClick={() => navigate("/jamb-study")}
-            >
-              <CardContent className="p-4 text-center">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mx-auto mb-2 shadow">
-                  <GraduationCap className="h-5 w-5 text-white" />
-                </div>
-                <p className="text-sm font-semibold">Study Material</p>
-                <p className="text-xs text-muted-foreground mt-1">Learn from explanations</p>
-              </CardContent>
-            </Card>
-
-            {/* My Results */}
-            <JambResultsDialog userId={user?.id} examCategoryId={examCategoryId} />
-
-            {/* Search Questions */}
-            <JambSearchDialog />
-          </div>
 
           <Button variant="outline" onClick={() => navigate("/exam")} className="w-full md:w-auto">
             <ArrowLeft className="mr-2 h-4 w-4" />
