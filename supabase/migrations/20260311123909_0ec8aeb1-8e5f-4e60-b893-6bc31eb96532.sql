@@ -1,0 +1,1 @@
+ALTER TABLE public.exam_settings ADD COLUMN IF NOT EXISTS active_semester text NOT NULL DEFAULT 'first';

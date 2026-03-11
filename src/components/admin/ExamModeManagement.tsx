@@ -684,57 +684,72 @@ export const ExamModeManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Semester Selection Toggle */}
+      {/* Active Semester Control */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BookOpen className="h-5 w-5" />
-            Semester Selection
+            Active Semester
           </CardTitle>
           <CardDescription>
-            Allow students to choose between 1st and 2nd semester exams
+            Choose which semester students can see and practice. Only subjects tagged with the active semester will be shown.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/50">
-            <div className="space-y-1">
-              <Label htmlFor="semester-toggle" className="text-base font-semibold">
-                {settings && (settings as any).allow_semester_selection !== false ? "Semester Selection Enabled" : "Semester Selection Disabled"}
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                {settings && (settings as any).allow_semester_selection !== false
-                  ? "Students can choose which semester to practice"
-                  : "Semester selection is hidden from students"}
-              </p>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4 p-4 rounded-lg border bg-muted/50">
+            <Label className="text-base font-semibold whitespace-nowrap">Current Semester:</Label>
+            <div className="flex gap-2">
+              <Button
+                variant={(settings as any)?.active_semester === "first" ? "default" : "outline"}
+                onClick={async () => {
+                  if (!settings) return;
+                  setSaving(true);
+                  try {
+                    const { error } = await supabase
+                      .from("exam_settings")
+                      .update({ active_semester: "first" } as any)
+                      .eq("id", settings.id);
+                    if (error) throw error;
+                    setSettings(prev => prev ? { ...prev, active_semester: "first" } as any : null);
+                    toast({ title: "1st Semester Activated", description: "Students will now see 1st semester subjects only" });
+                  } catch {
+                    toast({ title: "Error", description: "Failed to update", variant: "destructive" });
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                disabled={saving}
+              >
+                1st Semester
+              </Button>
+              <Button
+                variant={(settings as any)?.active_semester === "second" ? "default" : "outline"}
+                onClick={async () => {
+                  if (!settings) return;
+                  setSaving(true);
+                  try {
+                    const { error } = await supabase
+                      .from("exam_settings")
+                      .update({ active_semester: "second" } as any)
+                      .eq("id", settings.id);
+                    if (error) throw error;
+                    setSettings(prev => prev ? { ...prev, active_semester: "second" } as any : null);
+                    toast({ title: "2nd Semester Activated", description: "Students will now see 2nd semester subjects only" });
+                  } catch {
+                    toast({ title: "Error", description: "Failed to update", variant: "destructive" });
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                disabled={saving}
+              >
+                2nd Semester
+              </Button>
             </div>
-            <Switch
-              id="semester-toggle"
-              checked={(settings as any)?.allow_semester_selection !== false}
-              onCheckedChange={async (checked) => {
-                if (!settings) return;
-                setSaving(true);
-                try {
-                  const { error } = await supabase
-                    .from("exam_settings")
-                    .update({ allow_semester_selection: checked })
-                    .eq("id", settings.id);
-                  if (error) throw error;
-                  setSettings(prev => prev ? { ...prev, allow_semester_selection: checked } as any : null);
-                  toast({
-                    title: checked ? "Semester Selection Enabled" : "Semester Selection Disabled",
-                    description: checked
-                      ? "Students can now choose their semester"
-                      : "Semester toggle is now hidden from students",
-                  });
-                } catch {
-                  toast({ title: "Error", description: "Failed to update semester setting", variant: "destructive" });
-                } finally {
-                  setSaving(false);
-                }
-              }}
-              disabled={saving}
-            />
           </div>
+          <p className="text-sm text-muted-foreground">
+            💡 Students will only see subjects that match the active semester. Switch this when a new semester begins.
+          </p>
         </CardContent>
       </Card>
 

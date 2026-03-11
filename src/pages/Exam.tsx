@@ -15,7 +15,7 @@ import { ExamLockedScreen } from "@/components/ExamLockedScreen";
 import { UserRestrictedScreen } from "@/components/UserRestrictedScreen";
 import { SubscriptionGate } from "@/components/SubscriptionGate";
 import { UniversitySelector } from "@/components/UniversitySelector";
-import { SemesterToggle } from "@/components/SemesterToggle";
+import { Badge } from "@/components/ui/badge";
 import jambLogo from "@/assets/jamb-logo.webp";
 import waecLogo from "@/assets/waec-logo.png";
 import necoLogo from "@/assets/neco-logo.png";
@@ -89,8 +89,7 @@ const Exam = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [settingsChecked, setSettingsChecked] = useState(false);
   const [selectedUniversity, setSelectedUniversity] = useState<string | null>(null);
-  const [selectedSemester, setSelectedSemester] = useState<"first" | "second">("first");
-  const [allowSemesterSelection, setAllowSemesterSelection] = useState(true);
+  const [activeSemester, setActiveSemester] = useState<"first" | "second">("first");
   const [userDisplayName, setUserDisplayName] = useState<string | null>(null);
   const [bestScorePct, setBestScorePct] = useState<number | null>(null);
   const [motivationalQuote, setMotivationalQuote] = useState("");
@@ -135,7 +134,7 @@ const Exam = () => {
       if (data) {
         setIsExamsLocked(data.is_exams_locked || false);
         setLockMessage(data.lock_message);
-        setAllowSemesterSelection(data.allow_semester_selection ?? true);
+        setActiveSemester((data as any).active_semester || "first");
       }
     } catch (error) {
       console.error("Error checking exam lock:", error);
@@ -220,7 +219,8 @@ const Exam = () => {
       let query = supabase
         .from("subjects")
         .select("*")
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .eq("semester", activeSemester);
       
       if (level) query = query.eq("level", level);
       
@@ -236,7 +236,7 @@ const Exam = () => {
     if (selectedLevel && selectedCategorySlug === "university-cbt") {
       fetchSubjects(selectedLevel);
     }
-  }, [selectedLevel, selectedCategorySlug]);
+  }, [selectedLevel, selectedCategorySlug, activeSemester]);
 
 
   const createSlug = (name: string) => name.replace(/\s+/g, '-').toLowerCase();
@@ -306,13 +306,13 @@ const Exam = () => {
                   />
                 </div>
 
-                {/* Semester Toggle */}
-                {allowSemesterSelection && (
-                  <div>
-                    <Label className="text-base font-semibold mb-2 block">Semester</Label>
-                    <SemesterToggle value={selectedSemester} onChange={setSelectedSemester} />
-                  </div>
-                )}
+                {/* Active Semester Badge */}
+                <div>
+                  <Label className="text-base font-semibold mb-2 block">Current Semester</Label>
+                  <Badge variant="secondary" className="text-sm px-3 py-1">
+                    {activeSemester === "first" ? "1st Semester" : "2nd Semester"}
+                  </Badge>
+                </div>
 
                 {/* Level Filter */}
                 <div>
