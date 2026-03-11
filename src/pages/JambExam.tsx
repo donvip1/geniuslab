@@ -766,6 +766,26 @@ const JambExam = () => {
             </Card>
           </div>
 
+          {/* Lekki Headmaster Preview Card */}
+          <Card 
+            className="mb-6 cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all border-2 border-amber-300 dark:border-amber-700 bg-gradient-to-r from-green-50 via-amber-50 to-orange-50 dark:from-green-950/30 dark:via-amber-950/20 dark:to-orange-950/20 overflow-hidden"
+            onClick={() => navigate("/jamb-study")}
+          >
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="w-16 h-20 rounded-lg overflow-hidden shadow-lg border border-amber-200 flex-shrink-0">
+                <img src={lekkiCover} alt="The Lekki Headmaster" className="w-full h-full object-cover object-right" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400 text-black">📖 COMPULSORY NOVEL</span>
+                </div>
+                <h3 className="font-bold text-sm md:text-base">The Lekki Headmaster</h3>
+                <p className="text-xs text-muted-foreground">by Kabir Alabi Garba · JAMB 2025/2026</p>
+                <p className="text-xs text-primary font-medium mt-1">12 Chapters · 100 Q&A · Themes & Characters →</p>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Study Material, Results, Search row */}
           <div className="grid grid-cols-3 gap-4 mb-6">
             {/* Study Material */}

@@ -57,7 +57,7 @@ const JambStudyMaterial = () => {
   }, [selectedSubject]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-6 px-3 md:px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-6 px-3 md:px-4 pb-24 lg:pb-6">
       <div className="max-w-4xl mx-auto">
         <Button variant="outline" onClick={() => selectedSubject ? setSelectedSubject(null) : navigate("/jamb-exam")} className="mb-4">
           <ArrowLeft className="mr-2 h-4 w-4" />
