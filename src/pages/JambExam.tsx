@@ -835,18 +835,7 @@ const JambExam = () => {
       </div>
     );
 
-    if (isAdmin) return modeSelectionContent;
-
-    return (
-      <SubscriptionGate
-        examCategoryId={examCategoryId}
-        examCategoryName="JAMB UTME"
-        userId={user.id}
-        userEmail={user.email || ""}
-      >
-        {modeSelectionContent}
-      </SubscriptionGate>
-    );
+    return modeSelectionContent;
   }
 
   // ===== SUBJECT SELECTION SCREEN =====
