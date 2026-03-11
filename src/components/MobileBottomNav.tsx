@@ -19,7 +19,7 @@ export const MobileBottomNav = () => {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-background border-t shadow-[0_-2px_10px_hsl(var(--foreground)/0.08)]">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 border-t shadow-[0_-1px_12px_hsl(var(--foreground)/0.06)]">
       <div className="flex items-center justify-around h-16 px-1">
         {mainTabs.map((tab) => {
           const active = isActive(tab.to);
