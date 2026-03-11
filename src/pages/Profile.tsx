@@ -647,6 +647,9 @@ const Profile = () => {
           </CardContent>
         </Card>
 
+        {/* Ad placement */}
+        <AdBannerSmart adSlot="profile-footer" />
+
       </div>
     </div>
   );
