@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { AdBannerSmart, AdRectangleSmart } from "@/components/SubscriptionAwareAd";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/Navbar";
