@@ -186,11 +186,16 @@ const QUESTIONS: { q: string; a: string }[] = [
   { q: "What is the central message of the novel?", a: "True fulfillment comes from purpose and service, not just migration." },
 ];
 
-const LekkiHeadmasterStudy = () => {
+const LekkiHeadmasterStudy = ({ hasFullAccess = false }: LekkiHeadmasterStudyProps) => {
+  const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState<Section>(null);
   const [expandedChapter, setExpandedChapter] = useState<number | null>(null);
   const [showAnswer, setShowAnswer] = useState<Record<number, boolean>>({});
   const [visibleQuestions, setVisibleQuestions] = useState(20);
+
+  // Free users can see first 2 chapters, first 10 questions, themes preview, characters preview
+  const FREE_CHAPTERS = 2;
+  const FREE_QUESTIONS = 10;
 
   const toggleSection = (section: Section) => {
     setActiveSection(activeSection === section ? null : section);
