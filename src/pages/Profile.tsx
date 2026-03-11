@@ -103,7 +103,7 @@ const Profile = () => {
       supabase.from("profiles").select("username, full_name, email").eq("user_id", currentUid).maybeSingle(),
       supabase.from("exam_attempts").select("*").eq("user_id", currentUid).order("created_at", { ascending: false }),
       supabase.from("subjects").select("id, name, exam_category_id"),
-      supabase.from("exam_categories").select("id, name"),
+      supabase.from("exam_categories").select("id, name, slug"),
     ]);
 
     // Load categories for leaderboard tabs
