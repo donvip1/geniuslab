@@ -1545,6 +1545,32 @@ const JambExam = () => {
         </div>
       </div>
       {showCalculator && <ScientificCalculator onClose={() => setShowCalculator(false)} />}
+
+      {/* Free question limit activation prompt */}
+      <AlertDialog open={showActivatePrompt} onOpenChange={setShowActivatePrompt}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              🎯 You've used your 10 free questions!
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>You've answered {FREE_QUESTION_LIMIT} questions for free. Activate your account to unlock:</p>
+              <ul className="space-y-1.5 text-sm">
+                <li className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-primary" /> Unlimited questions across all subjects</li>
+                <li className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-primary" /> Full Mock UTME simulation</li>
+                <li className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-primary" /> Complete Lekki Headmaster study guide</li>
+                <li className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-primary" /> Detailed explanations & performance tracking</li>
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continue with {FREE_QUESTION_LIMIT} questions</AlertDialogCancel>
+            <AlertDialogAction onClick={() => navigate("/payment")}>
+              Activate Now — ₦1,000/month
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
