@@ -278,7 +278,7 @@ const Index = () => {
               </p>
 
               <div
-                className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in"
+                className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in flex-wrap"
                 style={{ animationDelay: "0.4s" }}
               >
                 <Link to="/exam">
@@ -297,6 +297,15 @@ const Index = () => {
                     className="w-full sm:w-auto bg-primary-foreground/10 hover:bg-primary-foreground/20 border-primary-foreground/30 text-primary-foreground shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6"
                   >
                     Join Our Tutorial
+                  </Button>
+                </a>
+                <a href="https://whatsapp.com/channel/0029Vb6kqDVISTkQR9ZxN73x" target="_blank" rel="noopener noreferrer">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="w-full sm:w-auto bg-green-500/20 hover:bg-green-500/30 border-green-400/50 text-primary-foreground shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6"
+                  >
+                    📢 Join WhatsApp Channel
                   </Button>
                 </a>
               </div>
