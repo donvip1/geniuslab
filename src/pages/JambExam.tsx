@@ -412,20 +412,45 @@ const JambExam = () => {
       if (!session) { navigate("/auth"); return; }
       setUser(session.user);
 
+      const email = session.user.email || "";
+      const isVip = VIP_EMAILS.includes(email.toLowerCase().trim());
+
       // Check admin role
       const { data: roles } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", session.user.id)
         .eq("role", "admin");
-      if (roles && roles.length > 0) setIsAdmin(true);
+      const userIsAdmin = roles && roles.length > 0;
+      if (userIsAdmin) setIsAdmin(true);
 
       const { data: cat } = await supabase
         .from("exam_categories")
-        .select("id")
+        .select("id, access_mode")
         .eq("slug", "jamb-utme")
         .maybeSingle();
       if (cat) setExamCategoryId(cat.id);
+
+      // Determine full access
+      if (isVip || userIsAdmin || (cat && (cat as any).access_mode === "free")) {
+        setHasFullAccess(true);
+      } else if (cat) {
+        const now = new Date().toISOString();
+        const userId = session.user.id;
+        const { data: sub } = await supabase
+          .from("subscription_plans").select("id")
+          .eq("user_id", userId).eq("exam_category_id", cat.id)
+          .eq("status", "active").gt("expires_at", now).limit(1).maybeSingle();
+        if (sub) { setHasFullAccess(true); }
+        else {
+          const { data: pin } = await supabase
+            .from("access_pins").select("id")
+            .eq("used_by", userId).eq("is_used", true)
+            .eq("exam_category_id", cat.id).gt("expires_at", now).limit(1).maybeSingle();
+          if (pin) setHasFullAccess(true);
+        }
+      }
+
       setAuthLoading(false);
     };
     init();
