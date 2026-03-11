@@ -49,6 +49,7 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import jambLogo from "@/assets/jamb-logo.webp";
+import lekkiCover from "@/assets/lekki-headmaster-cover.png";
 import { SubscriptionGate } from "@/components/SubscriptionGate";
 import ScientificCalculator from "@/components/ScientificCalculator";
 import { YearSelector } from "@/components/YearSelector";
