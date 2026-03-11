@@ -623,6 +623,15 @@ const JambExam = () => {
   }, [examStarted, examFinished, timeLeft]);
 
   const handleAnswerChange = (questionIndex: number, optionIndex: number) => {
+    // Check free question limit
+    if (!hasFullAccess) {
+      const answeredCount = Object.keys(answers).length;
+      const isNewAnswer = !(questionIndex in answers);
+      if (isNewAnswer && answeredCount >= FREE_QUESTION_LIMIT) {
+        setShowActivatePrompt(true);
+        return;
+      }
+    }
     setAnswers((prev) => ({
       ...prev,
       [questionIndex]: optionIndex,
