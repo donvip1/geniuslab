@@ -15,7 +15,7 @@ import { ExamLockedScreen } from "@/components/ExamLockedScreen";
 import { UserRestrictedScreen } from "@/components/UserRestrictedScreen";
 import { SubscriptionGate } from "@/components/SubscriptionGate";
 import { UniversitySelector } from "@/components/UniversitySelector";
-import { SemesterToggle } from "@/components/SemesterToggle";
+import { Badge } from "@/components/ui/badge";
 import jambLogo from "@/assets/jamb-logo.webp";
 import waecLogo from "@/assets/waec-logo.png";
 import necoLogo from "@/assets/neco-logo.png";
