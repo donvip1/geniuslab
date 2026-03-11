@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { Navbar } from "@/components/Navbar";
 import { Loader2, ArrowLeft, Edit2, Save, X, Trophy, Target, Clock, BookOpen, BarChart3, TrendingDown, TrendingUp, CheckCircle, XCircle, RefreshCw, Medal, Crown } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { format } from "date-fns";
 
 interface Profile {
