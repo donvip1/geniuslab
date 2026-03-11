@@ -288,7 +288,7 @@ const LekkiHeadmasterStudy = ({ hasFullAccess = false }: LekkiHeadmasterStudyPro
         {activeSection === "summary" && (
           <ScrollArea className="h-[55vh]">
             <div className="space-y-2 pr-3">
-              {CHAPTERS.map((ch, idx) => (
+              {CHAPTERS.slice(0, hasFullAccess ? CHAPTERS.length : FREE_CHAPTERS).map((ch, idx) => (
                 <Card key={idx} className="border border-border">
                   <button
                     className="w-full flex items-center justify-between p-3 text-left"
@@ -304,6 +304,18 @@ const LekkiHeadmasterStudy = ({ hasFullAccess = false }: LekkiHeadmasterStudyPro
                   )}
                 </Card>
               ))}
+              {!hasFullAccess && (
+                <Card className="border-2 border-dashed border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-950/20">
+                  <CardContent className="p-4 text-center space-y-2">
+                    <Lock className="h-6 w-6 text-amber-500 mx-auto" />
+                    <p className="text-sm font-semibold">Chapters 3–12 are locked</p>
+                    <p className="text-xs text-muted-foreground">Activate your account to unlock all 12 chapter summaries</p>
+                    <Button size="sm" onClick={() => navigate("/payment")} className="mt-2">
+                      Activate Now
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </ScrollArea>
         )}
