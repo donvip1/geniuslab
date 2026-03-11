@@ -316,7 +316,7 @@ const Payment = () => {
         {/* Benefits */}
         <section className="py-8 bg-muted/50">
           <div className="container mx-auto px-4">
-            <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="max-w-4xl mx-auto">
               <div className="bg-background rounded-lg p-5 border shadow-sm">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
