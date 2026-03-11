@@ -106,18 +106,50 @@ const Profile = () => {
       supabase.from("exam_categories").select("id, name"),
     ]);
 
-    // Load leaderboard data
-    const [leaderboardRes, userRankRes] = await Promise.all([
+    // Load categories for leaderboard tabs
+    const cats = (categoriesRes.data || []) as any[];
+    setExamCategories(cats);
+
+    // Build leaderboard tabs: one global + per-category + JAMB practice/mock
+    const lbData: Record<string, LeaderboardEntry[]> = {};
+    const urData: Record<string, UserRank | null> = {};
+
+    // Global leaderboard
+    const [globalLb, globalRank] = await Promise.all([
       supabase.rpc("get_leaderboard"),
       supabase.rpc("get_user_rank", { p_user_id: currentUid }),
     ]);
+    lbData["all"] = (globalLb.data as any) || [];
+    urData["all"] = globalRank.data && (globalRank.data as any[]).length > 0 ? (globalRank.data as any[])[0] : null;
 
-    if (leaderboardRes.data) {
-      setLeaderboard(leaderboardRes.data as any);
-    }
-    if (userRankRes.data && (userRankRes.data as any[]).length > 0) {
-      setUserRank((userRankRes.data as any[])[0]);
-    }
+    // Per-category leaderboards
+    const jambCat = cats.find((c: any) => c.slug === "jamb-utme");
+    const categoryPromises = cats.map(async (cat: any) => {
+      if (cat.slug === "jamb-utme") {
+        // JAMB: separate practice & mock
+        const [practiceLb, practiceRank, mockLb, mockRank] = await Promise.all([
+          supabase.rpc("get_category_leaderboard", { p_category_id: cat.id, p_mode: "practice" }),
+          supabase.rpc("get_user_rank_by_category", { p_user_id: currentUid, p_category_id: cat.id, p_mode: "practice" }),
+          supabase.rpc("get_category_leaderboard", { p_category_id: cat.id, p_mode: "mock" }),
+          supabase.rpc("get_user_rank_by_category", { p_user_id: currentUid, p_category_id: cat.id, p_mode: "mock" }),
+        ]);
+        lbData[`${cat.id}-practice`] = (practiceLb.data as any) || [];
+        urData[`${cat.id}-practice`] = practiceRank.data && (practiceRank.data as any[]).length > 0 ? (practiceRank.data as any[])[0] : null;
+        lbData[`${cat.id}-mock`] = (mockLb.data as any) || [];
+        urData[`${cat.id}-mock`] = mockRank.data && (mockRank.data as any[]).length > 0 ? (mockRank.data as any[])[0] : null;
+      } else {
+        const [catLb, catRank] = await Promise.all([
+          supabase.rpc("get_category_leaderboard", { p_category_id: cat.id }),
+          supabase.rpc("get_user_rank_by_category", { p_user_id: currentUid, p_category_id: cat.id }),
+        ]);
+        lbData[cat.id] = (catLb.data as any) || [];
+        urData[cat.id] = catRank.data && (catRank.data as any[]).length > 0 ? (catRank.data as any[])[0] : null;
+      }
+    });
+    await Promise.all(categoryPromises);
+
+    setLeaderboardData(lbData);
+    setUserRankData(urData);
 
     if (profileRes.data) {
       setProfile(profileRes.data);
