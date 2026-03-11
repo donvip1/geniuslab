@@ -129,7 +129,7 @@ const JambStudyMaterial = () => {
         {!selectedSubject ? (
           <div className="space-y-6">
             {/* Lekki Headmaster - Featured #1 */}
-            <LekkiHeadmasterStudy />
+            <LekkiHeadmasterStudy hasFullAccess={hasFullAccess} />
 
             {/* Other Subjects */}
             <div>
