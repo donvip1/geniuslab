@@ -11,6 +11,8 @@ import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import LekkiHeadmasterStudy from "@/components/LekkiHeadmasterStudy";
 
+const VIP_EMAILS = ["robinsonwealth1@gmail.com", "chekwubedorcas9@gmail.com"];
+
 const JAMB_SUBJECTS = [
   "Use of English", "Mathematics", "Physics", "Chemistry", "Biology",
   "Agricultural Science", "Economics", "Commerce", "Accounting",
@@ -31,6 +33,56 @@ const JambStudyMaterial = () => {
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [notes, setNotes] = useState<StudyNote[]>([]);
   const [loading, setLoading] = useState(false);
+  const [hasFullAccess, setHasFullAccess] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
+
+  // Check if user has active subscription/pin for JAMB
+  useEffect(() => {
+    const checkAccess = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setCheckingAccess(false); return; }
+
+      const email = session.user.email || "";
+      if (VIP_EMAILS.includes(email.toLowerCase().trim())) {
+        setHasFullAccess(true);
+        setCheckingAccess(false);
+        return;
+      }
+
+      // Check admin
+      const { data: roles } = await supabase
+        .from("user_roles").select("role")
+        .eq("user_id", session.user.id).eq("role", "admin");
+      if (roles && roles.length > 0) { setHasFullAccess(true); setCheckingAccess(false); return; }
+
+      // Get JAMB category
+      const { data: cat } = await supabase
+        .from("exam_categories").select("id, access_mode")
+        .eq("slug", "jamb-utme").maybeSingle();
+      if (!cat) { setCheckingAccess(false); return; }
+      if ((cat as any).access_mode === "free") { setHasFullAccess(true); setCheckingAccess(false); return; }
+
+      const now = new Date().toISOString();
+      const userId = session.user.id;
+
+      // Check subscription
+      const { data: sub } = await supabase
+        .from("subscription_plans").select("id")
+        .eq("user_id", userId).eq("exam_category_id", cat.id)
+        .eq("status", "active").gt("expires_at", now).limit(1).maybeSingle();
+      if (sub) { setHasFullAccess(true); setCheckingAccess(false); return; }
+
+      // Check PIN
+      const { data: pin } = await supabase
+        .from("access_pins").select("id")
+        .eq("used_by", userId).eq("is_used", true)
+        .eq("exam_category_id", cat.id).gt("expires_at", now).limit(1).maybeSingle();
+      if (pin) { setHasFullAccess(true); setCheckingAccess(false); return; }
+
+      setCheckingAccess(false);
+    };
+    checkAccess();
+  }, []);
 
   useEffect(() => {
     if (!selectedSubject) return;
