@@ -236,7 +236,7 @@ const Exam = () => {
     if (selectedLevel && selectedCategorySlug === "university-cbt") {
       fetchSubjects(selectedLevel);
     }
-  }, [selectedLevel, selectedCategorySlug]);
+  }, [selectedLevel, selectedCategorySlug, activeSemester]);
 
 
   const createSlug = (name: string) => name.replace(/\s+/g, '-').toLowerCase();
