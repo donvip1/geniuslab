@@ -127,7 +127,7 @@ const Exam = () => {
     try {
       const { data } = await supabase
         .from("exam_settings")
-        .select("is_exams_locked, lock_message, allow_semester_selection")
+        .select("is_exams_locked, lock_message, active_semester")
         .limit(1)
         .maybeSingle();
 
