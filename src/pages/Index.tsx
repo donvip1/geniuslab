@@ -624,6 +624,10 @@ const Index = () => {
             </div>
           </div>
         </section>
+        {/* Ad placement before footer */}
+        <div className="container mx-auto px-4">
+          <AdBannerSmart adSlot="homepage-footer" />
+        </div>
       </main>
 
       <Footer />
