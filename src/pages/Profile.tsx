@@ -90,8 +90,10 @@ const Profile = () => {
   const [attempts, setAttempts] = useState<ExamAttempt[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [categoryStats, setCategoryStats] = useState<CategoryStats[]>([]);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [userRank, setUserRank] = useState<UserRank | null>(null);
+  const [leaderboardData, setLeaderboardData] = useState<Record<string, LeaderboardEntry[]>>({});
+  const [userRankData, setUserRankData] = useState<Record<string, UserRank | null>>({});
+  const [leaderboardTab, setLeaderboardTab] = useState("all");
+  const [examCategories, setExamCategories] = useState<{ id: string; name: string; slug: string }[]>([]);
 
   const loadProfileData = async (uid?: string) => {
     const currentUid = uid || userId;
