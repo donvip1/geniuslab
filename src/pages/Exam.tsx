@@ -219,7 +219,8 @@ const Exam = () => {
       let query = supabase
         .from("subjects")
         .select("*")
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .eq("semester", activeSemester);
       
       if (level) query = query.eq("level", level);
       
