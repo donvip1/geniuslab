@@ -341,6 +341,7 @@ export type Database = {
       }
       exam_settings: {
         Row: {
+          active_semester: string
           allow_semester_selection: boolean
           created_at: string
           exam_duration_minutes: number
@@ -363,6 +364,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          active_semester?: string
           allow_semester_selection?: boolean
           created_at?: string
           exam_duration_minutes?: number
@@ -385,6 +387,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          active_semester?: string
           allow_semester_selection?: boolean
           created_at?: string
           exam_duration_minutes?: number
