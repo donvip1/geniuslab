@@ -49,6 +49,7 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import jambLogo from "@/assets/jamb-logo.webp";
+import lekkiCover from "@/assets/lekki-headmaster-cover.png";
 import { SubscriptionGate } from "@/components/SubscriptionGate";
 import ScientificCalculator from "@/components/ScientificCalculator";
 import { YearSelector } from "@/components/YearSelector";
@@ -325,6 +326,11 @@ const JambExam = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [restoredSession, setRestoredSession] = useState(false);
+  const [hasFullAccess, setHasFullAccess] = useState(false);
+  const [showActivatePrompt, setShowActivatePrompt] = useState(false);
+
+  const FREE_QUESTION_LIMIT = 10;
+  const VIP_EMAILS = ["robinsonwealth1@gmail.com", "chekwubedorcas9@gmail.com"];
 
   // Mode & subject selection
   const [examMode, setExamMode] = useState<ExamMode>("select");
@@ -406,20 +412,45 @@ const JambExam = () => {
       if (!session) { navigate("/auth"); return; }
       setUser(session.user);
 
+      const email = session.user.email || "";
+      const isVip = VIP_EMAILS.includes(email.toLowerCase().trim());
+
       // Check admin role
       const { data: roles } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", session.user.id)
         .eq("role", "admin");
-      if (roles && roles.length > 0) setIsAdmin(true);
+      const userIsAdmin = roles && roles.length > 0;
+      if (userIsAdmin) setIsAdmin(true);
 
       const { data: cat } = await supabase
         .from("exam_categories")
-        .select("id")
+        .select("id, access_mode")
         .eq("slug", "jamb-utme")
         .maybeSingle();
       if (cat) setExamCategoryId(cat.id);
+
+      // Determine full access
+      if (isVip || userIsAdmin || (cat && (cat as any).access_mode === "free")) {
+        setHasFullAccess(true);
+      } else if (cat) {
+        const now = new Date().toISOString();
+        const userId = session.user.id;
+        const { data: sub } = await supabase
+          .from("subscription_plans").select("id")
+          .eq("user_id", userId).eq("exam_category_id", cat.id)
+          .eq("status", "active").gt("expires_at", now).limit(1).maybeSingle();
+        if (sub) { setHasFullAccess(true); }
+        else {
+          const { data: pin } = await supabase
+            .from("access_pins").select("id")
+            .eq("used_by", userId).eq("is_used", true)
+            .eq("exam_category_id", cat.id).gt("expires_at", now).limit(1).maybeSingle();
+          if (pin) setHasFullAccess(true);
+        }
+      }
+
       setAuthLoading(false);
     };
     init();
@@ -592,6 +623,15 @@ const JambExam = () => {
   }, [examStarted, examFinished, timeLeft]);
 
   const handleAnswerChange = (questionIndex: number, optionIndex: number) => {
+    // Check free question limit
+    if (!hasFullAccess) {
+      const answeredCount = Object.keys(answers).length;
+      const isNewAnswer = !(questionIndex in answers);
+      if (isNewAnswer && answeredCount >= FREE_QUESTION_LIMIT) {
+        setShowActivatePrompt(true);
+        return;
+      }
+    }
     setAnswers((prev) => ({
       ...prev,
       [questionIndex]: optionIndex,
@@ -677,7 +717,7 @@ const JambExam = () => {
     }
 
     const modeSelectionContent = (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-6 px-3 md:px-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-6 px-3 md:px-4 pb-24 lg:pb-6">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-8">
             <img src={jambLogo} alt="JAMB Logo" className="w-20 h-20 md:w-24 md:h-24 mx-auto mb-4 rounded-full shadow-lg object-cover" />
@@ -765,6 +805,26 @@ const JambExam = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* Lekki Headmaster Preview Card */}
+          <Card 
+            className="mb-6 cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all border-2 border-amber-300 dark:border-amber-700 bg-gradient-to-r from-green-50 via-amber-50 to-orange-50 dark:from-green-950/30 dark:via-amber-950/20 dark:to-orange-950/20 overflow-hidden"
+            onClick={() => navigate("/jamb-study")}
+          >
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="w-16 h-20 rounded-lg overflow-hidden shadow-lg border border-amber-200 flex-shrink-0">
+                <img src={lekkiCover} alt="The Lekki Headmaster" className="w-full h-full object-cover object-right" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400 text-black">📖 COMPULSORY NOVEL</span>
+                </div>
+                <h3 className="font-bold text-sm md:text-base">The Lekki Headmaster</h3>
+                <p className="text-xs text-muted-foreground">by Kabir Alabi Garba · JAMB 2025/2026</p>
+                <p className="text-xs text-primary font-medium mt-1">12 Chapters · 100 Q&A · Themes & Characters →</p>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Study Material, Results, Search row */}
           <div className="grid grid-cols-3 gap-4 mb-6">
@@ -1485,6 +1545,32 @@ const JambExam = () => {
         </div>
       </div>
       {showCalculator && <ScientificCalculator onClose={() => setShowCalculator(false)} />}
+
+      {/* Free question limit activation prompt */}
+      <AlertDialog open={showActivatePrompt} onOpenChange={setShowActivatePrompt}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              🎯 You've used your 10 free questions!
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>You've answered {FREE_QUESTION_LIMIT} questions for free. Activate your account to unlock:</p>
+              <ul className="space-y-1.5 text-sm">
+                <li className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-primary" /> Unlimited questions across all subjects</li>
+                <li className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-primary" /> Full Mock UTME simulation</li>
+                <li className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-primary" /> Complete Lekki Headmaster study guide</li>
+                <li className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-primary" /> Detailed explanations & performance tracking</li>
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continue with {FREE_QUESTION_LIMIT} questions</AlertDialogCancel>
+            <AlertDialogAction onClick={() => navigate("/payment")}>
+              Activate Now — ₦1,000/month
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

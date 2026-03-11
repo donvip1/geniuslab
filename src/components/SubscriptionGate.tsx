@@ -295,11 +295,13 @@ export const SubscriptionGate = ({
 
           <ul className="space-y-3">
             {[
-              "Unlock all Subjects",
-              "Unlock all Years",
-              "Unlock all Past Questions",
-              "Unlimited Practice Exams",
+              "10 Free Questions Daily Per Subject",
+              "Unlock ALL Subjects & Years",
+              "Unlock ALL Past Questions",
+              "Unlimited Practice & Mock Exams",
               "Access Detailed Explanations",
+              "📖 Full Lekki Headmaster Novel Study Guide",
+              "100 Likely JAMB Questions & Answers",
               "Track Your Performance",
               "No ads or interruptions",
               "Activation lasts for 1 month",

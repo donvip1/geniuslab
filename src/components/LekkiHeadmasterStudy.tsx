@@ -1,10 +1,15 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, ChevronDown, ChevronUp, Star, Users, Lightbulb, HelpCircle, CheckCircle2 } from "lucide-react";
+import { BookOpen, ChevronDown, ChevronUp, Star, Users, Lightbulb, HelpCircle, CheckCircle2, Lock } from "lucide-react";
 import lekkiCover from "@/assets/lekki-headmaster-cover.png";
+
+interface LekkiHeadmasterStudyProps {
+  hasFullAccess?: boolean;
+}
 
 type Section = "summary" | "themes" | "characters" | "questions" | null;
 
@@ -181,11 +186,16 @@ const QUESTIONS: { q: string; a: string }[] = [
   { q: "What is the central message of the novel?", a: "True fulfillment comes from purpose and service, not just migration." },
 ];
 
-const LekkiHeadmasterStudy = () => {
+const LekkiHeadmasterStudy = ({ hasFullAccess = false }: LekkiHeadmasterStudyProps) => {
+  const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState<Section>(null);
   const [expandedChapter, setExpandedChapter] = useState<number | null>(null);
   const [showAnswer, setShowAnswer] = useState<Record<number, boolean>>({});
   const [visibleQuestions, setVisibleQuestions] = useState(20);
+
+  // Free users can see first 2 chapters, first 10 questions, themes preview, characters preview
+  const FREE_CHAPTERS = 2;
+  const FREE_QUESTIONS = 10;
 
   const toggleSection = (section: Section) => {
     setActiveSection(activeSection === section ? null : section);
@@ -278,7 +288,7 @@ const LekkiHeadmasterStudy = () => {
         {activeSection === "summary" && (
           <ScrollArea className="h-[55vh]">
             <div className="space-y-2 pr-3">
-              {CHAPTERS.map((ch, idx) => (
+              {CHAPTERS.slice(0, hasFullAccess ? CHAPTERS.length : FREE_CHAPTERS).map((ch, idx) => (
                 <Card key={idx} className="border border-border">
                   <button
                     className="w-full flex items-center justify-between p-3 text-left"
@@ -294,6 +304,18 @@ const LekkiHeadmasterStudy = () => {
                   )}
                 </Card>
               ))}
+              {!hasFullAccess && (
+                <Card className="border-2 border-dashed border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-950/20">
+                  <CardContent className="p-4 text-center space-y-2">
+                    <Lock className="h-6 w-6 text-amber-500 mx-auto" />
+                    <p className="text-sm font-semibold">Chapters 3–12 are locked</p>
+                    <p className="text-xs text-muted-foreground">Activate your account to unlock all 12 chapter summaries</p>
+                    <Button size="sm" onClick={() => navigate("/payment")} className="mt-2">
+                      Activate Now
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </ScrollArea>
         )}
@@ -332,7 +354,7 @@ const LekkiHeadmasterStudy = () => {
         {activeSection === "questions" && (
           <ScrollArea className="h-[55vh]">
             <div className="space-y-2 pr-3">
-              {QUESTIONS.slice(0, visibleQuestions).map((item, idx) => (
+              {QUESTIONS.slice(0, hasFullAccess ? visibleQuestions : FREE_QUESTIONS).map((item, idx) => (
                 <Card key={idx} className="border border-border">
                   <button
                     className="w-full flex items-start gap-2 p-3 text-left"
@@ -353,7 +375,19 @@ const LekkiHeadmasterStudy = () => {
                   </button>
                 </Card>
               ))}
-              {visibleQuestions < QUESTIONS.length && (
+              {!hasFullAccess && (
+                <Card className="border-2 border-dashed border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-950/20">
+                  <CardContent className="p-4 text-center space-y-2">
+                    <Lock className="h-6 w-6 text-amber-500 mx-auto" />
+                    <p className="text-sm font-semibold">{QUESTIONS.length - FREE_QUESTIONS} more questions locked</p>
+                    <p className="text-xs text-muted-foreground">Activate to access all 100 likely JAMB questions</p>
+                    <Button size="sm" onClick={() => navigate("/payment")} className="mt-2">
+                      Activate Now
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+              {hasFullAccess && visibleQuestions < QUESTIONS.length && (
                 <Button
                   variant="outline"
                   className="w-full"
