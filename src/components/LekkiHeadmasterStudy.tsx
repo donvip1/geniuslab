@@ -354,7 +354,7 @@ const LekkiHeadmasterStudy = ({ hasFullAccess = false }: LekkiHeadmasterStudyPro
         {activeSection === "questions" && (
           <ScrollArea className="h-[55vh]">
             <div className="space-y-2 pr-3">
-              {QUESTIONS.slice(0, visibleQuestions).map((item, idx) => (
+              {QUESTIONS.slice(0, hasFullAccess ? visibleQuestions : FREE_QUESTIONS).map((item, idx) => (
                 <Card key={idx} className="border border-border">
                   <button
                     className="w-full flex items-start gap-2 p-3 text-left"
@@ -375,7 +375,19 @@ const LekkiHeadmasterStudy = ({ hasFullAccess = false }: LekkiHeadmasterStudyPro
                   </button>
                 </Card>
               ))}
-              {visibleQuestions < QUESTIONS.length && (
+              {!hasFullAccess && (
+                <Card className="border-2 border-dashed border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-950/20">
+                  <CardContent className="p-4 text-center space-y-2">
+                    <Lock className="h-6 w-6 text-amber-500 mx-auto" />
+                    <p className="text-sm font-semibold">{QUESTIONS.length - FREE_QUESTIONS} more questions locked</p>
+                    <p className="text-xs text-muted-foreground">Activate to access all 100 likely JAMB questions</p>
+                    <Button size="sm" onClick={() => navigate("/payment")} className="mt-2">
+                      Activate Now
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+              {hasFullAccess && visibleQuestions < QUESTIONS.length && (
                 <Button
                   variant="outline"
                   className="w-full"
