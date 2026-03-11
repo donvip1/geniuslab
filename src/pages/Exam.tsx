@@ -134,7 +134,7 @@ const Exam = () => {
       if (data) {
         setIsExamsLocked(data.is_exams_locked || false);
         setLockMessage(data.lock_message);
-        setAllowSemesterSelection(data.allow_semester_selection ?? true);
+        setActiveSemester((data as any).active_semester || "first");
       }
     } catch (error) {
       console.error("Error checking exam lock:", error);
