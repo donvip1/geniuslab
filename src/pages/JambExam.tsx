@@ -326,6 +326,11 @@ const JambExam = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [restoredSession, setRestoredSession] = useState(false);
+  const [hasFullAccess, setHasFullAccess] = useState(false);
+  const [showActivatePrompt, setShowActivatePrompt] = useState(false);
+
+  const FREE_QUESTION_LIMIT = 10;
+  const VIP_EMAILS = ["robinsonwealth1@gmail.com", "chekwubedorcas9@gmail.com"];
 
   // Mode & subject selection
   const [examMode, setExamMode] = useState<ExamMode>("select");
