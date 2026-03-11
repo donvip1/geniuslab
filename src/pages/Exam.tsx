@@ -306,13 +306,13 @@ const Exam = () => {
                   />
                 </div>
 
-                {/* Semester Toggle */}
-                {allowSemesterSelection && (
-                  <div>
-                    <Label className="text-base font-semibold mb-2 block">Semester</Label>
-                    <SemesterToggle value={selectedSemester} onChange={setSelectedSemester} />
-                  </div>
-                )}
+                {/* Active Semester Badge */}
+                <div>
+                  <Label className="text-base font-semibold mb-2 block">Current Semester</Label>
+                  <Badge variant="secondary" className="text-sm px-3 py-1">
+                    {activeSemester === "first" ? "1st Semester" : "2nd Semester"}
+                  </Badge>
+                </div>
 
                 {/* Level Filter */}
                 <div>
