@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { AdBannerSmart, AdRectangleSmart } from "@/components/SubscriptionAwareAd";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/Navbar";
@@ -523,6 +524,10 @@ const Exam = () => {
             </div>
           </div>
         </section>
+        {/* Ad placement before footer */}
+        <div className="container mx-auto px-4">
+          <AdBannerSmart adSlot="exam-footer" />
+        </div>
       </main>
 
       <Footer />

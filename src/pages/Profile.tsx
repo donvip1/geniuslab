@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { AdBannerSmart } from "@/components/SubscriptionAwareAd";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -645,6 +646,9 @@ const Profile = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Ad placement */}
+        <AdBannerSmart adSlot="profile-footer" />
 
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { AdBannerSmart, AdInArticleSmart } from "@/components/SubscriptionAwareAd";
 import { SEOHead } from "@/components/SEOHead";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -153,7 +154,7 @@ const Index = () => {
                 >
                   Start Free Trial →
                 </Button>
-                <p className="text-xs text-gray-500">5 Days Free Access • No Credit Card Required</p>
+                
               </div>
 
               {/* Stats */}
@@ -305,7 +306,7 @@ const Index = () => {
                     variant="outline"
                     className="w-full sm:w-auto bg-green-500/20 hover:bg-green-500/30 border-green-400/50 text-primary-foreground shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6"
                   >
-                    📢 Join WhatsApp Channel
+                    📢 Join WhatsApp — Discussions & Updates
                   </Button>
                 </a>
               </div>
@@ -575,7 +576,7 @@ const Index = () => {
                   variant="outline"
                   className="bg-green-500/20 hover:bg-green-500/30 border-green-400/50 shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6"
                 >
-                  📢 Join WhatsApp Channel
+                  📢 Join WhatsApp — Discussions & Updates
                 </Button>
               </a>
             </div>
@@ -623,6 +624,10 @@ const Index = () => {
             </div>
           </div>
         </section>
+        {/* Ad placement before footer */}
+        <div className="container mx-auto px-4">
+          <AdBannerSmart adSlot="homepage-footer" />
+        </div>
       </main>
 
       <Footer />
