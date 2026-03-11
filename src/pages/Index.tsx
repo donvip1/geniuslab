@@ -305,7 +305,7 @@ const Index = () => {
                     variant="outline"
                     className="w-full sm:w-auto bg-green-500/20 hover:bg-green-500/30 border-green-400/50 text-primary-foreground shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6"
                   >
-                    📢 Join WhatsApp Channel
+                    📢 Join WhatsApp — Discussions & Updates
                   </Button>
                 </a>
               </div>
