@@ -1,10 +1,15 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, ChevronDown, ChevronUp, Star, Users, Lightbulb, HelpCircle, CheckCircle2 } from "lucide-react";
+import { BookOpen, ChevronDown, ChevronUp, Star, Users, Lightbulb, HelpCircle, CheckCircle2, Lock } from "lucide-react";
 import lekkiCover from "@/assets/lekki-headmaster-cover.png";
+
+interface LekkiHeadmasterStudyProps {
+  hasFullAccess?: boolean;
+}
 
 type Section = "summary" | "themes" | "characters" | "questions" | null;
 
