@@ -89,8 +89,7 @@ const Exam = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [settingsChecked, setSettingsChecked] = useState(false);
   const [selectedUniversity, setSelectedUniversity] = useState<string | null>(null);
-  const [selectedSemester, setSelectedSemester] = useState<"first" | "second">("first");
-  const [allowSemesterSelection, setAllowSemesterSelection] = useState(true);
+  const [activeSemester, setActiveSemester] = useState<"first" | "second">("first");
   const [userDisplayName, setUserDisplayName] = useState<string | null>(null);
   const [bestScorePct, setBestScorePct] = useState<number | null>(null);
   const [motivationalQuote, setMotivationalQuote] = useState("");
