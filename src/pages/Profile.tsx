@@ -285,7 +285,9 @@ const Profile = () => {
     return `${m}m ${sec}s`;
   };
 
-  const userInTop10 = leaderboard.some(e => e.user_id === userId);
+  const currentLeaderboard = leaderboardData[leaderboardTab] || [];
+  const currentUserRank = userRankData[leaderboardTab] || null;
+  const userInTop10 = currentLeaderboard.some(e => e.user_id === userId);
 
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-8">
