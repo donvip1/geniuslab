@@ -153,7 +153,7 @@ const Index = () => {
                 >
                   Start Free Trial →
                 </Button>
-                <p className="text-xs text-gray-500">5 Days Free Access • No Credit Card Required</p>
+                
               </div>
 
               {/* Stats */}
