@@ -976,6 +976,20 @@ export type Database = {
       }
     }
     Functions: {
+      get_category_leaderboard: {
+        Args: { p_category_id: string; p_mode?: string }
+        Returns: {
+          created_at: string
+          full_name: string
+          percentage: number
+          rank: number
+          score: number
+          subject_name: string
+          total_questions: number
+          user_id: string
+          username: string
+        }[]
+      }
       get_leaderboard: {
         Args: never
         Returns: {
@@ -992,6 +1006,15 @@ export type Database = {
       }
       get_user_rank: {
         Args: { p_user_id: string }
+        Returns: {
+          percentage: number
+          rank: number
+          score: number
+          total_questions: number
+        }[]
+      }
+      get_user_rank_by_category: {
+        Args: { p_category_id: string; p_mode?: string; p_user_id: string }
         Returns: {
           percentage: number
           rank: number

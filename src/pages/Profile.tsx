@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { Navbar } from "@/components/Navbar";
 import { Loader2, ArrowLeft, Edit2, Save, X, Trophy, Target, Clock, BookOpen, BarChart3, TrendingDown, TrendingUp, CheckCircle, XCircle, RefreshCw, Medal, Crown } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { format } from "date-fns";
 
 interface Profile {
@@ -89,8 +90,10 @@ const Profile = () => {
   const [attempts, setAttempts] = useState<ExamAttempt[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [categoryStats, setCategoryStats] = useState<CategoryStats[]>([]);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [userRank, setUserRank] = useState<UserRank | null>(null);
+  const [leaderboardData, setLeaderboardData] = useState<Record<string, LeaderboardEntry[]>>({});
+  const [userRankData, setUserRankData] = useState<Record<string, UserRank | null>>({});
+  const [leaderboardTab, setLeaderboardTab] = useState("all");
+  const [examCategories, setExamCategories] = useState<{ id: string; name: string; slug: string }[]>([]);
 
   const loadProfileData = async (uid?: string) => {
     const currentUid = uid || userId;
@@ -100,21 +103,53 @@ const Profile = () => {
       supabase.from("profiles").select("username, full_name, email").eq("user_id", currentUid).maybeSingle(),
       supabase.from("exam_attempts").select("*").eq("user_id", currentUid).order("created_at", { ascending: false }),
       supabase.from("subjects").select("id, name, exam_category_id"),
-      supabase.from("exam_categories").select("id, name"),
+      supabase.from("exam_categories").select("id, name, slug"),
     ]);
 
-    // Load leaderboard data
-    const [leaderboardRes, userRankRes] = await Promise.all([
+    // Load categories for leaderboard tabs
+    const cats = (categoriesRes.data || []) as any[];
+    setExamCategories(cats);
+
+    // Build leaderboard tabs: one global + per-category + JAMB practice/mock
+    const lbData: Record<string, LeaderboardEntry[]> = {};
+    const urData: Record<string, UserRank | null> = {};
+
+    // Global leaderboard
+    const [globalLb, globalRank] = await Promise.all([
       supabase.rpc("get_leaderboard"),
       supabase.rpc("get_user_rank", { p_user_id: currentUid }),
     ]);
+    lbData["all"] = (globalLb.data as any) || [];
+    urData["all"] = globalRank.data && (globalRank.data as any[]).length > 0 ? (globalRank.data as any[])[0] : null;
 
-    if (leaderboardRes.data) {
-      setLeaderboard(leaderboardRes.data as any);
-    }
-    if (userRankRes.data && (userRankRes.data as any[]).length > 0) {
-      setUserRank((userRankRes.data as any[])[0]);
-    }
+    // Per-category leaderboards
+    const jambCat = cats.find((c: any) => c.slug === "jamb-utme");
+    const categoryPromises = cats.map(async (cat: any) => {
+      if (cat.slug === "jamb-utme") {
+        // JAMB: separate practice & mock
+        const [practiceLb, practiceRank, mockLb, mockRank] = await Promise.all([
+          supabase.rpc("get_category_leaderboard", { p_category_id: cat.id, p_mode: "practice" }),
+          supabase.rpc("get_user_rank_by_category", { p_user_id: currentUid, p_category_id: cat.id, p_mode: "practice" }),
+          supabase.rpc("get_category_leaderboard", { p_category_id: cat.id, p_mode: "mock" }),
+          supabase.rpc("get_user_rank_by_category", { p_user_id: currentUid, p_category_id: cat.id, p_mode: "mock" }),
+        ]);
+        lbData[`${cat.id}-practice`] = (practiceLb.data as any) || [];
+        urData[`${cat.id}-practice`] = practiceRank.data && (practiceRank.data as any[]).length > 0 ? (practiceRank.data as any[])[0] : null;
+        lbData[`${cat.id}-mock`] = (mockLb.data as any) || [];
+        urData[`${cat.id}-mock`] = mockRank.data && (mockRank.data as any[]).length > 0 ? (mockRank.data as any[])[0] : null;
+      } else {
+        const [catLb, catRank] = await Promise.all([
+          supabase.rpc("get_category_leaderboard", { p_category_id: cat.id }),
+          supabase.rpc("get_user_rank_by_category", { p_user_id: currentUid, p_category_id: cat.id }),
+        ]);
+        lbData[cat.id] = (catLb.data as any) || [];
+        urData[cat.id] = catRank.data && (catRank.data as any[]).length > 0 ? (catRank.data as any[])[0] : null;
+      }
+    });
+    await Promise.all(categoryPromises);
+
+    setLeaderboardData(lbData);
+    setUserRankData(urData);
 
     if (profileRes.data) {
       setProfile(profileRes.data);
@@ -250,7 +285,9 @@ const Profile = () => {
     return `${m}m ${sec}s`;
   };
 
-  const userInTop10 = leaderboard.some(e => e.user_id === userId);
+  const currentLeaderboard = leaderboardData[leaderboardTab] || [];
+  const currentUserRank = userRankData[leaderboardTab] || null;
+  const userInTop10 = currentLeaderboard.some(e => e.user_id === userId);
 
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-8">
@@ -537,14 +574,33 @@ const Profile = () => {
               <Medal className="h-5 w-5 text-primary" />
               Leaderboard — Top 10
             </CardTitle>
-            <CardDescription>Best performances across all users</CardDescription>
+            <CardDescription>Best performances by exam category</CardDescription>
           </CardHeader>
           <CardContent>
-            {leaderboard.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No exam attempts yet.</p>
+            <Tabs value={leaderboardTab} onValueChange={setLeaderboardTab} className="w-full">
+              <TabsList className="w-full flex-wrap h-auto gap-1 mb-4">
+                <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
+                {examCategories.map((cat) => {
+                  if (cat.slug === "jamb-utme") {
+                    return (
+                      <>
+                        <TabsTrigger key={`${cat.id}-practice`} value={`${cat.id}-practice`} className="text-xs">JAMB Practice</TabsTrigger>
+                        <TabsTrigger key={`${cat.id}-mock`} value={`${cat.id}-mock`} className="text-xs">JAMB Mock</TabsTrigger>
+                      </>
+                    );
+                  }
+                  return (
+                    <TabsTrigger key={cat.id} value={cat.id} className="text-xs">{cat.name}</TabsTrigger>
+                  );
+                })}
+              </TabsList>
+            </Tabs>
+
+            {currentLeaderboard.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No exam attempts yet for this category.</p>
             ) : (
               <div className="space-y-2">
-                {leaderboard.map((entry) => {
+                {currentLeaderboard.map((entry) => {
                   const isYou = entry.user_id === userId;
                   return (
                     <div
@@ -570,17 +626,17 @@ const Profile = () => {
                 })}
 
                 {/* Show user's rank if not in top 10 */}
-                {!userInTop10 && userRank && (
+                {!userInTop10 && currentUserRank && (
                   <div className="mt-4 pt-4 border-t">
                     <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/30">
                       <div className="flex items-center gap-3">
-                        <span className="text-lg font-bold w-8 text-center text-muted-foreground">#{userRank.rank}</span>
+                        <span className="text-lg font-bold w-8 text-center text-muted-foreground">#{currentUserRank.rank}</span>
                         <div>
                           <p className="font-medium text-sm text-primary font-bold">Your Best</p>
                         </div>
                       </div>
                       <div className="text-sm font-bold text-primary">
-                        {userRank.score}/{userRank.total_questions} ({userRank.percentage}%)
+                        {currentUserRank.score}/{currentUserRank.total_questions} ({currentUserRank.percentage}%)
                       </div>
                     </div>
                   </div>
