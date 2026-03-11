@@ -109,10 +109,29 @@ All colors MUST be HSL.
 @layer base {
   * {
     @apply border-border;
+    box-sizing: border-box;
   }
 
   body {
     @apply bg-background text-foreground;
+    overflow-x: hidden;
+  }
+
+  /* Global text wrapping for mobile responsiveness */
+  h1, h2, h3, h4, h5, h6, p, span, li, td, th, label, a, button {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  /* Ensure buttons never overflow their containers */
+  button, .btn, [role="button"] {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  /* Ensure inputs don't overflow */
+  input, textarea, select {
+    max-width: 100%;
   }
 }
 

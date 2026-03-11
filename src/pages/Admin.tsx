@@ -928,7 +928,7 @@ const Admin = () => {
           </div>
 
           <Tabs defaultValue="subjects" className="space-y-6">
-            <TabsList className="flex flex-wrap gap-1 h-auto w-full max-w-6xl p-1">
+            <TabsList className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-1 h-auto w-full max-w-6xl p-1">
               <TabsTrigger value="subjects">
                 <BookOpen className="h-4 w-4 mr-1" />
                 <span className="hidden sm:inline">Subjects</span>

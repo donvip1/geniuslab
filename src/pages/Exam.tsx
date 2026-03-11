@@ -127,14 +127,14 @@ const Exam = () => {
     try {
       const { data } = await supabase
         .from("exam_settings")
-        .select("is_exams_locked, lock_message, allow_semester_selection")
+        .select("is_exams_locked, lock_message, active_semester")
         .limit(1)
         .maybeSingle();
 
       if (data) {
         setIsExamsLocked(data.is_exams_locked || false);
         setLockMessage(data.lock_message);
-        setActiveSemester((data as any).active_semester || "first");
+        setActiveSemester(data.active_semester === "second" ? "second" : "first");
       }
     } catch (error) {
       console.error("Error checking exam lock:", error);

@@ -316,22 +316,35 @@ const Payment = () => {
         {/* Benefits */}
         <section className="py-8 bg-muted/50">
           <div className="container mx-auto px-4">
-            <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[
-                { icon: Zap, title: "Unlimited Questions", desc: "Access all practice questions" },
-                { icon: Clock, title: "30 Days Access", desc: "1 month of full access" },
-                { icon: ShieldCheck, title: "Instant Activation", desc: "Start practicing immediately" },
-              ].map((b, i) => (
-                <div key={i} className="flex items-center gap-3 bg-background rounded-lg p-4 border">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <b.icon className="h-5 w-5 text-primary" />
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-background rounded-lg p-5 border shadow-sm">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <p className="font-semibold text-sm">{b.title}</p>
-                    <p className="text-xs text-muted-foreground">{b.desc}</p>
+                    <h3 className="font-bold text-lg">Activate GeniusLab for unlimited access</h3>
+                    <p className="text-sm text-muted-foreground">₦1,000/month</p>
                   </div>
                 </div>
-              ))}
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {[
+                    "Unlock all Subjects",
+                    "Unlock all Years",
+                    "Unlock all Past Questions",
+                    "Unlimited Practice Exams",
+                    "Access Detailed Explanations",
+                    "Track Your Performance",
+                    "No ads or interruptions",
+                    "Activation lasts for 1 month",
+                  ].map((benefit, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-primary shrink-0" />
+                      <span className="text-sm">{benefit}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
         </section>
