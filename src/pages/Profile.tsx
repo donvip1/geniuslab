@@ -574,14 +574,33 @@ const Profile = () => {
               <Medal className="h-5 w-5 text-primary" />
               Leaderboard — Top 10
             </CardTitle>
-            <CardDescription>Best performances across all users</CardDescription>
+            <CardDescription>Best performances by exam category</CardDescription>
           </CardHeader>
           <CardContent>
-            {leaderboard.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No exam attempts yet.</p>
+            <Tabs value={leaderboardTab} onValueChange={setLeaderboardTab} className="w-full">
+              <TabsList className="w-full flex-wrap h-auto gap-1 mb-4">
+                <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
+                {examCategories.map((cat) => {
+                  if (cat.slug === "jamb-utme") {
+                    return (
+                      <>
+                        <TabsTrigger key={`${cat.id}-practice`} value={`${cat.id}-practice`} className="text-xs">JAMB Practice</TabsTrigger>
+                        <TabsTrigger key={`${cat.id}-mock`} value={`${cat.id}-mock`} className="text-xs">JAMB Mock</TabsTrigger>
+                      </>
+                    );
+                  }
+                  return (
+                    <TabsTrigger key={cat.id} value={cat.id} className="text-xs">{cat.name}</TabsTrigger>
+                  );
+                })}
+              </TabsList>
+            </Tabs>
+
+            {currentLeaderboard.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No exam attempts yet for this category.</p>
             ) : (
               <div className="space-y-2">
-                {leaderboard.map((entry) => {
+                {currentLeaderboard.map((entry) => {
                   const isYou = entry.user_id === userId;
                   return (
                     <div
@@ -607,17 +626,17 @@ const Profile = () => {
                 })}
 
                 {/* Show user's rank if not in top 10 */}
-                {!userInTop10 && userRank && (
+                {!userInTop10 && currentUserRank && (
                   <div className="mt-4 pt-4 border-t">
                     <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/30">
                       <div className="flex items-center gap-3">
-                        <span className="text-lg font-bold w-8 text-center text-muted-foreground">#{userRank.rank}</span>
+                        <span className="text-lg font-bold w-8 text-center text-muted-foreground">#{currentUserRank.rank}</span>
                         <div>
                           <p className="font-medium text-sm text-primary font-bold">Your Best</p>
                         </div>
                       </div>
                       <div className="text-sm font-bold text-primary">
-                        {userRank.score}/{userRank.total_questions} ({userRank.percentage}%)
+                        {currentUserRank.score}/{currentUserRank.total_questions} ({currentUserRank.percentage}%)
                       </div>
                     </div>
                   </div>
