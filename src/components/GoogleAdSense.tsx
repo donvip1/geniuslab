@@ -42,7 +42,7 @@ export const GoogleAdSense = ({
   }, []);
 
   // Get the AdSense client ID from environment or use placeholder
-  const adClient = import.meta.env.VITE_ADSENSE_CLIENT_ID || "";
+  const adClient = import.meta.env.VITE_ADSENSE_CLIENT_ID || "ca-pub-6721494458632843";
 
   // Don't render if no client ID is configured
   if (!adClient) {
