@@ -910,35 +910,35 @@ export const AccessPinManagement = () => {
       </Card>
 
       {/* Statistics */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-4">
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">Total PINs</p>
+          <CardContent className="p-3 sm:pt-6 sm:p-6">
+            <div className="text-lg sm:text-2xl font-bold">{stats.total}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Total</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-green-600">{stats.unused}</div>
-            <p className="text-xs text-muted-foreground">Available</p>
+          <CardContent className="p-3 sm:pt-6 sm:p-6">
+            <div className="text-lg sm:text-2xl font-bold text-green-600">{stats.unused}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Available</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-blue-600">{stats.active}</div>
-            <p className="text-xs text-muted-foreground">Active</p>
+          <CardContent className="p-3 sm:pt-6 sm:p-6">
+            <div className="text-lg sm:text-2xl font-bold text-blue-600">{stats.active}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Active</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-orange-600">{stats.used}</div>
-            <p className="text-xs text-muted-foreground">Used</p>
+          <CardContent className="p-3 sm:pt-6 sm:p-6">
+            <div className="text-lg sm:text-2xl font-bold text-orange-600">{stats.used}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Used</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-red-600">{stats.expired}</div>
-            <p className="text-xs text-muted-foreground">Expired</p>
+          <CardContent className="p-3 sm:pt-6 sm:p-6">
+            <div className="text-lg sm:text-2xl font-bold text-red-600">{stats.expired}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Expired</p>
           </CardContent>
         </Card>
       </div>
