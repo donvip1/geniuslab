@@ -539,11 +539,11 @@ const ExamTaking = () => {
           initialDelayMs={420000} // First ad after 7 minutes
         />
       )}
-      <div className="bg-gradient-to-br from-primary to-secondary text-primary-foreground py-4 px-4 sticky top-0 z-10 shadow-md">
-        <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold">{subjectName}</h1>
-            <p className="text-sm opacity-90">
+      <div className="bg-gradient-to-br from-primary to-secondary text-primary-foreground py-3 px-4 sticky top-0 z-10 shadow-md">
+        <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-2 md:gap-4">
+          <div className="min-w-0 w-full md:w-auto">
+            <h1 className="text-lg md:text-2xl font-bold truncate">{subjectName}</h1>
+            <p className="text-xs md:text-sm opacity-90">
               Question {currentQuestionIndex + 1} of {questions.length}
             </p>
             {contributors && (
