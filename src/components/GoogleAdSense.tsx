@@ -59,7 +59,7 @@ export const GoogleAdSense = ({
           ...style,
         }}
         data-ad-client={adClient}
-        data-ad-slot={adSlot}
+        data-ad-slot={adSlot || defaultAdSlot}
         data-ad-format={adFormat}
         data-full-width-responsive={fullWidthResponsive ? "true" : "false"}
       />
