@@ -37,7 +37,7 @@ export const AdvertisementPopup = ({
   }, []);
 
   useEffect(() => {
-    if (ads.length === 0) return;
+    if (ads.length === 0 || isSubscribed || subLoading) return;
 
     const initialTimeout = setTimeout(() => {
       showNextAd();
