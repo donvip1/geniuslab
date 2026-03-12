@@ -199,7 +199,7 @@ const Index = () => {
       <main className="flex-1 pt-16">
         {/* Blinking Exam Alert Banner */}
         <div className="bg-red-50 dark:bg-red-950/30 border-b border-red-200 dark:border-red-800 overflow-hidden">
-          <div className="container mx-auto px-4 py-2">
+          <div className="container mx-auto px-2 sm:px-4 py-1.5 sm:py-2">
             <Carousel
               opts={{ align: "start", loop: true }}
               plugins={[Autoplay({ delay: 3000, stopOnInteraction: false })]}
@@ -210,10 +210,10 @@ const Index = () => {
                   <CarouselItem key={i} className="basis-full">
                     <Link
                       to={alert.link}
-                      className="flex items-center justify-center gap-2 text-red-600 dark:text-red-400 px-4 py-1 text-sm md:text-base font-bold hover:underline transition-colors"
+                      className="flex items-center justify-center gap-1.5 sm:gap-2 text-red-600 dark:text-red-400 px-2 sm:px-4 py-1 text-xs sm:text-base font-bold hover:underline transition-colors"
                     >
-                      {alert.text}
-                      <ChevronRight className="h-4 w-4" />
+                      <span className="truncate">{alert.text}</span>
+                      <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                     </Link>
                   </CarouselItem>
                 ))}
@@ -223,7 +223,7 @@ const Index = () => {
         </div>
 
         {/* Hero Section with Image Carousel Background */}
-        <section className="relative overflow-hidden min-h-[70vh] md:min-h-[85vh] flex items-center">
+        <section className="relative overflow-hidden min-h-[85vh] sm:min-h-[85vh] flex items-center">
           {/* Animated Background */}
           <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary/90 to-secondary">
             <Carousel
@@ -249,20 +249,16 @@ const Index = () => {
               className="absolute bottom-32 right-16 w-32 h-32 bg-secondary/20 rounded-full blur-2xl animate-float"
               style={{ animationDelay: "1s" }}
             />
-            <div
-              className="absolute top-1/2 left-1/4 w-16 h-16 bg-primary-foreground/10 rounded-full blur-lg animate-float"
-              style={{ animationDelay: "2s" }}
-            />
           </div>
 
           <div className="container mx-auto px-4 relative z-10">
-            <div className="max-w-4xl mx-auto text-center text-primary-foreground space-y-6">
-              <div className="inline-flex items-center gap-2 bg-primary-foreground/15 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium animate-fade-in">
-                <Sparkles className="h-4 w-4 text-accent" />
+            <div className="max-w-4xl mx-auto text-center text-primary-foreground space-y-5 sm:space-y-6">
+              <div className="inline-flex items-center gap-2 bg-primary-foreground/15 backdrop-blur-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-medium animate-fade-in">
+                <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-accent" />
                 Nigeria's #1 Student Success Platform
               </div>
 
-              <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold leading-tight animate-fade-in">
+              <h1 className="text-3xl sm:text-5xl md:text-7xl font-extrabold leading-tight animate-fade-in">
                 Welcome to{" "}
                 <span className="relative">
                   <span className="bg-gradient-to-r from-accent via-secondary to-accent bg-clip-text text-transparent animate-shimmer">
@@ -272,39 +268,39 @@ const Index = () => {
               </h1>
 
               <p
-                className="text-lg md:text-2xl opacity-90 max-w-2xl mx-auto animate-fade-in"
+                className="text-base sm:text-lg md:text-2xl opacity-90 max-w-2xl mx-auto px-2 animate-fade-in"
                 style={{ animationDelay: "0.2s" }}
               >
                 Where Learning Meets Excellence — Your Success, Our Mission
               </p>
 
               <div
-                className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in flex-wrap"
+                className="flex flex-col gap-3 sm:gap-4 px-2 sm:px-0 animate-fade-in"
                 style={{ animationDelay: "0.4s" }}
               >
-                <Link to="/exam">
+                <Link to="/exam" className="w-full sm:w-auto sm:mx-auto">
                   <Button
                     size="lg"
-                    className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6"
+                    className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg hover:shadow-xl transition-all text-base sm:text-lg px-6 py-5 sm:px-8 sm:py-6"
                   >
                     <Zap className="h-5 w-5 mr-2" />
                     Start Practice Exam
                   </Button>
                 </Link>
-                <a href="https://wa.me/2348124269495" target="_blank" rel="noopener noreferrer">
+                <a href="https://wa.me/2348124269495" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto sm:mx-auto">
                   <Button
                     size="lg"
                     variant="outline"
-                    className="w-full sm:w-auto bg-primary-foreground/10 hover:bg-primary-foreground/20 border-primary-foreground/30 text-primary-foreground shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6"
+                    className="w-full sm:w-auto bg-primary-foreground/10 hover:bg-primary-foreground/20 border-primary-foreground/30 text-primary-foreground shadow-lg transition-all text-base sm:text-lg px-6 py-5 sm:px-8 sm:py-6"
                   >
                     Join Our Tutorial
                   </Button>
                 </a>
-                <a href="https://whatsapp.com/channel/0029Vb6kqDVISTkQR9ZxN73x" target="_blank" rel="noopener noreferrer">
+                <a href="https://whatsapp.com/channel/0029Vb6kqDVISTkQR9ZxN73x" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto sm:mx-auto">
                   <Button
                     size="lg"
                     variant="outline"
-                    className="w-full sm:w-auto bg-green-500/20 hover:bg-green-500/30 border-green-400/50 text-primary-foreground shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6"
+                    className="w-full sm:w-auto bg-green-500/20 hover:bg-green-500/30 border-green-400/50 text-primary-foreground shadow-lg transition-all text-sm sm:text-lg px-4 py-5 sm:px-8 sm:py-6"
                   >
                     📢 Join WhatsApp — Discussions & Updates
                   </Button>
@@ -354,13 +350,13 @@ const Index = () => {
               ].map((stat, i) => (
                 <div key={i} ref={stat.ref}>
                   <Card className="shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 border-t-4 border-t-primary/20">
-                    <CardContent className="pt-6 pb-4 flex flex-col items-center text-center gap-2">
-                      <stat.icon className={`h-8 w-8 ${stat.color}`} />
-                      <span className={`text-3xl md:text-4xl font-extrabold ${stat.color}`}>
+                    <CardContent className="p-3 sm:pt-6 sm:pb-4 flex flex-col items-center text-center gap-1 sm:gap-2">
+                      <stat.icon className={`h-6 w-6 sm:h-8 sm:w-8 ${stat.color}`} />
+                      <span className={`text-2xl sm:text-3xl md:text-4xl font-extrabold ${stat.color}`}>
                         {stat.count}
                         {stat.suffix}
                       </span>
-                      <span className="text-sm text-muted-foreground font-medium">{stat.label}</span>
+                      <span className="text-xs sm:text-sm text-muted-foreground font-medium">{stat.label}</span>
                     </CardContent>
                   </Card>
                 </div>
@@ -550,31 +546,31 @@ const Index = () => {
             <p className="text-lg md:text-xl mb-8 opacity-90 max-w-2xl mx-auto">
               Join hundreds of successful students today
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
-              <Link to="/exam">
+            <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:justify-center sm:flex-wrap px-2 sm:px-0">
+              <Link to="/exam" className="w-full sm:w-auto">
                 <Button
                   size="lg"
                   variant="secondary"
-                  className="shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6"
+                  className="w-full sm:w-auto shadow-lg hover:shadow-xl transition-all text-base sm:text-lg px-6 py-5 sm:px-8 sm:py-6"
                 >
                   <Zap className="h-5 w-5 mr-2" />
                   Start Practicing Now
                 </Button>
               </Link>
-              <a href="https://wa.me/2348124269495" target="_blank" rel="noopener noreferrer">
+              <a href="https://wa.me/2348124269495" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
                 <Button
                   size="lg"
                   variant="outline"
-                  className="bg-primary-foreground/10 hover:bg-primary-foreground/20 border-primary-foreground/30 shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6"
+                  className="w-full sm:w-auto bg-primary-foreground/10 hover:bg-primary-foreground/20 border-primary-foreground/30 shadow-lg transition-all text-base sm:text-lg px-6 py-5 sm:px-8 sm:py-6"
                 >
                   Join Our Tutorial
                 </Button>
               </a>
-              <a href="https://whatsapp.com/channel/0029Vb6kqDVISTkQR9ZxN73x" target="_blank" rel="noopener noreferrer">
+              <a href="https://whatsapp.com/channel/0029Vb6kqDVISTkQR9ZxN73x" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
                 <Button
                   size="lg"
                   variant="outline"
-                  className="bg-green-500/20 hover:bg-green-500/30 border-green-400/50 shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6"
+                  className="w-full sm:w-auto bg-green-500/20 hover:bg-green-500/30 border-green-400/50 shadow-lg transition-all text-sm sm:text-lg px-4 py-5 sm:px-8 sm:py-6"
                 >
                   📢 Join WhatsApp — Discussions & Updates
                 </Button>
