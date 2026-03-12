@@ -428,6 +428,26 @@ const ExamTaking = () => {
         throw new Error(data.error || "Failed to submit exam");
       }
 
+      // Increment lifetime trial question count
+      if (examCategoryId) {
+        const questionsAnswered = questions.length;
+        const { data: trial } = await supabase
+          .from("user_trials")
+          .select("total_questions_used")
+          .eq("user_id", session.user.id)
+          .eq("exam_category_id", examCategoryId)
+          .maybeSingle();
+        
+        if (trial) {
+          const currentTotal = (trial as any).total_questions_used || 0;
+          await supabase
+            .from("user_trials")
+            .update({ total_questions_used: currentTotal + questionsAnswered } as any)
+            .eq("user_id", session.user.id)
+            .eq("exam_category_id", examCategoryId);
+        }
+      }
+
       // Navigate to results page with exam data (correct answers now revealed by server)
       navigate(`/exam-results/${subjectSlug}`, {
         state: {
