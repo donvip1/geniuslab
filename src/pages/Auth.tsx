@@ -223,7 +223,8 @@ const Auth = () => {
       if (error) throw error;
 
       toast({ title: "Account created successfully!", description: "You can now login and start practicing." });
-      document.querySelector('[value="login"]')?.dispatchEvent(new Event('click', { bubbles: true }));
+      setActiveTab("login");
+      setSignupData({ fullName: "", username: "", email: "", password: "", confirmPassword: "" });
     } catch (error: any) {
       toast({ title: "Signup failed", description: error.message || "Could not create account", variant: "destructive" });
     } finally {
