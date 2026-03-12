@@ -51,7 +51,7 @@ export const AdvertisementPopup = ({
       clearTimeout(initialTimeout);
       clearInterval(interval);
     };
-  }, [ads, adIndex, intervalMs, initialDelayMs]);
+  }, [ads, adIndex, intervalMs, initialDelayMs, isSubscribed, subLoading]);
 
   const fetchAds = async () => {
     const { data, error } = await supabase
