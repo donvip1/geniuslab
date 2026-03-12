@@ -178,7 +178,7 @@ const Auth = () => {
         authData = data;
       }
 
-      toast({ title: "Login successful!", description: "Welcome back to GeniusLab." });
+      toast({ title: "Login successful!", description: "Welcome back to GeniusLab CBT." });
 
       const { data: roleData } = await supabase
         .from("user_roles")
@@ -325,7 +325,7 @@ const Auth = () => {
           <div className="flex justify-center mb-4">
             <img src={gecLogo} alt="GeniusLab" className="h-16 w-auto" />
           </div>
-          <CardTitle className="text-2xl">Welcome to GeniusLab</CardTitle>
+          <CardTitle className="text-2xl">Welcome to GeniusLab CBT</CardTitle>
           <CardDescription>Sign in to access your exams and track your progress</CardDescription>
         </CardHeader>
         <CardContent>

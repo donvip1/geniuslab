@@ -402,7 +402,7 @@ const Exam = () => {
             <div className="flex flex-col md:flex-row justify-between items-center max-w-4xl mx-auto gap-4">
               <div>
                 <h1 className="text-3xl md:text-4xl font-bold mb-2">
-                  {selectedCategory ? selectedCategory.name : "CBT Examination Center"}
+                  {selectedCategory ? selectedCategory.name : "GeniusLab CBT Examination Center"}
                 </h1>
                 <p className="opacity-90 flex items-center gap-2">
                   <User className="h-4 w-4" />

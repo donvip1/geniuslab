@@ -183,7 +183,7 @@ const Services = () => {
               <CardContent className="pt-12 pb-12 text-center">
                 <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
                 <p className="text-lg mb-8 opacity-90 max-w-2xl mx-auto">
-                  Join GeniusLab today and take the first step towards academic success
+                  Join GeniusLab CBT today and take the first step towards academic success
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Link to="/contact">
