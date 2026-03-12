@@ -178,7 +178,7 @@ const Auth = () => {
         authData = data;
       }
 
-      toast({ title: "Login successful!", description: "Welcome back to GeniusLab." });
+      toast({ title: "Login successful!", description: "Welcome back to GeniusLab CBT." });
 
       const { data: roleData } = await supabase
         .from("user_roles")
