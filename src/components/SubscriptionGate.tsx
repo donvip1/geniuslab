@@ -239,7 +239,7 @@ export const SubscriptionGate = ({
               <div>
                 <p className="font-medium">Free Trial Active</p>
                 <p className="text-sm text-muted-foreground">
-                  {trialInfo.daysRemaining} day(s) left · {trialInfo.maxQuestions - trialInfo.questionsUsedToday} questions remaining today
+                  {trialInfo.maxQuestions - trialInfo.questionsUsedToday} free questions remaining
                 </p>
               </div>
             </div>
