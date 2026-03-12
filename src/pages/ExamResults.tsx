@@ -89,6 +89,7 @@ const ExamResults = () => {
       )}
       
       <Navbar />
+      <AdBannerSmart adSlot="6977766720" />
       
       <main className="flex-1 container mx-auto px-4 py-8 pt-20">
         <div className="max-w-4xl mx-auto">
