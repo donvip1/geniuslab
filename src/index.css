@@ -108,6 +108,12 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
     overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Mobile page utility - consistent padding for all pages */
+  .mobile-page {
+    @apply px-4 pb-24 lg:pb-8;
   }
 
   /* Global text wrapping for mobile responsiveness */
