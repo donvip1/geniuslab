@@ -525,7 +525,7 @@ const ExamTaking = () => {
   const currentQuestion = questions[currentQuestionIndex];
 
   const examContent = (
-    <div className="min-h-screen bg-muted/30 flex flex-col pb-20 md:pb-0">
+    <div className="min-h-screen bg-muted/30 flex flex-col pb-20 lg:pb-0">
       {/* Founder Welcome Popup */}
       <FounderWelcomePopup
         isOpen={showFounderPopup && !loading}
