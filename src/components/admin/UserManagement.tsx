@@ -339,6 +339,49 @@ export const UserManagement = () => {
               <p>No active restrictions</p>
             </div>
           ) : (
+            <>
+            {/* Mobile Card Layout */}
+            <div className="block sm:hidden space-y-3">
+              {restrictions.map((restriction) => (
+                <div key={restriction.id} className="rounded-lg border p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium truncate mr-2">{restriction.email}</span>
+                    {getRestrictionBadge(restriction.restriction_type)}
+                  </div>
+                  {restriction.reason && (
+                    <p className="text-xs text-muted-foreground line-clamp-2">{restriction.reason}</p>
+                  )}
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>Applied: {formatDate(restriction.created_at)}</span>
+                    <span>{restriction.expires_at ? `Expires: ${formatDate(restriction.expires_at)}` : "Never expires"}</span>
+                  </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full">
+                        <Undo2 className="h-4 w-4 mr-1" /> Remove Restriction
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Remove Restriction?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will restore access for {restriction.email}.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleRemoveRestriction(restriction.id)}>
+                          Remove
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden sm:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -373,15 +416,14 @@ export const UserManagement = () => {
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button variant="outline" size="sm">
-                            <Undo2 className="h-4 w-4 mr-1" />
-                            Remove
+                            <Undo2 className="h-4 w-4 mr-1" /> Remove
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
                             <AlertDialogTitle>Remove Restriction?</AlertDialogTitle>
                             <AlertDialogDescription>
-                              This will restore access for {restriction.email}. They will be able to use the platform normally.
+                              This will restore access for {restriction.email}.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -397,6 +439,8 @@ export const UserManagement = () => {
                 ))}
               </TableBody>
             </Table>
+            </div>
+            </>
           )}
         </CardContent>
       </Card>
