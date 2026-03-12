@@ -983,6 +983,7 @@ const Admin = () => {
                 <span className="hidden sm:inline">Analytics</span>
               </TabsTrigger>
             </TabsList>
+            </div>
 
             {/* Subjects Tab */}
             <TabsContent value="subjects" className="space-y-6">

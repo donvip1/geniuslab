@@ -115,7 +115,9 @@ const Auth = () => {
         usernameSchema.parse(loginData.username);
         passwordSchema.parse(loginData.password);
       } else {
-        emailSchema.parse(loginData.email);
+        // Accept email or username - just validate non-empty
+        const loginInput = loginData.email.trim();
+        if (!loginInput) throw new z.ZodError([{ code: "custom", message: "Please enter your email or username", path: ["email"] }]);
         passwordSchema.parse(loginData.password);
       }
     } catch (error) {

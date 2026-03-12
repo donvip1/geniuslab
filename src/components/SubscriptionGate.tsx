@@ -293,7 +293,7 @@ export const SubscriptionGate = ({
 
           <ul className="space-y-3">
             {[
-              "10 Free Questions Daily Per Subject",
+              "10 Free Questions Total Per Category",
               "Unlock ALL Subjects & Years",
               "Unlock ALL Past Questions",
               "Unlimited Practice & Mock Exams",
