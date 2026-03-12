@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { AdBannerSmart, AdInArticleSmart } from "@/components/SubscriptionAwareAd";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent } from "@/components/ui/card";
@@ -308,9 +309,11 @@ Our learning model goes beyond teaching; we create an environment where students
               </div>
             </div>
           </div>
+        <AdInArticleSmart adSlot="6977766720" />
         </section>
       </main>
 
+      <AdBannerSmart adSlot="6977766720" />
       <Footer />
     </div>
   );

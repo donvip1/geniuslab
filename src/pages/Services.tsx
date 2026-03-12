@@ -1,4 +1,5 @@
 import { Navbar } from "@/components/Navbar";
+import { AdBannerSmart, AdInArticleSmart } from "@/components/SubscriptionAwareAd";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -203,6 +204,7 @@ const Services = () => {
         </section>
       </main>
 
+      <AdBannerSmart adSlot="6977766720" />
       <Footer />
     </div>
   );

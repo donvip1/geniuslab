@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { X, ExternalLink } from "lucide-react";
 import { trackAdClick } from "@/hooks/usePageTracking";
+import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 
 interface Advertisement {
   id: string;
@@ -29,13 +30,14 @@ export const AdvertisementPopup = ({
   const [currentAd, setCurrentAd] = useState<Advertisement | null>(null);
   const [ads, setAds] = useState<Advertisement[]>([]);
   const [adIndex, setAdIndex] = useState(0);
+  const { isSubscribed, loading: subLoading } = useSubscriptionStatus();
 
   useEffect(() => {
     fetchAds();
   }, []);
 
   useEffect(() => {
-    if (ads.length === 0) return;
+    if (ads.length === 0 || isSubscribed || subLoading) return;
 
     const initialTimeout = setTimeout(() => {
       showNextAd();
@@ -49,7 +51,7 @@ export const AdvertisementPopup = ({
       clearTimeout(initialTimeout);
       clearInterval(interval);
     };
-  }, [ads, adIndex, intervalMs, initialDelayMs]);
+  }, [ads, adIndex, intervalMs, initialDelayMs, isSubscribed, subLoading]);
 
   const fetchAds = async () => {
     const { data, error } = await supabase

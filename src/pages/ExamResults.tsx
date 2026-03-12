@@ -6,6 +6,7 @@ import { CheckCircle, XCircle, Home, RotateCcw, Trophy, Target } from "lucide-re
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ExamCompletionPopup } from "@/components/ExamCompletionPopup";
+import { AdBannerSmart, AdInArticleSmart } from "@/components/SubscriptionAwareAd";
 
 interface QuestionResult {
   id: string;
@@ -88,6 +89,7 @@ const ExamResults = () => {
       )}
       
       <Navbar />
+      <AdBannerSmart adSlot="6977766720" />
       
       <main className="flex-1 container mx-auto px-4 py-8 pt-20">
         <div className="max-w-4xl mx-auto">
@@ -239,7 +241,7 @@ const ExamResults = () => {
           )}
         </div>
       </main>
-      
+      <AdBannerSmart adSlot="6977766720" />
       <Footer />
     </div>
   );

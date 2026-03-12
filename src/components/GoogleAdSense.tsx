@@ -41,8 +41,8 @@ export const GoogleAdSense = ({
     }
   }, []);
 
-  // Get the AdSense client ID from environment or use placeholder
-  const adClient = import.meta.env.VITE_ADSENSE_CLIENT_ID || "ca-pub-6721494458632843";
+  const adClient = "ca-pub-6721494458632843";
+  const defaultAdSlot = "6977766720";
 
   // Don't render if no client ID is configured
   if (!adClient) {
@@ -59,7 +59,7 @@ export const GoogleAdSense = ({
           ...style,
         }}
         data-ad-client={adClient}
-        data-ad-slot={adSlot}
+        data-ad-slot={adSlot || defaultAdSlot}
         data-ad-format={adFormat}
         data-full-width-responsive={fullWidthResponsive ? "true" : "false"}
       />

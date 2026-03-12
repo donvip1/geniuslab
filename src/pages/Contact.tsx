@@ -1,4 +1,5 @@
 import { Navbar } from "@/components/Navbar";
+import { AdBannerSmart } from "@/components/SubscriptionAwareAd";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -204,7 +205,7 @@ const Contact = () => {
           </div>
         </section>
       </main>
-
+      <AdBannerSmart adSlot="6977766720" />
       <Footer />
     </div>
   );

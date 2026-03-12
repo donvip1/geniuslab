@@ -53,6 +53,7 @@ import lekkiCover from "@/assets/lekki-headmaster-cover.png";
 import { SubscriptionGate } from "@/components/SubscriptionGate";
 import ScientificCalculator from "@/components/ScientificCalculator";
 import { YearSelector } from "@/components/YearSelector";
+import { InlineExamAd } from "@/components/InlineExamAd";
 
 // Clean HTML tags from question text, converting common ones to markdown
 const cleanHtml = (text: string): string => {
@@ -1508,6 +1509,11 @@ const JambExam = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Inline ad every 3 questions */}
+            {(currentQuestionIndex + 1) % 3 === 0 && (
+              <InlineExamAd />
+            )}
           </div>
         </div>
       </div>
