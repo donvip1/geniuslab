@@ -60,6 +60,7 @@ const Auth = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("login");
 
   useEffect(() => {
     const checkUser = async () => {
