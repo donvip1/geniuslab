@@ -159,8 +159,17 @@ const Auth = () => {
         if (error) throw error;
         authData = data;
       } else {
+        let loginEmail = loginData.email.trim();
+        
+        // If input doesn't look like an email, treat as username
+        if (!loginEmail.includes("@")) {
+          const { data: emailData, error: lookupError } = await supabase.rpc("get_email_by_username", { p_username: loginEmail });
+          if (lookupError || !emailData) throw new Error("Username not found. Please check and try again.");
+          loginEmail = emailData;
+        }
+        
         const { data, error } = await supabase.auth.signInWithPassword({
-          email: loginData.email,
+          email: loginEmail,
           password: loginData.password,
         });
         if (error) throw error;
