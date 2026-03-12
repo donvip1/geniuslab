@@ -30,6 +30,7 @@ export const AdvertisementPopup = ({
   const [currentAd, setCurrentAd] = useState<Advertisement | null>(null);
   const [ads, setAds] = useState<Advertisement[]>([]);
   const [adIndex, setAdIndex] = useState(0);
+  const { isSubscribed, loading: subLoading } = useSubscriptionStatus();
 
   useEffect(() => {
     fetchAds();
