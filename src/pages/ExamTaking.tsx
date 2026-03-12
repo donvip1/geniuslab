@@ -24,6 +24,8 @@ import { AdvertisementPopup } from "@/components/AdvertisementPopup";
 import { ExamLockedScreen } from "@/components/ExamLockedScreen";
 import { UserRestrictedScreen } from "@/components/UserRestrictedScreen";
 import { SubscriptionGate } from "@/components/SubscriptionGate";
+import { InlineExamAd } from "@/components/InlineExamAd";
+import { AdBannerSmart } from "@/components/SubscriptionAwareAd";
 
 // Question interface WITHOUT correct_answer and explanation (security: hidden from client)
 interface Question {
