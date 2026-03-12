@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Key, Printer, Loader2, RefreshCw, Search, Filter, Lock, CreditCard, Settings } from "lucide-react";
+import { Key, Printer, Loader2, RefreshCw, Search, Lock, CreditCard, Settings } from "lucide-react";
 import {
   Select,
   SelectContent,
