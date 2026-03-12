@@ -89,7 +89,7 @@ const ExamResults = () => {
       
       <Navbar />
       
-      <main className="flex-1 container mx-auto px-4 py-8">
+      <main className="flex-1 container mx-auto px-4 py-8 pt-20">
         <div className="max-w-4xl mx-auto">
           {/* Result Summary Card */}
           <Card className="mb-8 overflow-hidden">

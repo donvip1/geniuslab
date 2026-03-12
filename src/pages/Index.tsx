@@ -223,7 +223,7 @@ const Index = () => {
         </div>
 
         {/* Hero Section with Image Carousel Background */}
-        <section className="relative overflow-hidden min-h-[80vh] md:min-h-[85vh] flex items-center">
+        <section className="relative overflow-hidden min-h-[70vh] md:min-h-[85vh] flex items-center">
           {/* Animated Background */}
           <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary/90 to-secondary">
             <Carousel
