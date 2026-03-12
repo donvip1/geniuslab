@@ -314,6 +314,12 @@ Our learning model goes beyond teaching; we create an environment where students
       </main>
 
       <AdBannerSmart adSlot="6977766720" />
+
+      {/* App Version */}
+      <div className="text-center py-4 text-xs text-muted-foreground">
+        GeniusLab CBT v1.0.0
+      </div>
+
       <Footer />
     </div>
   );

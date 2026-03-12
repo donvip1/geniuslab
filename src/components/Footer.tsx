@@ -24,6 +24,7 @@ export const Footer = () => {
               <li><Link to="/exam" className="hover:underline">Take Exam</Link></li>
               <li><Link to="/contact" className="hover:underline">Contact</Link></li>
               <li><Link to="/privacy-policy" className="hover:underline">Privacy Policy</Link></li>
+              <li><Link to="/terms-of-service" className="hover:underline">Terms of Service</Link></li>
             </ul>
           </div>
 
