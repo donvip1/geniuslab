@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { AdBannerSmart, AdInArticleSmart } from "@/components/SubscriptionAwareAd";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent } from "@/components/ui/card";
