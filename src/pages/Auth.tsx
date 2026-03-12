@@ -325,7 +325,7 @@ const Auth = () => {
           <div className="flex justify-center mb-4">
             <img src={gecLogo} alt="GeniusLab" className="h-16 w-auto" />
           </div>
-          <CardTitle className="text-2xl">Welcome to GeniusLab</CardTitle>
+          <CardTitle className="text-2xl">Welcome to GeniusLab CBT</CardTitle>
           <CardDescription>Sign in to access your exams and track your progress</CardDescription>
         </CardHeader>
         <CardContent>

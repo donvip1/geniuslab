@@ -323,7 +323,7 @@ const Payment = () => {
                     <ShieldCheck className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg">Activate GeniusLab for unlimited access</h3>
+                    <h3 className="font-bold text-lg">Activate GeniusLab CBT for unlimited access</h3>
                     <p className="text-sm text-muted-foreground">₦1,000/month</p>
                   </div>
                 </div>

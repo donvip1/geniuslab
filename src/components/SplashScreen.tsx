@@ -9,7 +9,7 @@ export const SplashScreen = () => {
         <div className="h-2 w-2 rounded-full bg-primary-foreground animate-bounce" style={{ animationDelay: "150ms" }} />
         <div className="h-2 w-2 rounded-full bg-primary-foreground animate-bounce" style={{ animationDelay: "300ms" }} />
       </div>
-      <p className="text-primary-foreground/80 text-sm mt-4 font-medium">Loading GeniusLab...</p>
+      <p className="text-primary-foreground/80 text-sm mt-4 font-medium">Loading GeniusLab CBT...</p>
     </div>
   );
 };
