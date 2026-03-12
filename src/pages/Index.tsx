@@ -199,7 +199,7 @@ const Index = () => {
       <main className="flex-1 pt-16">
         {/* Blinking Exam Alert Banner */}
         <div className="bg-red-50 dark:bg-red-950/30 border-b border-red-200 dark:border-red-800 overflow-hidden">
-          <div className="container mx-auto px-4 py-2">
+          <div className="container mx-auto px-2 sm:px-4 py-1.5 sm:py-2">
             <Carousel
               opts={{ align: "start", loop: true }}
               plugins={[Autoplay({ delay: 3000, stopOnInteraction: false })]}
@@ -210,10 +210,10 @@ const Index = () => {
                   <CarouselItem key={i} className="basis-full">
                     <Link
                       to={alert.link}
-                      className="flex items-center justify-center gap-2 text-red-600 dark:text-red-400 px-4 py-1 text-sm md:text-base font-bold hover:underline transition-colors"
+                      className="flex items-center justify-center gap-1.5 sm:gap-2 text-red-600 dark:text-red-400 px-2 sm:px-4 py-1 text-xs sm:text-base font-bold hover:underline transition-colors"
                     >
-                      {alert.text}
-                      <ChevronRight className="h-4 w-4" />
+                      <span className="truncate">{alert.text}</span>
+                      <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                     </Link>
                   </CarouselItem>
                 ))}
