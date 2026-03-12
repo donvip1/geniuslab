@@ -1509,6 +1509,11 @@ const JambExam = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Inline ad every 3 questions */}
+            {(currentQuestionIndex + 1) % 3 === 0 && (
+              <InlineExamAd />
+            )}
           </div>
         </div>
       </div>
