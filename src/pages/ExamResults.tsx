@@ -241,7 +241,7 @@ const ExamResults = () => {
           )}
         </div>
       </main>
-      
+      <AdBannerSmart adSlot="6977766720" />
       <Footer />
     </div>
   );
