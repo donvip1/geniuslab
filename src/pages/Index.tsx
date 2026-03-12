@@ -546,31 +546,31 @@ const Index = () => {
             <p className="text-lg md:text-xl mb-8 opacity-90 max-w-2xl mx-auto">
               Join hundreds of successful students today
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
-              <Link to="/exam">
+            <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:justify-center sm:flex-wrap px-2 sm:px-0">
+              <Link to="/exam" className="w-full sm:w-auto">
                 <Button
                   size="lg"
                   variant="secondary"
-                  className="shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6"
+                  className="w-full sm:w-auto shadow-lg hover:shadow-xl transition-all text-base sm:text-lg px-6 py-5 sm:px-8 sm:py-6"
                 >
                   <Zap className="h-5 w-5 mr-2" />
                   Start Practicing Now
                 </Button>
               </Link>
-              <a href="https://wa.me/2348124269495" target="_blank" rel="noopener noreferrer">
+              <a href="https://wa.me/2348124269495" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
                 <Button
                   size="lg"
                   variant="outline"
-                  className="bg-primary-foreground/10 hover:bg-primary-foreground/20 border-primary-foreground/30 shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6"
+                  className="w-full sm:w-auto bg-primary-foreground/10 hover:bg-primary-foreground/20 border-primary-foreground/30 shadow-lg transition-all text-base sm:text-lg px-6 py-5 sm:px-8 sm:py-6"
                 >
                   Join Our Tutorial
                 </Button>
               </a>
-              <a href="https://whatsapp.com/channel/0029Vb6kqDVISTkQR9ZxN73x" target="_blank" rel="noopener noreferrer">
+              <a href="https://whatsapp.com/channel/0029Vb6kqDVISTkQR9ZxN73x" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
                 <Button
                   size="lg"
                   variant="outline"
-                  className="bg-green-500/20 hover:bg-green-500/30 border-green-400/50 shadow-lg hover:shadow-xl hover:scale-105 transition-all text-lg px-8 py-6"
+                  className="w-full sm:w-auto bg-green-500/20 hover:bg-green-500/30 border-green-400/50 shadow-lg transition-all text-sm sm:text-lg px-4 py-5 sm:px-8 sm:py-6"
                 >
                   📢 Join WhatsApp — Discussions & Updates
                 </Button>
