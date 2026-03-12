@@ -60,6 +60,7 @@ const Auth = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("login");
 
   useEffect(() => {
     const checkUser = async () => {
@@ -114,7 +115,9 @@ const Auth = () => {
         usernameSchema.parse(loginData.username);
         passwordSchema.parse(loginData.password);
       } else {
-        emailSchema.parse(loginData.email);
+        // Accept email or username - just validate non-empty
+        const loginInput = loginData.email.trim();
+        if (!loginInput) throw new z.ZodError([{ code: "custom", message: "Please enter your email or username", path: ["email"] }]);
         passwordSchema.parse(loginData.password);
       }
     } catch (error) {
@@ -158,8 +161,17 @@ const Auth = () => {
         if (error) throw error;
         authData = data;
       } else {
+        let loginEmail = loginData.email.trim();
+        
+        // If input doesn't look like an email, treat as username
+        if (!loginEmail.includes("@")) {
+          const { data: emailData, error: lookupError } = await supabase.rpc("get_email_by_username", { p_username: loginEmail });
+          if (lookupError || !emailData) throw new Error("Username not found. Please check and try again.");
+          loginEmail = emailData;
+        }
+        
         const { data, error } = await supabase.auth.signInWithPassword({
-          email: loginData.email,
+          email: loginEmail,
           password: loginData.password,
         });
         if (error) throw error;
@@ -222,7 +234,8 @@ const Auth = () => {
       if (error) throw error;
 
       toast({ title: "Account created successfully!", description: "You can now login and start practicing." });
-      document.querySelector('[value="login"]')?.dispatchEvent(new Event('click', { bubbles: true }));
+      setActiveTab("login");
+      setSignupData({ fullName: "", username: "", email: "", password: "", confirmPassword: "" });
     } catch (error: any) {
       toast({ title: "Signup failed", description: error.message || "Could not create account", variant: "destructive" });
     } finally {
@@ -316,7 +329,7 @@ const Auth = () => {
           <CardDescription>Sign in to access your exams and track your progress</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="login" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Login</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -337,8 +350,8 @@ const Auth = () => {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <Label htmlFor="login-email">Email</Label>
-                    <Input id="login-email" type="email" placeholder="your@email.com" value={loginData.email} onChange={(e) => setLoginData({ ...loginData, email: e.target.value })} required={!isAdminLogin} maxLength={255} />
+                    <Label htmlFor="login-email">Email or Username</Label>
+                    <Input id="login-email" type="text" placeholder="your@email.com or username" value={loginData.email} onChange={(e) => setLoginData({ ...loginData, email: e.target.value })} required={!isAdminLogin} maxLength={255} />
                     {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
                   </div>
                 )}

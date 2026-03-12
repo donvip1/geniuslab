@@ -181,22 +181,20 @@ export const SubscriptionGate = ({
           exam_category_id: examCategoryId,
           trial_start_date: new Date().toISOString().split("T")[0],
           questions_used_today: 0,
-        });
+          total_questions_used: 0,
+        } as any);
         setTrialInfo({ daysRemaining: trialDuration, questionsUsedToday: 0, isTrialActive: true, maxQuestions: trialMaxQ });
         setHasAccess(true);
         setLoading(false);
         return;
       }
 
-      const startDate = new Date(trial.trial_start_date);
-      const today = new Date();
-      const daysPassed = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-      const daysRemaining = Math.max(0, trialDuration - daysPassed);
-      const todayStr = today.toISOString().split("T")[0];
-      const questionsUsedToday = trial.last_question_date === todayStr ? trial.questions_used_today : 0;
-      const isTrialActive = daysRemaining > 0 && questionsUsedToday < trialMaxQ;
+      // Lifetime cap: check total_questions_used against trialMaxQ
+      const totalUsed = (trial as any).total_questions_used || 0;
+      const isTrialActive = totalUsed < trialMaxQ;
+      const questionsRemaining = Math.max(0, trialMaxQ - totalUsed);
 
-      setTrialInfo({ daysRemaining, questionsUsedToday, isTrialActive, maxQuestions: trialMaxQ });
+      setTrialInfo({ daysRemaining: 0, questionsUsedToday: totalUsed, isTrialActive, maxQuestions: trialMaxQ });
 
       if (isTrialActive) {
         setHasAccess(true);
@@ -241,7 +239,7 @@ export const SubscriptionGate = ({
               <div>
                 <p className="font-medium">Free Trial Active</p>
                 <p className="text-sm text-muted-foreground">
-                  {trialInfo.daysRemaining} day(s) left · {trialInfo.maxQuestions - trialInfo.questionsUsedToday} questions remaining today
+                  {trialInfo.maxQuestions - trialInfo.questionsUsedToday} free questions remaining
                 </p>
               </div>
             </div>
@@ -295,7 +293,7 @@ export const SubscriptionGate = ({
 
           <ul className="space-y-3">
             {[
-              "10 Free Questions Daily Per Subject",
+              "10 Free Questions Total Per Category",
               "Unlock ALL Subjects & Years",
               "Unlock ALL Past Questions",
               "Unlimited Practice & Mock Exams",

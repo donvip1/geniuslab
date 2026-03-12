@@ -228,7 +228,7 @@ const ExamResults = () => {
                     </div>
                     
                     {question.explanation && (
-                      <div className="bg-blue-50 p-3 rounded text-sm">
+                      <div className="bg-blue-50 dark:bg-blue-950/30 p-3 rounded text-sm whitespace-pre-line break-words">
                         <strong>Explanation:</strong> {question.explanation}
                       </div>
                     )}

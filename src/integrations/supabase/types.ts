@@ -894,6 +894,7 @@ export type Database = {
           id: string
           last_question_date: string | null
           questions_used_today: number
+          total_questions_used: number
           trial_start_date: string
           user_id: string
         }
@@ -903,6 +904,7 @@ export type Database = {
           id?: string
           last_question_date?: string | null
           questions_used_today?: number
+          total_questions_used?: number
           trial_start_date?: string
           user_id: string
         }
@@ -912,6 +914,7 @@ export type Database = {
           id?: string
           last_question_date?: string | null
           questions_used_today?: number
+          total_questions_used?: number
           trial_start_date?: string
           user_id?: string
         }
@@ -990,6 +993,7 @@ export type Database = {
           username: string
         }[]
       }
+      get_email_by_username: { Args: { p_username: string }; Returns: string }
       get_leaderboard: {
         Args: never
         Returns: {
