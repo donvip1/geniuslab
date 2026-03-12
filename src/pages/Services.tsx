@@ -204,6 +204,7 @@ const Services = () => {
         </section>
       </main>
 
+      <AdBannerSmart adSlot="6977766720" />
       <Footer />
     </div>
   );

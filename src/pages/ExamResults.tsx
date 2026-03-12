@@ -6,6 +6,7 @@ import { CheckCircle, XCircle, Home, RotateCcw, Trophy, Target } from "lucide-re
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ExamCompletionPopup } from "@/components/ExamCompletionPopup";
+import { AdBannerSmart, AdInArticleSmart } from "@/components/SubscriptionAwareAd";
 
 interface QuestionResult {
   id: string;

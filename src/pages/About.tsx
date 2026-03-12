@@ -309,9 +309,11 @@ Our learning model goes beyond teaching; we create an environment where students
               </div>
             </div>
           </div>
+        <AdInArticleSmart adSlot="6977766720" />
         </section>
       </main>
 
+      <AdBannerSmart adSlot="6977766720" />
       <Footer />
     </div>
   );

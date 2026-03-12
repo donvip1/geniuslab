@@ -662,6 +662,11 @@ const ExamTaking = () => {
             </CardContent>
           </Card>
 
+          {/* Inline ad every 3 questions */}
+          {(currentQuestionIndex + 1) % 3 === 0 && (
+            <InlineExamAd />
+          )}
+
           {/* Navigation Section - All on one screen */}
           <div className="space-y-4">
             {/* Question Number Grid - Shows 10 at a time */}
