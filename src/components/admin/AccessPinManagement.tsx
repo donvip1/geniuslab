@@ -1006,81 +1006,103 @@ export const AccessPinManagement = () => {
 
       {/* PIN List */}
       <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <CardTitle>PIN List</CardTitle>
-              <CardDescription>
-                View and manage all generated PINs
-              </CardDescription>
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <CardTitle className="text-base sm:text-lg">PIN List</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Manage generated PINs</CardDescription>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={fetchPins} disabled={pinsLoading}>
-                <RefreshCw className={`h-4 w-4 mr-2 ${pinsLoading ? "animate-spin" : ""}`} />
-                Refresh
+            <div className="flex gap-1.5 sm:gap-2 shrink-0">
+              <Button variant="outline" size="sm" onClick={fetchPins} disabled={pinsLoading}>
+                <RefreshCw className={`h-4 w-4 ${pinsLoading ? "animate-spin" : ""}`} />
               </Button>
-              <Button onClick={handlePrint}>
-                <Printer className="h-4 w-4 mr-2" />
-                Print PINs
+              <Button size="sm" onClick={handlePrint}>
+                <Printer className="h-4 w-4" />
               </Button>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
           {/* Filters */}
-          <div className="flex flex-col md:flex-row gap-4 mb-4">
-            <div className="relative flex-1">
+          <div className="space-y-2 sm:space-y-0 sm:flex sm:flex-wrap sm:gap-3 mb-4">
+            <div className="relative flex-1 min-w-[180px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by PIN or email..."
+                placeholder="Search PIN or email..."
                 value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="pl-10"
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                className="pl-10 h-9 text-sm"
               />
             </div>
-            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}>
-              <SelectTrigger className="w-[150px]">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="unused">Unused</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="expired">Expired</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setCurrentPage(1); }}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {examCategories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={batchFilter} onValueChange={(v) => { setBatchFilter(v); setCurrentPage(1); }}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filter by Batch" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Batches</SelectItem>
-                {batches.map((batch) => (
-                  <SelectItem key={batch.id} value={batch.id}>
-                    {batch.batch_name || `Batch ${formatDate(batch.created_at)}`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="grid grid-cols-3 gap-2 sm:flex sm:gap-3">
+              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}>
+                <SelectTrigger className="h-9 text-xs sm:text-sm sm:w-[130px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="unused">Unused</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="expired">Expired</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setCurrentPage(1); }}>
+                <SelectTrigger className="h-9 text-xs sm:text-sm sm:w-[150px]">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {examCategories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={batchFilter} onValueChange={(v) => { setBatchFilter(v); setCurrentPage(1); }}>
+                <SelectTrigger className="h-9 text-xs sm:text-sm sm:w-[160px]">
+                  <SelectValue placeholder="Batch" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Batches</SelectItem>
+                  {batches.map((batch) => (
+                    <SelectItem key={batch.id} value={batch.id}>
+                      {batch.batch_name || `Batch ${formatDate(batch.created_at)}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          {/* Table */}
-          <div className="rounded-md border">
+          {/* Mobile Card Layout */}
+          <div className="block sm:hidden space-y-2">
+            {paginatedPins.length === 0 ? (
+              <p className="text-center py-8 text-sm text-muted-foreground">No PINs found</p>
+            ) : (
+              paginatedPins.map((pin) => {
+                const status = getPinStatus(pin);
+                return (
+                  <div key={pin.id} className="rounded-lg border p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-sm tracking-wider">{pin.pin_code}</span>
+                      <Badge variant={status.variant} className="text-[10px] px-2 py-0.5">{status.label}</Badge>
+                    </div>
+                    {pin.used_by_email && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        {pin.used_by_email}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                      {pin.used_at && <span>Activated: {formatDate(pin.used_at)}</span>}
+                      {pin.expires_at && <span>Expires: {formatDate(pin.expires_at)}</span>}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Desktop Table */}
+          <div className="hidden sm:block rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1104,10 +1126,8 @@ export const AccessPinManagement = () => {
                     return (
                       <TableRow key={pin.id}>
                         <TableCell className="font-mono font-bold">{pin.pin_code}</TableCell>
-                        <TableCell>
-                          <Badge variant={status.variant}>{status.label}</Badge>
-                        </TableCell>
-                        <TableCell>{pin.used_by_email || "-"}</TableCell>
+                        <TableCell><Badge variant={status.variant}>{status.label}</Badge></TableCell>
+                        <TableCell className="truncate max-w-[180px]">{pin.used_by_email || "-"}</TableCell>
                         <TableCell>{formatDate(pin.used_at)}</TableCell>
                         <TableCell>{formatDate(pin.expires_at)}</TableCell>
                       </TableRow>
@@ -1120,25 +1140,15 @@ export const AccessPinManagement = () => {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4">
-              <p className="text-sm text-muted-foreground">
-                Showing {(currentPage - 1) * pinsPerPage + 1} to {Math.min(currentPage * pinsPerPage, filteredPins.length)} of {filteredPins.length} PINs
+            <div className="flex items-center justify-between mt-3 gap-2">
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                {(currentPage - 1) * pinsPerPage + 1}–{Math.min(currentPage * pinsPerPage, filteredPins.length)} of {filteredPins.length}
               </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                >
-                  Previous
+              <div className="flex gap-1.5">
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                  Prev
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                >
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
                   Next
                 </Button>
               </div>
