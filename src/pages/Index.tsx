@@ -91,7 +91,7 @@ const Index = () => {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col pb-16 md:pb-0">
+    <div className="min-h-screen flex flex-col pb-20 lg:pb-0">
       <SEOHead
         title="GeniusLab – Free JAMB CBT Practice, WAEC, NECO & University Past Questions 2025"
         description="Practice 20,000+ JAMB UTME, WAEC, NECO past questions with answers & explanations. Free CBT mock exams. University departmental exam prep. Start now!"
