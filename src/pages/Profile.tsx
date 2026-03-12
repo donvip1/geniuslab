@@ -650,6 +650,13 @@ const Profile = () => {
         {/* Ad placement */}
         <AdBannerSmart adSlot="profile-footer" />
 
+        {/* App Version */}
+        <div className="text-center py-4 text-xs text-muted-foreground">
+          GeniusLab CBT v1.0.0 &middot;{" "}
+          <a href="/privacy-policy" className="underline">Privacy</a> &middot;{" "}
+          <a href="/terms-of-service" className="underline">Terms</a>
+        </div>
+
       </div>
     </div>
   );
