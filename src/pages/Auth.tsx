@@ -339,8 +339,8 @@ const Auth = () => {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <Label htmlFor="login-email">Email</Label>
-                    <Input id="login-email" type="email" placeholder="your@email.com" value={loginData.email} onChange={(e) => setLoginData({ ...loginData, email: e.target.value })} required={!isAdminLogin} maxLength={255} />
+                    <Label htmlFor="login-email">Email or Username</Label>
+                    <Input id="login-email" type="text" placeholder="your@email.com or username" value={loginData.email} onChange={(e) => setLoginData({ ...loginData, email: e.target.value })} required={!isAdminLogin} maxLength={255} />
                     {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
                   </div>
                 )}
