@@ -33,12 +33,12 @@ const Contact = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col pb-16 md:pb-0">
+    <div className="min-h-screen flex flex-col pb-20 lg:pb-0">
       <Navbar />
       
       <main className="flex-1 pt-16">
         {/* Hero Section */}
-        <section className="py-20 bg-gradient-to-br from-primary to-secondary text-primary-foreground">
+        <section className="py-12 md:py-20 bg-gradient-to-br from-primary to-secondary text-primary-foreground">
           <div className="container mx-auto px-4">
             <div className="max-w-3xl mx-auto text-center">
               <h1 className="text-4xl md:text-5xl font-bold mb-6">Contact Us</h1>

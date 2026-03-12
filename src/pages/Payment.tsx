@@ -276,7 +276,7 @@ const Payment = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col pb-16 md:pb-0">
+    <div className="min-h-screen flex flex-col pb-20 lg:pb-0">
       <Navbar />
       <main className="flex-1 pt-16">
         {/* Payment Success Popup */}

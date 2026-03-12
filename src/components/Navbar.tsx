@@ -53,7 +53,7 @@ export const Navbar = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-14 lg:h-16">
           <Link to="/" className="flex items-center gap-2 font-bold text-xl">
-            <img src={gecLogo} alt="GeniusLab Educational Consult" className="h-20 lg:h-28 w-auto" />
+            <img src={gecLogo} alt="GeniusLab Educational Consult" className="h-14 lg:h-28 w-auto" />
             <span className="hidden sm:inline">GeniusLab</span>
           </Link>
 

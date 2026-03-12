@@ -91,7 +91,7 @@ const Index = () => {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col pb-16 md:pb-0">
+    <div className="min-h-screen flex flex-col pb-20 lg:pb-0">
       <SEOHead
         title="GeniusLab – Free JAMB CBT Practice, WAEC, NECO & University Past Questions 2025"
         description="Practice 20,000+ JAMB UTME, WAEC, NECO past questions with answers & explanations. Free CBT mock exams. University departmental exam prep. Start now!"
@@ -223,7 +223,7 @@ const Index = () => {
         </div>
 
         {/* Hero Section with Image Carousel Background */}
-        <section className="relative overflow-hidden min-h-[80vh] md:min-h-[85vh] flex items-center">
+        <section className="relative overflow-hidden min-h-[70vh] md:min-h-[85vh] flex items-center">
           {/* Animated Background */}
           <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary/90 to-secondary">
             <Carousel

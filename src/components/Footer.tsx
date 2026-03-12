@@ -3,7 +3,7 @@ import { Mail, Phone, MapPin, Facebook, Twitter, Globe, MessageCircle } from "lu
 
 export const Footer = () => {
   return (
-    <footer className="bg-primary text-primary-foreground mt-20 pb-20 md:pb-0">
+    <footer className="bg-primary text-primary-foreground mt-20 pb-24 lg:pb-0">
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* About Section */}

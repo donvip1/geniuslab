@@ -291,7 +291,7 @@ const Profile = () => {
   const userInTop10 = currentLeaderboard.some(e => e.user_id === userId);
 
   return (
-    <div className="min-h-screen bg-background pb-24 md:pb-8">
+    <div className="min-h-screen bg-background pb-24 lg:pb-8">
       <Navbar />
       <div className="container mx-auto px-4 pt-20 md:pt-24 max-w-2xl space-y-6">
         <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="gap-1">
