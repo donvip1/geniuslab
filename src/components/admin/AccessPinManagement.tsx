@@ -843,7 +843,7 @@ export const AccessPinManagement = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="space-y-2">
               <Label htmlFor="paymentContact">WhatsApp Contact Number</Label>
               <Input
