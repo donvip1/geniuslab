@@ -350,13 +350,13 @@ const Index = () => {
               ].map((stat, i) => (
                 <div key={i} ref={stat.ref}>
                   <Card className="shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 border-t-4 border-t-primary/20">
-                    <CardContent className="pt-6 pb-4 flex flex-col items-center text-center gap-2">
-                      <stat.icon className={`h-8 w-8 ${stat.color}`} />
-                      <span className={`text-3xl md:text-4xl font-extrabold ${stat.color}`}>
+                    <CardContent className="p-3 sm:pt-6 sm:pb-4 flex flex-col items-center text-center gap-1 sm:gap-2">
+                      <stat.icon className={`h-6 w-6 sm:h-8 sm:w-8 ${stat.color}`} />
+                      <span className={`text-2xl sm:text-3xl md:text-4xl font-extrabold ${stat.color}`}>
                         {stat.count}
                         {stat.suffix}
                       </span>
-                      <span className="text-sm text-muted-foreground font-medium">{stat.label}</span>
+                      <span className="text-xs sm:text-sm text-muted-foreground font-medium">{stat.label}</span>
                     </CardContent>
                   </Card>
                 </div>
