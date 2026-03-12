@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { X, ExternalLink } from "lucide-react";
 import { trackAdClick } from "@/hooks/usePageTracking";
+import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 
 interface Advertisement {
   id: string;
