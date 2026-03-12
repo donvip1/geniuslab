@@ -339,6 +339,7 @@ export const UserManagement = () => {
               <p>No active restrictions</p>
             </div>
           ) : (
+            <>
             {/* Mobile Card Layout */}
             <div className="block sm:hidden space-y-3">
               {restrictions.map((restriction) => (
@@ -439,6 +440,7 @@ export const UserManagement = () => {
               </TableBody>
             </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>
