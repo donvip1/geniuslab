@@ -945,17 +945,16 @@ export const AccessPinManagement = () => {
 
       {/* PIN Generator */}
       <Card>
-        <CardHeader>
-          <CardTitle>Generate New PINs</CardTitle>
-          <CardDescription>
-            Create a batch of new access PINs (max 1,000 per batch)
-            {hasPassword && " - Password required"}
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">Generate New PINs</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
+            Max 1,000 per batch{hasPassword && " · Password required"}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="pinCount">Number of PINs</Label>
+        <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="pinCount" className="text-xs sm:text-sm">Count</Label>
               <Input
                 id="pinCount"
                 type="number"
@@ -966,20 +965,20 @@ export const AccessPinManagement = () => {
                 placeholder="100"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="batchName">Batch Name (Optional)</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="batchName" className="text-xs sm:text-sm">Batch Name</Label>
               <Input
                 id="batchName"
                 value={batchName}
                 onChange={(e) => setBatchName(e.target.value)}
-                placeholder="e.g., January 2026 Batch"
+                placeholder="Jan 2026"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="pinCategory">Exam Category</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="pinCategory" className="text-xs sm:text-sm">Category</Label>
               <Select value={selectedCategoryForGen} onValueChange={setSelectedCategoryForGen}>
                 <SelectTrigger id="pinCategory">
-                  <SelectValue placeholder="Select category" />
+                  <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
                   {examCategories.map((cat) => (
@@ -988,22 +987,16 @@ export const AccessPinManagement = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-end">
+            <div className="flex items-end col-span-2 sm:col-span-1">
               <Button 
                 onClick={handleGeneratePins} 
                 disabled={generating || !selectedCategoryForGen}
                 className="w-full"
               >
                 {generating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating...
-                  </>
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generating...</>
                 ) : (
-                  <>
-                    <Key className="mr-2 h-4 w-4" />
-                    Generate PINs
-                  </>
+                  <><Key className="mr-2 h-4 w-4" />Generate</>
                 )}
               </Button>
             </div>
