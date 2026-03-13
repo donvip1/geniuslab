@@ -314,6 +314,13 @@ export const PastQuestionUpload = () => {
                   <div>
                     <p className="font-medium">{result.questionsExtracted} Questions Extracted & Saved!</p>
                     <p className="text-sm">Questions have been added to the {subject} ({examLevel}) question bank for {year}.</p>
+                    {(result.preAnswered !== undefined || result.aiSolved !== undefined) && (
+                      <p className="text-xs mt-1 text-muted-foreground">
+                        {result.preAnswered ? `${result.preAnswered} pre-answered` : ""}
+                        {result.preAnswered && result.aiSolved ? " • " : ""}
+                        {result.aiSolved ? `${result.aiSolved} solved by AI` : ""}
+                      </p>
+                    )}
                   </div>
                 </>
               )}
