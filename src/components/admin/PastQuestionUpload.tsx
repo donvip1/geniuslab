@@ -165,20 +165,8 @@ export const PastQuestionUpload = () => {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Upload Past Questions
-          </CardTitle>
-          <CardDescription>
-            Upload JAMB, WAEC, NECO, or NABTEB past questions. Supports text files, PDFs, and images. 
-            The AI will extract and convert them into structured questions.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Exam Details */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Exam Details */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Exam Type *</Label>
               <Select value={examLevel} onValueChange={setExamLevel}>
