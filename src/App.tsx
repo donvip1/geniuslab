@@ -8,6 +8,7 @@ import { PageTracker } from "@/components/PageTracker";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { SplashScreen } from "@/components/SplashScreen";
 import { initializeAdMob } from "@/lib/admob";
+import { NativeAdBanner } from "@/components/NativeAdBanner";
 import Index from "./pages/Index";
 import About from "./pages/About";
 import Services from "./pages/Services";
