@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, FileText, BookOpen, Loader2, Pencil, Trash2, X, Check, ChevronDown, ChevronUp, ClipboardPaste, Megaphone, Users, Star, Clock, BarChart3, UserX, Key, Database, FileUp, Gift } from "lucide-react";
+import { Upload, FileText, BookOpen, Loader2, Pencil, Trash2, X, Check, ChevronDown, ChevronUp, ClipboardPaste, Megaphone, Users, Star, Clock, BarChart3, UserX, Key, Database, Gift } from "lucide-react";
 import { TeamExpertManagement } from "@/components/admin/TeamExpertManagement";
 import { SuccessStoryManagement } from "@/components/admin/SuccessStoryManagement";
 import { ExamModeManagement } from "@/components/admin/ExamModeManagement";
@@ -18,7 +18,7 @@ import { AnalyticsDashboard } from "@/components/admin/AnalyticsDashboard";
 import { UserManagement } from "@/components/admin/UserManagement";
 import { AccessPinManagement } from "@/components/admin/AccessPinManagement";
 import { QuestionBankSync } from "@/components/admin/QuestionBankSync";
-import { PastQuestionUpload } from "@/components/admin/PastQuestionUpload";
+
 import { TrialManagement } from "@/components/admin/TrialManagement";
 import {
   AlertDialog,
@@ -936,7 +936,7 @@ const Admin = () => {
               </TabsTrigger>
               <TabsTrigger value="upload">
                 <Upload className="h-4 w-4 mr-1" />
-                <span className="hidden sm:inline">Upload</span>
+                <span className="hidden sm:inline">Uni Upload</span>
               </TabsTrigger>
               <TabsTrigger value="questions" onClick={() => fetchQuestions()}>
                 <FileText className="h-4 w-4 mr-1" />
@@ -969,10 +969,6 @@ const Admin = () => {
               <TabsTrigger value="questionbank">
                 <Database className="h-4 w-4 mr-1" />
                 <span className="hidden sm:inline">Q-Bank</span>
-              </TabsTrigger>
-              <TabsTrigger value="pastquestions">
-                <FileUp className="h-4 w-4 mr-1" />
-                <span className="hidden sm:inline">Past Q</span>
               </TabsTrigger>
               <TabsTrigger value="trials">
                 <Gift className="h-4 w-4 mr-1" />
@@ -2111,10 +2107,6 @@ Or any other format - our AI will parse it automatically!`}
               <QuestionBankSync />
             </TabsContent>
 
-            {/* Past Questions Upload Tab */}
-            <TabsContent value="pastquestions">
-              <PastQuestionUpload />
-            </TabsContent>
 
             {/* Trials Tab */}
             <TabsContent value="trials">
