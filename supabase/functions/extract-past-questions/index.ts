@@ -205,10 +205,10 @@ was_pre_answered: true if the answer was already in the document, false if you s
       console.log(`Processing chunk ${chunkIdx + 1}/${chunks.length}...`);
       
       const extractResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        getAiUrl(),
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: getAiHeaders(),
           body: JSON.stringify({
             contents: [{
               parts: [{
