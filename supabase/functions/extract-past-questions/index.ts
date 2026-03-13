@@ -22,10 +22,33 @@ serve(async (req) => {
       throw new Error("No content provided. Please upload a file or paste text.");
     }
 
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
+    
+    // Prefer Lovable AI Gateway, fallback to direct Gemini
+    const useLovableGateway = !!LOVABLE_API_KEY;
+    
+    if (!LOVABLE_API_KEY && !GEMINI_API_KEY) {
+      throw new Error("No AI API key configured (LOVABLE_API_KEY or GEMINI_API_KEY)");
     }
+    
+    const aiBaseUrl = useLovableGateway 
+      ? "https://ai-gateway.lovable.dev/google/gemini-2.5-flash"
+      : `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash`;
+    
+    const getAiUrl = () => useLovableGateway 
+      ? aiBaseUrl 
+      : `${aiBaseUrl}:generateContent?key=${GEMINI_API_KEY}`;
+    
+    const getAiHeaders = (): Record<string, string> => {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (useLovableGateway) {
+        headers["Authorization"] = `Bearer ${LOVABLE_API_KEY}`;
+      }
+      return headers;
+    };
+    
+    console.log(`Using ${useLovableGateway ? "Lovable AI Gateway" : "Direct Gemini API"}`);
 
     console.log(`Processing ${subject} (${examLevel}) - Year: ${year || "auto-detect"}`);
 
