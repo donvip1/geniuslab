@@ -65,9 +65,10 @@ serve(async (req) => {
       else if (fileName?.endsWith(".webp")) mimeType = "image/webp";
 
       const visionResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        getAiUrl(),
         {
           method: "POST",
+          headers: getAiHeaders(),
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [{
