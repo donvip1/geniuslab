@@ -970,10 +970,6 @@ const Admin = () => {
                 <Database className="h-4 w-4 mr-1" />
                 <span className="hidden sm:inline">Q-Bank</span>
               </TabsTrigger>
-              <TabsTrigger value="pastquestions">
-                <FileUp className="h-4 w-4 mr-1" />
-                <span className="hidden sm:inline">Past Q</span>
-              </TabsTrigger>
               <TabsTrigger value="trials">
                 <Gift className="h-4 w-4 mr-1" />
                 <span className="hidden sm:inline">Trials</span>
