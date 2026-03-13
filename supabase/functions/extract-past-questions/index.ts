@@ -50,7 +50,7 @@ serve(async (req) => {
             contents: [{
               parts: [
                 {
-                  text: "Extract ALL text from this document/image. It contains exam past questions. Transcribe everything accurately: question numbers, options (A, B, C, D), answers, and any mathematical formulas or symbols. Maintain the original structure.",
+                  text: "Extract ALL text from this document/image. It contains exam past questions. Transcribe everything accurately: question numbers, options (A, B, C, D), answers, and any mathematical formulas or symbols. Maintain the original structure. If answers are marked or highlighted, note them clearly.",
                 },
                 {
                   inline_data: { mime_type: mimeType, data: fileBase64 },
@@ -77,17 +77,22 @@ serve(async (req) => {
     }
 
     // Now extract structured questions using Gemini
-    console.log("Extracting structured questions...");
+    console.log("Extracting structured questions with AI solving...");
     
-    const systemPrompt = `You are an expert at extracting exam questions from educational documents. Extract ALL questions from the provided text.
+    const systemPrompt = `You are an expert ${subject} teacher and examiner specializing in Nigerian ${examLevel} examinations.
+
+Your task is to extract ALL questions from the provided text AND ensure every question has a verified correct answer.
 
 CRITICAL RULES:
 1. Extract questions EXACTLY as they appear - do NOT modify, rephrase, or create new questions
 2. Keep original options (A, B, C, D) exactly as written
-3. Identify the correct answer from the document if marked; otherwise use your knowledge
-4. Extract ALL questions - do not skip any
-5. Each question MUST have exactly 4 options
-6. Provide a brief explanation for each answer
+3. For ANSWERED questions (where the answer is already marked/indicated in the document): use that answer
+4. For UNANSWERED questions (no answer marked): USE YOUR EXPERT KNOWLEDGE to determine the correct answer. You are a subject matter expert — solve the question yourself and pick the right option
+5. Extract ALL questions - do not skip any
+6. Each question MUST have exactly 4 options
+7. Provide a clear, educational explanation for EVERY answer — especially for questions you solved yourself
+8. For math/science questions, show the working/reasoning in the explanation
+9. Double-check your answers for accuracy before responding
 
 This is a ${examLevel} ${subject} past question from year ${year}.
 
@@ -101,12 +106,14 @@ Return a JSON object:
       "option_c": "Option C text",
       "option_d": "Option D text",
       "correct_answer_index": 0,
-      "explanation": "Brief explanation"
+      "explanation": "Clear explanation of why this is correct. For unsolved questions, show your reasoning.",
+      "was_pre_answered": true
     }
   ]
 }
 
-correct_answer_index: 0=A, 1=B, 2=C, 3=D`;
+correct_answer_index: 0=A, 1=B, 2=C, 3=D
+was_pre_answered: true if the answer was already in the document, false if you solved it yourself`;
 
     // Chunk large texts to avoid token limits
     const maxChunkLength = 25000;
@@ -133,7 +140,7 @@ correct_answer_index: 0=A, 1=B, 2=C, 3=D`;
           body: JSON.stringify({
             contents: [{
               parts: [{
-                text: `${systemPrompt}\n\nExtract ALL exam questions from this text:\n\n${chunks[chunkIdx]}`,
+                text: `${systemPrompt}\n\nExtract ALL exam questions from this text. For questions WITHOUT marked answers, solve them yourself using your expert knowledge:\n\n${chunks[chunkIdx]}`,
               }],
             }],
             generationConfig: {
@@ -166,6 +173,10 @@ correct_answer_index: 0=A, 1=B, 2=C, 3=D`;
     }
 
     console.log(`Total questions extracted: ${allQuestions.length}`);
+    
+    const preAnswered = allQuestions.filter(q => q.was_pre_answered === true).length;
+    const aiSolved = allQuestions.filter(q => q.was_pre_answered === false).length;
+    console.log(`Pre-answered: ${preAnswered}, AI-solved: ${aiSolved}`);
 
     if (allQuestions.length === 0) {
       throw new Error("No questions could be extracted. Please check the file contains exam questions with options.");
@@ -216,6 +227,8 @@ correct_answer_index: 0=A, 1=B, 2=C, 3=D`;
         success: true,
         questionsExtracted: rows.length,
         questionsInserted: insertedCount,
+        preAnswered,
+        aiSolved,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

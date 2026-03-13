@@ -36,6 +36,8 @@ const YEARS = Array.from({ length: 30 }, (_, i) => String(2025 - i));
 
 interface UploadResult {
   questionsExtracted: number;
+  preAnswered?: number;
+  aiSolved?: number;
   error?: string;
 }
 
@@ -134,7 +136,7 @@ export const PastQuestionUpload = () => {
       }
 
       setProgress({ stage: "Done!", percent: 100 });
-      setResult({ questionsExtracted: data?.questionsExtracted || 0 });
+      setResult({ questionsExtracted: data?.questionsExtracted || 0, preAnswered: data?.preAnswered, aiSolved: data?.aiSolved });
 
       toast({
         title: "Upload Successful!",
@@ -312,6 +314,13 @@ export const PastQuestionUpload = () => {
                   <div>
                     <p className="font-medium">{result.questionsExtracted} Questions Extracted & Saved!</p>
                     <p className="text-sm">Questions have been added to the {subject} ({examLevel}) question bank for {year}.</p>
+                    {(result.preAnswered !== undefined || result.aiSolved !== undefined) && (
+                      <p className="text-xs mt-1 text-muted-foreground">
+                        {result.preAnswered ? `${result.preAnswered} pre-answered` : ""}
+                        {result.preAnswered && result.aiSolved ? " • " : ""}
+                        {result.aiSolved ? `${result.aiSolved} solved by AI` : ""}
+                      </p>
+                    )}
                   </div>
                 </>
               )}

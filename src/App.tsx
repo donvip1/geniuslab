@@ -7,6 +7,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { PageTracker } from "@/components/PageTracker";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { SplashScreen } from "@/components/SplashScreen";
+import { initializeAdMob } from "@/lib/admob";
+import { NativeAdBanner } from "@/components/NativeAdBanner";
 import Index from "./pages/Index";
 import About from "./pages/About";
 import Services from "./pages/Services";
@@ -34,6 +36,11 @@ const App = () => {
   useEffect(() => {
     const timer = setTimeout(() => setShowSplash(false), 1500);
     return () => clearTimeout(timer);
+  }, []);
+
+  // Initialize native AdMob on app start (no-op on web)
+  useEffect(() => {
+    initializeAdMob();
   }, []);
 
   if (showSplash) {
@@ -68,6 +75,7 @@ const App = () => {
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <NativeAdBanner position="BOTTOM" />
           <MobileBottomNav />
         </BrowserRouter>
       </TooltipProvider>
