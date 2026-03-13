@@ -14,8 +14,8 @@ serve(async (req) => {
   try {
     const { examLevel, subject, year, textContent, fileBase64, fileType, fileName } = await req.json();
 
-    if (!examLevel || !subject || !year) {
-      throw new Error("Missing required fields: examLevel, subject, year");
+    if (!examLevel || !subject) {
+      throw new Error("Missing required fields: examLevel, subject");
     }
 
     if (!textContent && !fileBase64) {
@@ -27,7 +27,7 @@ serve(async (req) => {
       throw new Error("GEMINI_API_KEY is not configured");
     }
 
-    console.log(`Processing ${subject} (${examLevel}) - Year: ${year}`);
+    console.log(`Processing ${subject} (${examLevel}) - Year: ${year || "auto-detect"}`);
 
     let extractedText = textContent || "";
 
@@ -50,7 +50,7 @@ serve(async (req) => {
             contents: [{
               parts: [
                 {
-                  text: "Extract ALL text from this document/image. It contains exam past questions. Transcribe everything accurately: question numbers, options (A, B, C, D), answers, and any mathematical formulas or symbols. Maintain the original structure. If answers are marked or highlighted, note them clearly.",
+                  text: "Extract ALL text from this document/image. It contains exam past questions. Transcribe everything accurately: question numbers, options (A, B, C, D), answers, and any mathematical formulas or symbols. Maintain the original structure. If answers are marked or highlighted, note them clearly. IMPORTANT: Also look for and note the exam year (e.g. 'JAMB 2019', 'WAEC 2020', '2018 NECO', etc.) if visible anywhere in the document.",
                 },
                 {
                   inline_data: { mime_type: mimeType, data: fileBase64 },
@@ -76,6 +76,54 @@ serve(async (req) => {
       throw new Error("Could not extract meaningful text from the uploaded content.");
     }
 
+    // Determine year: use provided year or ask AI to detect it
+    let detectedYear = year || null;
+
+    if (!detectedYear) {
+      console.log("Auto-detecting year from content...");
+      const yearDetectResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: `Analyze this exam document text and determine the exam year. Look for patterns like "2019 JAMB", "WAEC 2020", "NECO 2018", year headers, copyright dates, or any other year indicators. Also check the filename: "${fileName || 'unknown'}".
+
+Return ONLY a JSON object: {"year": "2020"} with the 4-digit year string. If you cannot determine the year, return {"year": null}.
+
+Document text (first 3000 chars):
+${extractedText.substring(0, 3000)}`,
+              }],
+            }],
+            generationConfig: { responseMimeType: "application/json" },
+          }),
+        }
+      );
+
+      if (yearDetectResponse.ok) {
+        const yearResult = await yearDetectResponse.json();
+        const yearContent = yearResult.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (yearContent) {
+          try {
+            const parsed = JSON.parse(yearContent);
+            if (parsed.year && /^\d{4}$/.test(String(parsed.year))) {
+              detectedYear = String(parsed.year);
+              console.log("Auto-detected year:", detectedYear);
+            }
+          } catch (e) {
+            console.error("Year detection parse error:", e);
+          }
+        }
+      }
+
+      if (!detectedYear) {
+        detectedYear = String(new Date().getFullYear());
+        console.log("Could not detect year, defaulting to:", detectedYear);
+      }
+    }
+
     // Now extract structured questions using Gemini
     console.log("Extracting structured questions with AI solving...");
     
@@ -94,7 +142,7 @@ CRITICAL RULES:
 8. For math/science questions, show the working/reasoning in the explanation
 9. Double-check your answers for accuracy before responding
 
-This is a ${examLevel} ${subject} past question from year ${year}.
+This is a ${examLevel} ${subject} past question from year ${detectedYear}.
 
 Return a JSON object:
 {
@@ -199,7 +247,7 @@ was_pre_answered: true if the answer was already in the document, false if you s
         ? q.correct_answer_index 
         : (q.correct_answer === "A" ? 0 : q.correct_answer === "B" ? 1 : q.correct_answer === "C" ? 2 : q.correct_answer === "D" ? 3 : 0),
       explanation: q.explanation || null,
-      year: year,
+      year: detectedYear,
     })).filter(r => r.question_text.length > 5);
 
     // Insert in batches of 50
@@ -229,6 +277,7 @@ was_pre_answered: true if the answer was already in the document, false if you s
         questionsInserted: insertedCount,
         preAnswered,
         aiSolved,
+        detectedYear,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
