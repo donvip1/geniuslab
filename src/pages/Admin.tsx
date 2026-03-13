@@ -936,7 +936,7 @@ const Admin = () => {
               </TabsTrigger>
               <TabsTrigger value="upload">
                 <Upload className="h-4 w-4 mr-1" />
-                <span className="hidden sm:inline">Upload</span>
+                <span className="hidden sm:inline">Uni Upload</span>
               </TabsTrigger>
               <TabsTrigger value="questions" onClick={() => fetchQuestions()}>
                 <FileText className="h-4 w-4 mr-1" />
