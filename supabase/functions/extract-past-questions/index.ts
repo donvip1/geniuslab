@@ -106,10 +106,10 @@ serve(async (req) => {
     if (!detectedYear) {
       console.log("Auto-detecting year from content...");
       const yearDetectResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        getAiUrl(),
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: getAiHeaders(),
           body: JSON.stringify({
             contents: [{
               parts: [{
