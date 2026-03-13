@@ -36,6 +36,8 @@ const YEARS = Array.from({ length: 30 }, (_, i) => String(2025 - i));
 
 interface UploadResult {
   questionsExtracted: number;
+  preAnswered?: number;
+  aiSolved?: number;
   error?: string;
 }
 
