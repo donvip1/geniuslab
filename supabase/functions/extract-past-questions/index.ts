@@ -208,6 +208,34 @@ was_pre_answered: true if the answer was already in the document, false if you s
 
     const allQuestions: any[] = [];
 
+    function extractJSON(raw: string): any {
+      // Try direct parse first
+      try { return JSON.parse(raw); } catch {}
+      // Try extracting JSON from markdown code blocks
+      const codeBlock = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (codeBlock) {
+        try { return JSON.parse(codeBlock[1].trim()); } catch {}
+      }
+      // Try finding the JSON object/array boundaries
+      const start = raw.indexOf('{');
+      const arrStart = raw.indexOf('[');
+      const useArr = arrStart !== -1 && (start === -1 || arrStart < start);
+      const openChar = useArr ? '[' : '{';
+      const closeChar = useArr ? ']' : '}';
+      const idx = useArr ? arrStart : start;
+      if (idx === -1) throw new Error("No JSON found in response");
+      // Find matching closing bracket from the end
+      let lastIdx = raw.lastIndexOf(closeChar);
+      if (lastIdx <= idx) throw new Error("No matching closing bracket");
+      const candidate = raw.substring(idx, lastIdx + 1);
+      try { return JSON.parse(candidate); } catch {}
+      // Last resort: fix common issues (trailing commas, unescaped newlines in strings)
+      const fixed = candidate
+        .replace(/,\s*([}\]])/g, '$1')
+        .replace(/[\x00-\x1f]/g, (c) => c === '\n' ? '\\n' : c === '\t' ? '\\t' : '');
+      return JSON.parse(fixed);
+    }
+
     for (let chunkIdx = 0; chunkIdx < chunks.length; chunkIdx++) {
       console.log(`Processing chunk ${chunkIdx + 1}/${chunks.length}...`);
       try {
@@ -216,10 +244,12 @@ was_pre_answered: true if the answer was already in the document, false if you s
           { role: "user", content: `Extract ALL exam questions from this text. For questions WITHOUT marked answers, solve them yourself using your expert knowledge:\n\n${chunks[chunkIdx]}` },
         ], useLovable, LOVABLE_API_KEY, GEMINI_API_KEY, true);
 
-        const parsed = JSON.parse(content);
-        const questions = parsed.questions || parsed;
+        console.log(`AI response length: ${content.length}`);
+        const parsed = extractJSON(content);
+        const questions = parsed.questions || (Array.isArray(parsed) ? parsed : []);
         if (Array.isArray(questions)) {
           allQuestions.push(...questions);
+          console.log(`Chunk ${chunkIdx + 1}: extracted ${questions.length} questions`);
         }
       } catch (e) {
         console.error(`Failed to process chunk ${chunkIdx + 1}:`, e);
