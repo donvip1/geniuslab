@@ -184,8 +184,23 @@ export const PastQuestionUpload = () => {
     try {
       setProgress({ stage: "Preparing content...", percent: 20 });
 
+      if (mode === "text") {
+        const { data, error } = await supabase.functions.invoke("extract-past-questions", {
+          body: { examLevel, subject, year, textContent: pastedText },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        setProgress({ stage: "Done!", percent: 100 });
+        setSingleResult({ questionsExtracted: data?.questionsExtracted || 0, preAnswered: data?.preAnswered, aiSolved: data?.aiSolved });
+        toast({ title: "Upload Successful!", description: `${data?.questionsExtracted || 0} questions extracted and saved.` });
+        setPastedText("");
+        setUploading(false);
+        setTimeout(() => setProgress({ stage: "", percent: 0 }), 3000);
+        return;
+      }
+
       const result = await processFile({
-        file: file || new File([pastedText], "pasted-text.txt", { type: "text/plain" }),
+        file: file!,
         subject,
         year,
         status: "pending",
