@@ -224,8 +224,38 @@ export const QuestionBankSync = () => {
     .sort((a, b) => a.count - b.count)
     .map(item => item.subject);
 
+  const [showUpload, setShowUpload] = useState(false);
+
   return (
     <div className="space-y-6">
+      {/* Upload Past Questions Section */}
+      <Collapsible open={showUpload} onOpenChange={setShowUpload}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Upload className="h-5 w-5 text-primary" />
+                  <div>
+                    <CardTitle className="text-base">Upload Past Questions (JAMB / WAEC / NECO / NABTEB)</CardTitle>
+                    <CardDescription className="mt-1">
+                      Upload PDFs, images, or paste text — AI extracts & solves questions automatically
+                    </CardDescription>
+                  </div>
+                </div>
+                {showUpload ? <ChevronUp className="h-5 w-5 text-muted-foreground" /> : <ChevronDown className="h-5 w-5 text-muted-foreground" />}
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>
+              <PastQuestionUpload />
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* Question Bank Stats */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between flex-wrap gap-3">
