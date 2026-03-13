@@ -333,9 +333,7 @@ export const PastQuestionUpload = () => {
                 Extract & Save Questions
               </>
             )}
-          </Button>
-        </CardContent>
-      </Card>
+        </Button>
     </div>
   );
 };
