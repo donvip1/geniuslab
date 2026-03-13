@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { RefreshCw, Database, Loader2, CheckCircle, XCircle, Zap, AlertTriangle } from "lucide-react";
+import { RefreshCw, Database, Loader2, CheckCircle, XCircle, Zap, AlertTriangle, Upload, ChevronDown, ChevronUp } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import {
   Select,
@@ -13,6 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PastQuestionUpload } from "./PastQuestionUpload";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface CacheStats {
   exam_level: string;
