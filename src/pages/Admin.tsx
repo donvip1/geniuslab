@@ -18,7 +18,7 @@ import { AnalyticsDashboard } from "@/components/admin/AnalyticsDashboard";
 import { UserManagement } from "@/components/admin/UserManagement";
 import { AccessPinManagement } from "@/components/admin/AccessPinManagement";
 import { QuestionBankSync } from "@/components/admin/QuestionBankSync";
-import { PastQuestionUpload } from "@/components/admin/PastQuestionUpload";
+
 import { TrialManagement } from "@/components/admin/TrialManagement";
 import {
   AlertDialog,
