@@ -136,7 +136,7 @@ export const PastQuestionUpload = () => {
       }
 
       setProgress({ stage: "Done!", percent: 100 });
-      setResult({ questionsExtracted: data?.questionsExtracted || 0 });
+      setResult({ questionsExtracted: data?.questionsExtracted || 0, preAnswered: data?.preAnswered, aiSolved: data?.aiSolved });
 
       toast({
         title: "Upload Successful!",
