@@ -2107,10 +2107,6 @@ Or any other format - our AI will parse it automatically!`}
               <QuestionBankSync />
             </TabsContent>
 
-            {/* Past Questions Upload Tab */}
-            <TabsContent value="pastquestions">
-              <PastQuestionUpload />
-            </TabsContent>
 
             {/* Trials Tab */}
             <TabsContent value="trials">
