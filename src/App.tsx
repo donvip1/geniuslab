@@ -37,6 +37,11 @@ const App = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  // Initialize native AdMob on app start (no-op on web)
+  useEffect(() => {
+    initializeAdMob();
+  }, []);
+
   if (showSplash) {
     return <SplashScreen />;
   }
