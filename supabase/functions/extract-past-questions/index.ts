@@ -238,21 +238,48 @@ was_pre_answered: true if the answer was already in the document, false if you s
 
     for (let chunkIdx = 0; chunkIdx < chunks.length; chunkIdx++) {
       console.log(`Processing chunk ${chunkIdx + 1}/${chunks.length}...`);
+      
+      const userPrompt = `Extract ALL exam questions from this text. For questions WITHOUT marked answers, solve them yourself using your expert knowledge:\n\n${chunks[chunkIdx]}`;
+      let parsed: any = null;
+
+      // Attempt 1: normal request
       try {
         const content = await callAI([
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Extract ALL exam questions from this text. For questions WITHOUT marked answers, solve them yourself using your expert knowledge:\n\n${chunks[chunkIdx]}` },
+          { role: "user", content: userPrompt },
         ], useLovable, LOVABLE_API_KEY, GEMINI_API_KEY, true);
+        console.log(`AI response length (attempt 1): ${content.length}`);
+        parsed = extractJSON(content);
+      } catch (e) {
+        console.error(`Chunk ${chunkIdx + 1} attempt 1 failed:`, e);
+      }
 
-        console.log(`AI response length: ${content.length}`);
-        const parsed = extractJSON(content);
+      // Attempt 2: retry with stricter prompt if first attempt failed
+      if (!parsed) {
+        console.log(`Retrying chunk ${chunkIdx + 1} with stricter prompt...`);
+        try {
+          const strictPrompt = `You MUST respond with ONLY a valid JSON object. No markdown, no explanation, no code blocks. Just raw JSON.
+Do NOT use special characters or newlines inside string values - escape them properly.
+Keep explanations short (under 200 characters each) to avoid JSON formatting issues.
+
+${systemPrompt}`;
+          const content = await callAI([
+            { role: "system", content: strictPrompt },
+            { role: "user", content: userPrompt },
+          ], useLovable, LOVABLE_API_KEY, GEMINI_API_KEY, true);
+          console.log(`AI response length (attempt 2): ${content.length}`);
+          parsed = extractJSON(content);
+        } catch (e2) {
+          console.error(`Chunk ${chunkIdx + 1} attempt 2 also failed:`, e2);
+        }
+      }
+
+      if (parsed) {
         const questions = parsed.questions || (Array.isArray(parsed) ? parsed : []);
         if (Array.isArray(questions)) {
           allQuestions.push(...questions);
           console.log(`Chunk ${chunkIdx + 1}: extracted ${questions.length} questions`);
         }
-      } catch (e) {
-        console.error(`Failed to process chunk ${chunkIdx + 1}:`, e);
       }
     }
 
