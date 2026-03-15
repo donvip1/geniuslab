@@ -52,8 +52,9 @@ type CachedQuestion = {
   option_c: string;
   option_d: string;
   correct_answer_index: number;
-  year: string;
-  explanation: string;
+  year?: string;
+  explanation?: string;
+  image_url?: string;
 };
 
 function cleanText(value: unknown, fallback = ""): string {
