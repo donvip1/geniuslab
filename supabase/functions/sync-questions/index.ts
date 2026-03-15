@@ -111,6 +111,8 @@ function mapAlocQuestion(q: any, examLevel: string, subject: string, year: numbe
   const correct = mapAnswerLetter(q?.answer);
   if (correct === null) return null;
 
+  const imageUrl = cleanText(q?.image ?? q?.image_url, "");
+
   return {
     exam_level: examLevel,
     subject,
@@ -122,6 +124,7 @@ function mapAlocQuestion(q: any, examLevel: string, subject: string, year: numbe
     correct_answer_index: correct,
     year: cleanText(q?.examyear ?? year, year.toString()),
     explanation: cleanText(q?.section, ""),
+    ...(imageUrl ? { image_url: imageUrl } : {}),
   };
 }
 
