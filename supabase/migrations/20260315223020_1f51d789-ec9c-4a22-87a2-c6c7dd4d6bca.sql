@@ -1,0 +1,1 @@
+ALTER TABLE cached_api_questions ADD COLUMN IF NOT EXISTS image_url TEXT DEFAULT NULL;
