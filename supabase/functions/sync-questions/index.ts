@@ -182,7 +182,7 @@ async function upsertInChunks(supabase: any, rows: CachedQuestion[]) {
     const chunk = rows.slice(i, i + 500);
     const { error } = await supabase
       .from("cached_api_questions")
-      .upsert(chunk, { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
+      .upsert(chunk, { onConflict: "exam_level,subject,question_text" });
 
     if (error) {
       console.error(`Upsert error chunk ${i}-${i + chunk.length}:`, error.message);
