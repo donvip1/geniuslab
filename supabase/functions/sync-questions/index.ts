@@ -148,6 +148,7 @@ function mapGithubQuestions(payload: any, examLevel: string, subject: string): C
       if (correct === null) continue;
 
       const year = cleanText(item?.year, yearKey);
+      const imageUrl = cleanText(item?.image ?? item?.image_url, "");
 
       mapped.push({
         exam_level: examLevel,
@@ -159,6 +160,7 @@ function mapGithubQuestions(payload: any, examLevel: string, subject: string): C
         option_d: cleanText(item?.d, "D"),
         correct_answer_index: correct,
         ...(year ? { year } : {}),
+        ...(imageUrl ? { image_url: imageUrl } : {}),
       });
     }
   }
