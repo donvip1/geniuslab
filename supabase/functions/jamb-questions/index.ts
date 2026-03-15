@@ -231,6 +231,7 @@ serve(async (req) => {
         year: year || q.year || "",
         explanation: q.explanation || "",
         subject: subject,
+        image_url: q.image_url || null,
       }));
 
       allQuestions.push(...formatted);
