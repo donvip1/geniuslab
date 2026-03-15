@@ -264,89 +264,46 @@ serve(async (req) => {
 
       console.log(`${subject}: cache pool=${pool.length}, need=${questionsPerSubject}`);
 
-      // Step 3: If cache still insufficient, fetch from Veezee API AND store in cache
-      if (pool.length < questionsPerSubject && VEEZEE_API_KEY) {
-        console.log(`${subject}: cache insufficient, fetching from Veezee API...`);
-        try {
-          const fetchCount = Math.max(questionsPerSubject * 5, 1000);
-          const apiUrl = `${BASE_URL}?level=${encodeURIComponent(level)}&subject=${encodeURIComponent(subject)}&count=${fetchCount}`;
-          
-          const response = await fetch(apiUrl, {
-            method: "GET",
-            headers: {
-              "X-API-KEY": VEEZEE_API_KEY,
-              "Content-Type": "application/json",
-              "Accept": "application/json",
-            },
-          });
+      // Step 3: Enrich the cache when it is too small OR when context-heavy questions are missing images/passages
+      const shouldRefresh = pool.length < questionsPerSubject || shouldRefreshForContext(pool, subject, questionsPerSubject);
+      if (shouldRefresh) {
+        console.log(`${subject}: refreshing cache for missing context/images...`);
+        const fetchedRows: any[] = [];
 
-          if (response.ok) {
-            const rawText = await response.text();
-            const data = JSON.parse(rawText);
-            let questionsArray = data?.questions || data?.data || data;
-            
-            if (Array.isArray(questionsArray)) {
-              const toCache = questionsArray
-                .map((q: any) => ({
-                  exam_level: level,
-                  subject: subject,
-                  question_text: (q.question || q.text || "").toString().trim(),
-                  option_a: (q.options?.[0] || q.option_a || "A").toString().trim(),
-                  option_b: (q.options?.[1] || q.option_b || "B").toString().trim(),
-                  option_c: (q.options?.[2] || q.option_c || "C").toString().trim(),
-                  option_d: (q.options?.[3] || q.option_d || "D").toString().trim(),
-                  correct_answer_index: typeof q.correctAnswerIndex === "number" ? q.correctAnswerIndex : (typeof q.answer === "number" ? q.answer : 0),
-                  year: (q.year || "").toString(),
-                  explanation: (q.explanation || "").toString(),
-                  image_url: (q.image || q.image_url || q.imageUrl || "").toString().trim() || null,
-                }))
-                .filter((q: any) => {
-                  const rawText = (q.question_text || '').trim();
-                  const plainText = rawText.replace(/<[^>]*>/g, '').trim();
-                  if (plainText.length < 25) return false;
-                  const wordCount = plainText.split(/\s+/).filter((w: string) => w.length > 0).length;
-                  if (wordCount < 5) return false;
-                  return true;
-                });
-
-              console.log(`${subject}: fetched ${toCache.length} from API, storing in cache...`);
-
-              // Store ALL fetched questions in our question bank (ignore duplicates)
-              if (toCache.length > 0) {
-                for (let i = 0; i < toCache.length; i += 500) {
-                  const chunk = toCache.slice(i, i + 500);
-                  await supabase
-                    .from("cached_api_questions")
-                    .upsert(chunk, { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
-                }
-
-                // Re-read the full cache after storing
-                const { data: refreshed } = await supabase
-                  .from("cached_api_questions")
-                  .select("*")
-                  .eq("exam_level", level)
-                  .eq("subject", subject);
-                
-                if (refreshed && refreshed.length > 0) {
-                  pool = refreshed;
-                } else {
-                  // Merge API results directly into pool as fallback
-                  const existingTexts = new Set(pool.map((q: any) => q.question_text));
-                  for (const q of toCache) {
-                    if (!existingTexts.has(q.question_text)) {
-                      pool.push(q);
-                      existingTexts.add(q.question_text);
-                    }
-                  }
-                }
-                console.log(`${subject}: cache refreshed to ${pool.length}`);
-              }
-            }
-          } else {
-            console.error(`API ${response.status} for ${subject}`);
+        if (VEEZEE_API_KEY) {
+          try {
+            const veezeeRows = await fetchVeezeeRows(subject, level, questionsPerSubject, VEEZEE_API_KEY);
+            fetchedRows.push(...veezeeRows);
+            console.log(`${subject}: fetched ${veezeeRows.length} rows from Veezee`);
+          } catch (fetchErr: any) {
+            console.error(`Veezee fetch error for ${subject}:`, fetchErr.message);
           }
-        } catch (fetchErr: any) {
-          console.error(`API fetch error for ${subject}:`, fetchErr.message);
+        }
+
+        const stillNeedsContext = pool.length < questionsPerSubject || shouldRefreshForContext([...pool, ...fetchedRows], subject, questionsPerSubject);
+        if (stillNeedsContext && ALOC_API_KEY) {
+          try {
+            const alocRows = await fetchAlocRows(subject, level, ALOC_API_KEY, year);
+            fetchedRows.push(...alocRows);
+            console.log(`${subject}: fetched ${alocRows.length} rows from ALOC`);
+          } catch (fetchErr: any) {
+            console.error(`ALOC fetch error for ${subject}:`, fetchErr.message);
+          }
+        }
+
+        if (fetchedRows.length > 0) {
+          await upsertCacheRows(supabase, fetchedRows);
+          const { data: refreshed } = await supabase
+            .from("cached_api_questions")
+            .select("*")
+            .eq("exam_level", level)
+            .eq("subject", subject);
+
+          if (refreshed && refreshed.length > 0) {
+            pool = refreshed;
+          }
+
+          console.log(`${subject}: cache refreshed to ${pool.length}`);
         }
       }
 
