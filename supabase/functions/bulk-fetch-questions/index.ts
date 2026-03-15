@@ -87,6 +87,10 @@ function mapVeezeeQuestion(q: any, examLevel: string, subject: string): CachedQu
     correctIndex = mapAnswerLetter(q?.answer);
   }
 
+  const year = cleanText(q?.year, "");
+  const explanation = cleanText(q?.explanation, "");
+  const imageUrl = cleanText(q?.image ?? q?.image_url ?? q?.imageUrl, "");
+
   return {
     exam_level: examLevel,
     subject,
@@ -96,8 +100,9 @@ function mapVeezeeQuestion(q: any, examLevel: string, subject: string): CachedQu
     option_c: optionC,
     option_d: optionD,
     correct_answer_index: correctIndex ?? 0,
-    year: cleanText(q?.year, ""),
-    explanation: cleanText(q?.explanation, ""),
+    ...(year ? { year } : {}),
+    ...(explanation ? { explanation } : {}),
+    ...(imageUrl ? { image_url: imageUrl } : {}),
   };
 }
 
