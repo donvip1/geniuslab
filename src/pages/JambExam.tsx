@@ -78,6 +78,7 @@ interface JambQuestion {
   year: string;
   explanation: string;
   subject?: string;
+  image_url?: string | null;
 }
 
 type ExamMode = "select" | "practice" | "mock";
