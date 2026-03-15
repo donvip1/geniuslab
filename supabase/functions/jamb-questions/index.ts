@@ -7,6 +7,155 @@ const corsHeaders = {
 };
 
 const BASE_URL = "https://studio--studio-6583429608-f6a92.us-central1.hosted.app/api/bank";
+const ALOC_SUBJECTS: Record<string, string> = {
+  "Use of English": "english",
+  "English Language": "english",
+  "Mathematics": "mathematics",
+  "Physics": "physics",
+  "Chemistry": "chemistry",
+  "Biology": "biology",
+  "Economics": "economics",
+  "Commerce": "commerce",
+  "Accounting": "accounting",
+  "Government": "government",
+  "Literature in English": "englishlit",
+  "Christian Religious Knowledge": "crk",
+  "Islamic Religious Knowledge": "irk",
+  "History": "history",
+  "Geography": "geography",
+  "Civic Education": "civiledu",
+};
+
+const stripHtml = (value: string) => value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+const isEnglishSubject = (subject: string) => subject.toLowerCase().includes("english");
+const hasVisualReference = (text: string) => /\b(diagram|figure|graph|table|chart|map|illustration|curve|pie chart|bar chart|line graph)\b/i.test(stripHtml(text || ""));
+const hasPassageReference = (text: string) => /\b(comprehension|passage|extract|conversation|information below|statement below)\b/i.test(stripHtml(text || ""));
+const hasEmbeddedPassage = (text: string) => {
+  const plainText = stripHtml(text || "");
+  const lowerText = plainText.toLowerCase();
+  if (!hasPassageReference(plainText)) return false;
+  return plainText.length >= 280 || /questions?\s*\d+\s*[-–]\s*\d+/i.test(plainText) || plainText.split(/\n+/).filter(Boolean).length >= 3 || lowerText.includes("read the passage") || lowerText.includes("read the extract");
+};
+
+const mapApiQuestionToCache = (q: any, level: string, subject: string) => {
+  const questionText = (q.question || q.text || "").toString().trim();
+  if (!questionText) return null;
+
+  const optionA = (q.options?.[0] || q.option_a || "A").toString().trim();
+  const optionB = (q.options?.[1] || q.option_b || "B").toString().trim();
+  const optionC = (q.options?.[2] || q.option_c || "C").toString().trim();
+  const optionD = (q.options?.[3] || q.option_d || "D").toString().trim();
+  const imageUrl = (q.image || q.image_url || q.imageUrl || "").toString().trim();
+  const explanation = (q.explanation || q.section || "").toString().trim();
+  const year = (q.year || q.examyear || "").toString().trim();
+
+  return {
+    exam_level: level,
+    subject,
+    question_text: questionText,
+    option_a: optionA,
+    option_b: optionB,
+    option_c: optionC,
+    option_d: optionD,
+    correct_answer_index: typeof q.correctAnswerIndex === "number"
+      ? q.correctAnswerIndex
+      : (typeof q.answer === "number" ? q.answer : 0),
+    ...(year ? { year } : {}),
+    ...(explanation ? { explanation } : {}),
+    ...(imageUrl ? { image_url: imageUrl } : {}),
+  };
+};
+
+async function upsertCacheRows(supabase: any, rows: any[]) {
+  for (let i = 0; i < rows.length; i += 500) {
+    const chunk = rows.slice(i, i + 500);
+    await supabase
+      .from("cached_api_questions")
+      .upsert(chunk, { onConflict: "exam_level,subject,question_text" });
+  }
+}
+
+async function fetchVeezeeRows(subject: string, level: string, questionsPerSubject: number, apiKey: string) {
+  const fetchCount = Math.max(questionsPerSubject * 8, 2000);
+  const apiUrl = `${BASE_URL}?level=${encodeURIComponent(level)}&subject=${encodeURIComponent(subject)}&count=${fetchCount}`;
+  const response = await fetch(apiUrl, {
+    method: "GET",
+    headers: {
+      "X-API-KEY": apiKey,
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Veezee API ${response.status}`);
+  }
+
+  const rawText = await response.text();
+  const data = JSON.parse(rawText);
+  const questionsArray = data?.questions || data?.data || data;
+  if (!Array.isArray(questionsArray)) return [];
+
+  return questionsArray
+    .map((q: any) => mapApiQuestionToCache(q, level, subject))
+    .filter((q: any) => q !== null);
+}
+
+async function fetchAlocRows(subject: string, level: string, apiKey: string, preferredYear?: string | null) {
+  if (!level.includes("JAMB")) return [];
+  const alocSubject = ALOC_SUBJECTS[subject];
+  if (!alocSubject) return [];
+
+  const years = preferredYear ? [Number(preferredYear)] : Array.from({ length: 25 }, (_, index) => 2025 - index);
+  const rows: any[] = [];
+
+  for (const year of years) {
+    if (!Number.isFinite(year)) continue;
+    const url = `https://questions.aloc.com.ng/api/v2/q/40?subject=${alocSubject}&year=${year}&type=utme`;
+    const response = await fetch(url, {
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "AccessToken": apiKey,
+      },
+    });
+
+    if (!response.ok) continue;
+
+    const data = await response.json();
+    const questions = Array.isArray(data?.data)
+      ? data.data
+      : data?.data?.question
+        ? [data.data]
+        : Array.isArray(data)
+          ? data
+          : [];
+
+    rows.push(
+      ...questions
+        .map((q: any) => mapApiQuestionToCache(q, level, subject))
+        .filter((q: any) => q !== null)
+    );
+
+    if (preferredYear && rows.length > 0) break;
+  }
+
+  return rows;
+}
+
+const shouldRefreshForContext = (pool: any[], subject: string, requiredCount: number) => {
+  const visualWithoutImage = pool.filter((q: any) => hasVisualReference(q.question_text || "") && !q.image_url).length;
+  const passageWithoutContext = isEnglishSubject(subject)
+    ? pool.filter((q: any) => hasPassageReference(q.question_text || "") && !hasEmbeddedPassage(q.question_text || "")).length
+    : 0;
+  const contextSafeCount = pool.filter((q: any) => {
+    if (hasVisualReference(q.question_text || "")) return !!q.image_url;
+    if (isEnglishSubject(subject) && hasPassageReference(q.question_text || "")) return hasEmbeddedPassage(q.question_text || "");
+    return true;
+  }).length;
+
+  return visualWithoutImage > 0 || passageWithoutContext > 0 || contextSafeCount < requiredCount;
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
