@@ -627,6 +627,8 @@ const ExamTaking = () => {
             <CardContent className="space-y-4">
               <p className="text-base md:text-lg leading-relaxed">{currentQuestion.question_text}</p>
 
+              {/* Question Image - if embedded in question_text as img tag */}
+
               <RadioGroup
                 value={answers[currentQuestion.id] || ""}
                 onValueChange={(value) => handleAnswerChange(currentQuestion.id, value)}

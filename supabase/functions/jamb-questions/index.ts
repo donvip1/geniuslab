@@ -148,6 +148,7 @@ serve(async (req) => {
                   correct_answer_index: typeof q.correctAnswerIndex === "number" ? q.correctAnswerIndex : (typeof q.answer === "number" ? q.answer : 0),
                   year: (q.year || "").toString(),
                   explanation: (q.explanation || "").toString(),
+                  image_url: (q.image || q.image_url || q.imageUrl || "").toString().trim() || null,
                 }))
                 .filter((q: any) => {
                   const rawText = (q.question_text || '').trim();
@@ -210,12 +211,18 @@ serve(async (req) => {
         if (validOpts.length < 4) return false;
         const unique = new Set(validOpts.map((o: string) => o.trim().toLowerCase()));
         if (unique.size < 2) return false;
+        // Filter out questions referencing diagrams/figures without an image
+        const lowerText = plainText.toLowerCase();
+        const refsDiagram = lowerText.includes("diagram above") || lowerText.includes("figure above") || lowerText.includes("the diagram") || lowerText.includes("the figure");
+        if (refsDiagram && !q.image_url) return false;
         return true;
       });
       console.log(`${subject}: filtered ${pool.length - qualityPool.length} bad questions, quality pool=${qualityPool.length}`);
 
-      const shuffled = qualityPool.sort(() => Math.random() - 0.5);
-      const selected = shuffled.slice(0, questionsPerSubject);
+      // Skip shuffle for Use of English to preserve comprehension passage order
+      const isEnglish = subject.toLowerCase().includes("english");
+      const ordered = isEnglish ? qualityPool : qualityPool.sort(() => Math.random() - 0.5);
+      const selected = ordered.slice(0, questionsPerSubject);
 
       const formatted = selected.map((q: any) => ({
         text: q.question_text,
@@ -224,6 +231,7 @@ serve(async (req) => {
         year: year || q.year || "",
         explanation: q.explanation || "",
         subject: subject,
+        image_url: q.image_url || null,
       }));
 
       allQuestions.push(...formatted);

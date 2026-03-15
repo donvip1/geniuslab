@@ -54,6 +54,7 @@ type CachedQuestion = {
   correct_answer_index: number;
   year: string;
   explanation: string;
+  image_url?: string;
 };
 
 function cleanText(value: unknown, fallback = ""): string {
@@ -86,6 +87,8 @@ function mapVeezeeQuestion(q: any, examLevel: string, subject: string): CachedQu
     correctIndex = mapAnswerLetter(q?.answer);
   }
 
+  const imageUrl = cleanText(q?.image ?? q?.image_url ?? q?.imageUrl, "");
+
   return {
     exam_level: examLevel,
     subject,
@@ -97,6 +100,7 @@ function mapVeezeeQuestion(q: any, examLevel: string, subject: string): CachedQu
     correct_answer_index: correctIndex ?? 0,
     year: cleanText(q?.year, ""),
     explanation: cleanText(q?.explanation, ""),
+    ...(imageUrl ? { image_url: imageUrl } : {}),
   };
 }
 
@@ -106,6 +110,8 @@ function mapAlocQuestion(q: any, examLevel: string, subject: string, year: numbe
 
   const correct = mapAnswerLetter(q?.answer);
   if (correct === null) return null;
+
+  const imageUrl = cleanText(q?.image ?? q?.image_url, "");
 
   return {
     exam_level: examLevel,
@@ -118,6 +124,7 @@ function mapAlocQuestion(q: any, examLevel: string, subject: string, year: numbe
     correct_answer_index: correct,
     year: cleanText(q?.examyear ?? year, year.toString()),
     explanation: cleanText(q?.section, ""),
+    ...(imageUrl ? { image_url: imageUrl } : {}),
   };
 }
 

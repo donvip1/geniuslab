@@ -78,6 +78,7 @@ interface JambQuestion {
   year: string;
   explanation: string;
   subject?: string;
+  image_url?: string | null;
 }
 
 type ExamMode = "select" | "practice" | "mock";
@@ -1154,11 +1155,22 @@ const JambExam = () => {
                             )}
                           </div>
                           
-                          <div className="prose dark:prose-invert max-w-none mb-4">
+                          <div className="prose dark:prose-invert max-w-none mb-3">
                             <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                               {cleanHtml(q.text)}
                             </ReactMarkdown>
                           </div>
+
+                          {q.image_url && (
+                            <div className="mb-3">
+                              <img
+                                src={q.image_url}
+                                alt="Question diagram"
+                                className="max-w-full h-auto rounded-lg border border-border mx-auto max-h-[250px] object-contain bg-white"
+                                loading="lazy"
+                              />
+                            </div>
+                          )}
 
                           <div className="space-y-2 mb-4">
                             {q.options.map((opt, optIdx) => (
@@ -1410,6 +1422,18 @@ const JambExam = () => {
                     {cleanHtml(currentQuestion.text)}
                   </ReactMarkdown>
                 </div>
+
+                {/* Question Image */}
+                {currentQuestion.image_url && (
+                  <div className="mb-4 md:mb-6">
+                    <img
+                      src={currentQuestion.image_url}
+                      alt="Question diagram"
+                      className="max-w-full h-auto rounded-lg border border-border mx-auto max-h-[300px] md:max-h-[400px] object-contain bg-white"
+                      loading="lazy"
+                    />
+                  </div>
+                )}
 
                 {/* Options */}
                 <RadioGroup
