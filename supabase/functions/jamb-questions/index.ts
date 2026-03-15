@@ -211,12 +211,18 @@ serve(async (req) => {
         if (validOpts.length < 4) return false;
         const unique = new Set(validOpts.map((o: string) => o.trim().toLowerCase()));
         if (unique.size < 2) return false;
+        // Filter out questions referencing diagrams/figures without an image
+        const lowerText = plainText.toLowerCase();
+        const refsDiagram = lowerText.includes("diagram above") || lowerText.includes("figure above") || lowerText.includes("the diagram") || lowerText.includes("the figure");
+        if (refsDiagram && !q.image_url) return false;
         return true;
       });
       console.log(`${subject}: filtered ${pool.length - qualityPool.length} bad questions, quality pool=${qualityPool.length}`);
 
-      const shuffled = qualityPool.sort(() => Math.random() - 0.5);
-      const selected = shuffled.slice(0, questionsPerSubject);
+      // Skip shuffle for Use of English to preserve comprehension passage order
+      const isEnglish = subject.toLowerCase().includes("english");
+      const ordered = isEnglish ? qualityPool : qualityPool.sort(() => Math.random() - 0.5);
+      const selected = ordered.slice(0, questionsPerSubject);
 
       const formatted = selected.map((q: any) => ({
         text: q.question_text,
