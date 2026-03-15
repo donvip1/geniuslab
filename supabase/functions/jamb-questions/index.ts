@@ -30,24 +30,31 @@ const stripHtml = (value: string) => value.replace(/<[^>]*>/g, " ").replace(/\s+
 const isEnglishSubject = (subject: string) => subject.toLowerCase().includes("english");
 const hasVisualReference = (text: string) => /\b(diagram|figure|graph|table|chart|map|illustration|curve|pie chart|bar chart|line graph)\b/i.test(stripHtml(text || ""));
 const hasPassageReference = (text: string) => /\b(comprehension|passage|extract|conversation|information below|statement below)\b/i.test(stripHtml(text || ""));
+const mapAnswerLetter = (answer: unknown) => {
+  const key = (answer ?? "").toString().trim().toLowerCase();
+  return ({ a: 0, b: 1, c: 2, d: 3 } as Record<string, number>)[key] ?? 0;
+};
 const hasEmbeddedPassage = (text: string) => {
   const plainText = stripHtml(text || "");
   const lowerText = plainText.toLowerCase();
   if (!hasPassageReference(plainText)) return false;
-  return plainText.length >= 280 || /questions?\s*\d+\s*[-–]\s*\d+/i.test(plainText) || plainText.split(/\n+/).filter(Boolean).length >= 3 || lowerText.includes("read the passage") || lowerText.includes("read the extract");
+  return plainText.length >= 280 || /questions?\s*\d+\s*[-–]\s*\d+/i.test(plainText) || lowerText.includes("read the passage") || lowerText.includes("read the extract");
 };
 
 const mapApiQuestionToCache = (q: any, level: string, subject: string) => {
   const questionText = (q.question || q.text || "").toString().trim();
   if (!questionText) return null;
 
-  const optionA = (q.options?.[0] || q.option_a || "A").toString().trim();
-  const optionB = (q.options?.[1] || q.option_b || "B").toString().trim();
-  const optionC = (q.options?.[2] || q.option_c || "C").toString().trim();
-  const optionD = (q.options?.[3] || q.option_d || "D").toString().trim();
+  const optionA = (q.options?.[0] || q.option_a || q.option?.a || "A").toString().trim();
+  const optionB = (q.options?.[1] || q.option_b || q.option?.b || "B").toString().trim();
+  const optionC = (q.options?.[2] || q.option_c || q.option?.c || "C").toString().trim();
+  const optionD = (q.options?.[3] || q.option_d || q.option?.d || "D").toString().trim();
   const imageUrl = (q.image || q.image_url || q.imageUrl || "").toString().trim();
   const explanation = (q.explanation || q.section || "").toString().trim();
   const year = (q.year || q.examyear || "").toString().trim();
+  const correctAnswerIndex = typeof q.correctAnswerIndex === "number"
+    ? q.correctAnswerIndex
+    : (typeof q.answer === "number" ? q.answer : mapAnswerLetter(q.answer));
 
   return {
     exam_level: level,
@@ -57,9 +64,7 @@ const mapApiQuestionToCache = (q: any, level: string, subject: string) => {
     option_b: optionB,
     option_c: optionC,
     option_d: optionD,
-    correct_answer_index: typeof q.correctAnswerIndex === "number"
-      ? q.correctAnswerIndex
-      : (typeof q.answer === "number" ? q.answer : 0),
+    correct_answer_index: correctAnswerIndex,
     ...(year ? { year } : {}),
     ...(explanation ? { explanation } : {}),
     ...(imageUrl ? { image_url: imageUrl } : {}),
