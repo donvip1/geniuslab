@@ -148,6 +148,7 @@ serve(async (req) => {
                   correct_answer_index: typeof q.correctAnswerIndex === "number" ? q.correctAnswerIndex : (typeof q.answer === "number" ? q.answer : 0),
                   year: (q.year || "").toString(),
                   explanation: (q.explanation || "").toString(),
+                  image_url: (q.image || q.image_url || q.imageUrl || "").toString().trim() || null,
                 }))
                 .filter((q: any) => {
                   const rawText = (q.question_text || '').trim();
