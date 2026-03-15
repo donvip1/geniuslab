@@ -310,7 +310,7 @@ serve(async (req) => {
       // Step 4: Filter out incomplete/malformed questions (strip HTML), then shuffle and pick
       const qualityPool = pool.filter((q: any) => {
         const rawText = (q.question_text || '').trim();
-        const plainText = rawText.replace(/<[^>]*>/g, '').trim();
+        const plainText = stripHtml(rawText);
         const wordCount = plainText.split(/\s+/).filter((w: string) => w.length > 0).length;
         if (plainText.length < 25 || wordCount < 5) return false;
         const opts = [q.option_a, q.option_b, q.option_c, q.option_d];
@@ -318,17 +318,15 @@ serve(async (req) => {
         if (validOpts.length < 4) return false;
         const unique = new Set(validOpts.map((o: string) => o.trim().toLowerCase()));
         if (unique.size < 2) return false;
-        // Filter out questions referencing diagrams/figures without an image
-        const lowerText = plainText.toLowerCase();
-        const refsDiagram = lowerText.includes("diagram above") || lowerText.includes("figure above") || lowerText.includes("the diagram") || lowerText.includes("the figure");
-        if (refsDiagram && !q.image_url) return false;
+        if (hasVisualReference(rawText) && !q.image_url) return false;
+        if (isEnglishSubject(subject) && hasPassageReference(rawText) && !hasEmbeddedPassage(rawText)) return false;
         return true;
       });
       console.log(`${subject}: filtered ${pool.length - qualityPool.length} bad questions, quality pool=${qualityPool.length}`);
 
-      // Skip shuffle for Use of English to preserve comprehension passage order
-      const isEnglish = subject.toLowerCase().includes("english");
-      const ordered = isEnglish ? qualityPool : qualityPool.sort(() => Math.random() - 0.5);
+      // Keep original order whenever questions depend on shared context such as passages, tables or diagrams
+      const preserveOrder = isEnglishSubject(subject) || qualityPool.some((q: any) => hasVisualReference(q.question_text || "") || hasPassageReference(q.question_text || ""));
+      const ordered = preserveOrder ? qualityPool : qualityPool.sort(() => Math.random() - 0.5);
       const selected = ordered.slice(0, questionsPerSubject);
 
       const formatted = selected.map((q: any) => ({
