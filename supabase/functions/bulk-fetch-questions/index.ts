@@ -52,8 +52,9 @@ type CachedQuestion = {
   option_c: string;
   option_d: string;
   correct_answer_index: number;
-  year: string;
-  explanation: string;
+  year?: string;
+  explanation?: string;
+  image_url?: string;
 };
 
 function cleanText(value: unknown, fallback = ""): string {
@@ -86,6 +87,10 @@ function mapVeezeeQuestion(q: any, examLevel: string, subject: string): CachedQu
     correctIndex = mapAnswerLetter(q?.answer);
   }
 
+  const year = cleanText(q?.year, "");
+  const explanation = cleanText(q?.explanation, "");
+  const imageUrl = cleanText(q?.image ?? q?.image_url ?? q?.imageUrl, "");
+
   return {
     exam_level: examLevel,
     subject,
@@ -95,8 +100,9 @@ function mapVeezeeQuestion(q: any, examLevel: string, subject: string): CachedQu
     option_c: optionC,
     option_d: optionD,
     correct_answer_index: correctIndex ?? 0,
-    year: cleanText(q?.year, ""),
-    explanation: cleanText(q?.explanation, ""),
+    ...(year ? { year } : {}),
+    ...(explanation ? { explanation } : {}),
+    ...(imageUrl ? { image_url: imageUrl } : {}),
   };
 }
 
@@ -107,6 +113,10 @@ function mapAlocQuestion(q: any, examLevel: string, subject: string, year: numbe
   const correct = mapAnswerLetter(q?.answer);
   if (correct === null) return null;
 
+  const examYear = cleanText(q?.examyear ?? year, year.toString());
+  const explanation = cleanText(q?.section, "");
+  const imageUrl = cleanText(q?.image ?? q?.image_url, "");
+
   return {
     exam_level: examLevel,
     subject,
@@ -116,8 +126,9 @@ function mapAlocQuestion(q: any, examLevel: string, subject: string, year: numbe
     option_c: cleanText(q?.option?.c, "C"),
     option_d: cleanText(q?.option?.d, "D"),
     correct_answer_index: correct,
-    year: cleanText(q?.examyear ?? year, year.toString()),
-    explanation: cleanText(q?.section, ""),
+    ...(examYear ? { year: examYear } : {}),
+    ...(explanation ? { explanation } : {}),
+    ...(imageUrl ? { image_url: imageUrl } : {}),
   };
 }
 
@@ -136,6 +147,9 @@ function mapGithubQuestions(payload: any, examLevel: string, subject: string): C
       const correct = mapAnswerLetter(item?.answer);
       if (correct === null) continue;
 
+      const year = cleanText(item?.year, yearKey);
+      const imageUrl = cleanText(item?.image ?? item?.image_url, "");
+
       mapped.push({
         exam_level: examLevel,
         subject,
@@ -145,8 +159,8 @@ function mapGithubQuestions(payload: any, examLevel: string, subject: string): C
         option_c: cleanText(item?.c, "C"),
         option_d: cleanText(item?.d, "D"),
         correct_answer_index: correct,
-        year: cleanText(item?.year, yearKey),
-        explanation: "",
+        ...(year ? { year } : {}),
+        ...(imageUrl ? { image_url: imageUrl } : {}),
       });
     }
   }
@@ -170,7 +184,7 @@ async function upsertInChunks(supabase: any, rows: CachedQuestion[]) {
     const chunk = rows.slice(i, i + 500);
     const { error } = await supabase
       .from("cached_api_questions")
-      .upsert(chunk, { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
+      .upsert(chunk, { onConflict: "exam_level,subject,question_text" });
 
     if (error) {
       console.error(`Upsert error chunk ${i}-${i + chunk.length}:`, error.message);

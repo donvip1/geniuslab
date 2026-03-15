@@ -7,6 +7,160 @@ const corsHeaders = {
 };
 
 const BASE_URL = "https://studio--studio-6583429608-f6a92.us-central1.hosted.app/api/bank";
+const ALOC_SUBJECTS: Record<string, string> = {
+  "Use of English": "english",
+  "English Language": "english",
+  "Mathematics": "mathematics",
+  "Physics": "physics",
+  "Chemistry": "chemistry",
+  "Biology": "biology",
+  "Economics": "economics",
+  "Commerce": "commerce",
+  "Accounting": "accounting",
+  "Government": "government",
+  "Literature in English": "englishlit",
+  "Christian Religious Knowledge": "crk",
+  "Islamic Religious Knowledge": "irk",
+  "History": "history",
+  "Geography": "geography",
+  "Civic Education": "civiledu",
+};
+
+const stripHtml = (value: string) => value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+const isEnglishSubject = (subject: string) => subject.toLowerCase().includes("english");
+const hasVisualReference = (text: string) => /\b(diagram|figure|graph|table|chart|map|illustration|curve|pie chart|bar chart|line graph)\b/i.test(stripHtml(text || ""));
+const hasPassageReference = (text: string) => /\b(comprehension|passage|extract|conversation|information below|statement below)\b/i.test(stripHtml(text || ""));
+const mapAnswerLetter = (answer: unknown) => {
+  const key = (answer ?? "").toString().trim().toLowerCase();
+  return ({ a: 0, b: 1, c: 2, d: 3 } as Record<string, number>)[key] ?? 0;
+};
+const hasEmbeddedPassage = (text: string) => {
+  const plainText = stripHtml(text || "");
+  const lowerText = plainText.toLowerCase();
+  if (!hasPassageReference(plainText)) return false;
+  return plainText.length >= 280 || /questions?\s*\d+\s*[-–]\s*\d+/i.test(plainText) || lowerText.includes("read the passage") || lowerText.includes("read the extract");
+};
+
+const mapApiQuestionToCache = (q: any, level: string, subject: string) => {
+  const questionText = (q.question || q.text || "").toString().trim();
+  if (!questionText) return null;
+
+  const optionA = (q.options?.[0] || q.option_a || q.option?.a || "A").toString().trim();
+  const optionB = (q.options?.[1] || q.option_b || q.option?.b || "B").toString().trim();
+  const optionC = (q.options?.[2] || q.option_c || q.option?.c || "C").toString().trim();
+  const optionD = (q.options?.[3] || q.option_d || q.option?.d || "D").toString().trim();
+  const imageUrl = (q.image || q.image_url || q.imageUrl || "").toString().trim();
+  const explanation = (q.explanation || q.section || "").toString().trim();
+  const year = (q.year || q.examyear || "").toString().trim();
+  const correctAnswerIndex = typeof q.correctAnswerIndex === "number"
+    ? q.correctAnswerIndex
+    : (typeof q.answer === "number" ? q.answer : mapAnswerLetter(q.answer));
+
+  return {
+    exam_level: level,
+    subject,
+    question_text: questionText,
+    option_a: optionA,
+    option_b: optionB,
+    option_c: optionC,
+    option_d: optionD,
+    correct_answer_index: correctAnswerIndex,
+    ...(year ? { year } : {}),
+    ...(explanation ? { explanation } : {}),
+    ...(imageUrl ? { image_url: imageUrl } : {}),
+  };
+};
+
+async function upsertCacheRows(supabase: any, rows: any[]) {
+  for (let i = 0; i < rows.length; i += 500) {
+    const chunk = rows.slice(i, i + 500);
+    await supabase
+      .from("cached_api_questions")
+      .upsert(chunk, { onConflict: "exam_level,subject,question_text" });
+  }
+}
+
+async function fetchVeezeeRows(subject: string, level: string, questionsPerSubject: number, apiKey: string) {
+  const fetchCount = Math.max(questionsPerSubject * 8, 2000);
+  const apiUrl = `${BASE_URL}?level=${encodeURIComponent(level)}&subject=${encodeURIComponent(subject)}&count=${fetchCount}`;
+  const response = await fetch(apiUrl, {
+    method: "GET",
+    headers: {
+      "X-API-KEY": apiKey,
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Veezee API ${response.status}`);
+  }
+
+  const rawText = await response.text();
+  const data = JSON.parse(rawText);
+  const questionsArray = data?.questions || data?.data || data;
+  if (!Array.isArray(questionsArray)) return [];
+
+  return questionsArray
+    .map((q: any) => mapApiQuestionToCache(q, level, subject))
+    .filter((q: any) => q !== null);
+}
+
+async function fetchAlocRows(subject: string, level: string, apiKey: string, preferredYear?: string | null) {
+  if (!level.includes("JAMB")) return [];
+  const alocSubject = ALOC_SUBJECTS[subject];
+  if (!alocSubject) return [];
+
+  const years = preferredYear ? [Number(preferredYear)] : Array.from({ length: 25 }, (_, index) => 2025 - index);
+  const rows: any[] = [];
+
+  for (const year of years) {
+    if (!Number.isFinite(year)) continue;
+    const url = `https://questions.aloc.com.ng/api/v2/q/40?subject=${alocSubject}&year=${year}&type=utme`;
+    const response = await fetch(url, {
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "AccessToken": apiKey,
+      },
+    });
+
+    if (!response.ok) continue;
+
+    const data = await response.json();
+    const questions = Array.isArray(data?.data)
+      ? data.data
+      : data?.data?.question
+        ? [data.data]
+        : Array.isArray(data)
+          ? data
+          : [];
+
+    rows.push(
+      ...questions
+        .map((q: any) => mapApiQuestionToCache(q, level, subject))
+        .filter((q: any) => q !== null)
+    );
+
+    if (preferredYear && rows.length > 0) break;
+  }
+
+  return rows;
+}
+
+const shouldRefreshForContext = (pool: any[], subject: string, requiredCount: number) => {
+  const visualWithoutImage = pool.filter((q: any) => hasVisualReference(q.question_text || "") && !q.image_url).length;
+  const passageWithoutContext = isEnglishSubject(subject)
+    ? pool.filter((q: any) => hasPassageReference(q.question_text || "") && !hasEmbeddedPassage(q.question_text || "")).length
+    : 0;
+  const contextSafeCount = pool.filter((q: any) => {
+    if (hasVisualReference(q.question_text || "")) return !!q.image_url;
+    if (isEnglishSubject(subject) && hasPassageReference(q.question_text || "")) return hasEmbeddedPassage(q.question_text || "");
+    return true;
+  }).length;
+
+  return visualWithoutImage > 0 || passageWithoutContext > 0 || contextSafeCount < requiredCount;
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -17,6 +171,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const VEEZEE_API_KEY = Deno.env.get("VEEZEE_API_KEY");
+    const ALOC_API_KEY = Deno.env.get("ALOC_API_KEY");
     if (!supabaseUrl || !supabaseKey) throw new Error("Supabase config missing");
 
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -114,96 +269,53 @@ serve(async (req) => {
 
       console.log(`${subject}: cache pool=${pool.length}, need=${questionsPerSubject}`);
 
-      // Step 3: If cache still insufficient, fetch from Veezee API AND store in cache
-      if (pool.length < questionsPerSubject && VEEZEE_API_KEY) {
-        console.log(`${subject}: cache insufficient, fetching from Veezee API...`);
-        try {
-          const fetchCount = Math.max(questionsPerSubject * 5, 1000);
-          const apiUrl = `${BASE_URL}?level=${encodeURIComponent(level)}&subject=${encodeURIComponent(subject)}&count=${fetchCount}`;
-          
-          const response = await fetch(apiUrl, {
-            method: "GET",
-            headers: {
-              "X-API-KEY": VEEZEE_API_KEY,
-              "Content-Type": "application/json",
-              "Accept": "application/json",
-            },
-          });
+      // Step 3: Enrich the cache when it is too small OR when context-heavy questions are missing images/passages
+      const shouldRefresh = pool.length < questionsPerSubject || shouldRefreshForContext(pool, subject, questionsPerSubject);
+      if (shouldRefresh) {
+        console.log(`${subject}: refreshing cache for missing context/images...`);
+        const fetchedRows: any[] = [];
 
-          if (response.ok) {
-            const rawText = await response.text();
-            const data = JSON.parse(rawText);
-            let questionsArray = data?.questions || data?.data || data;
-            
-            if (Array.isArray(questionsArray)) {
-              const toCache = questionsArray
-                .map((q: any) => ({
-                  exam_level: level,
-                  subject: subject,
-                  question_text: (q.question || q.text || "").toString().trim(),
-                  option_a: (q.options?.[0] || q.option_a || "A").toString().trim(),
-                  option_b: (q.options?.[1] || q.option_b || "B").toString().trim(),
-                  option_c: (q.options?.[2] || q.option_c || "C").toString().trim(),
-                  option_d: (q.options?.[3] || q.option_d || "D").toString().trim(),
-                  correct_answer_index: typeof q.correctAnswerIndex === "number" ? q.correctAnswerIndex : (typeof q.answer === "number" ? q.answer : 0),
-                  year: (q.year || "").toString(),
-                  explanation: (q.explanation || "").toString(),
-                  image_url: (q.image || q.image_url || q.imageUrl || "").toString().trim() || null,
-                }))
-                .filter((q: any) => {
-                  const rawText = (q.question_text || '').trim();
-                  const plainText = rawText.replace(/<[^>]*>/g, '').trim();
-                  if (plainText.length < 25) return false;
-                  const wordCount = plainText.split(/\s+/).filter((w: string) => w.length > 0).length;
-                  if (wordCount < 5) return false;
-                  return true;
-                });
-
-              console.log(`${subject}: fetched ${toCache.length} from API, storing in cache...`);
-
-              // Store ALL fetched questions in our question bank (ignore duplicates)
-              if (toCache.length > 0) {
-                for (let i = 0; i < toCache.length; i += 500) {
-                  const chunk = toCache.slice(i, i + 500);
-                  await supabase
-                    .from("cached_api_questions")
-                    .upsert(chunk, { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true });
-                }
-
-                // Re-read the full cache after storing
-                const { data: refreshed } = await supabase
-                  .from("cached_api_questions")
-                  .select("*")
-                  .eq("exam_level", level)
-                  .eq("subject", subject);
-                
-                if (refreshed && refreshed.length > 0) {
-                  pool = refreshed;
-                } else {
-                  // Merge API results directly into pool as fallback
-                  const existingTexts = new Set(pool.map((q: any) => q.question_text));
-                  for (const q of toCache) {
-                    if (!existingTexts.has(q.question_text)) {
-                      pool.push(q);
-                      existingTexts.add(q.question_text);
-                    }
-                  }
-                }
-                console.log(`${subject}: cache refreshed to ${pool.length}`);
-              }
-            }
-          } else {
-            console.error(`API ${response.status} for ${subject}`);
+        if (VEEZEE_API_KEY) {
+          try {
+            const veezeeRows = await fetchVeezeeRows(subject, level, questionsPerSubject, VEEZEE_API_KEY);
+            fetchedRows.push(...veezeeRows);
+            console.log(`${subject}: fetched ${veezeeRows.length} rows from Veezee`);
+          } catch (fetchErr: any) {
+            console.error(`Veezee fetch error for ${subject}:`, fetchErr.message);
           }
-        } catch (fetchErr: any) {
-          console.error(`API fetch error for ${subject}:`, fetchErr.message);
+        }
+
+        const stillNeedsContext = pool.length < questionsPerSubject || shouldRefreshForContext([...pool, ...fetchedRows], subject, questionsPerSubject);
+        if (stillNeedsContext && ALOC_API_KEY) {
+          try {
+            const alocRows = await fetchAlocRows(subject, level, ALOC_API_KEY, year);
+            fetchedRows.push(...alocRows);
+            console.log(`${subject}: fetched ${alocRows.length} rows from ALOC`);
+          } catch (fetchErr: any) {
+            console.error(`ALOC fetch error for ${subject}:`, fetchErr.message);
+          }
+        }
+
+        if (fetchedRows.length > 0) {
+          await upsertCacheRows(supabase, fetchedRows);
+          const { data: refreshed } = await supabase
+            .from("cached_api_questions")
+            .select("*")
+            .eq("exam_level", level)
+            .eq("subject", subject);
+
+          if (refreshed && refreshed.length > 0) {
+            pool = refreshed;
+          }
+
+          console.log(`${subject}: cache refreshed to ${pool.length}`);
         }
       }
 
       // Step 4: Filter out incomplete/malformed questions (strip HTML), then shuffle and pick
       const qualityPool = pool.filter((q: any) => {
         const rawText = (q.question_text || '').trim();
-        const plainText = rawText.replace(/<[^>]*>/g, '').trim();
+        const plainText = stripHtml(rawText);
         const wordCount = plainText.split(/\s+/).filter((w: string) => w.length > 0).length;
         if (plainText.length < 25 || wordCount < 5) return false;
         const opts = [q.option_a, q.option_b, q.option_c, q.option_d];
@@ -211,17 +323,15 @@ serve(async (req) => {
         if (validOpts.length < 4) return false;
         const unique = new Set(validOpts.map((o: string) => o.trim().toLowerCase()));
         if (unique.size < 2) return false;
-        // Filter out questions referencing diagrams/figures without an image
-        const lowerText = plainText.toLowerCase();
-        const refsDiagram = lowerText.includes("diagram above") || lowerText.includes("figure above") || lowerText.includes("the diagram") || lowerText.includes("the figure");
-        if (refsDiagram && !q.image_url) return false;
+        if (hasVisualReference(rawText) && !q.image_url) return false;
+        if (isEnglishSubject(subject) && hasPassageReference(rawText) && !hasEmbeddedPassage(rawText)) return false;
         return true;
       });
       console.log(`${subject}: filtered ${pool.length - qualityPool.length} bad questions, quality pool=${qualityPool.length}`);
 
-      // Skip shuffle for Use of English to preserve comprehension passage order
-      const isEnglish = subject.toLowerCase().includes("english");
-      const ordered = isEnglish ? qualityPool : qualityPool.sort(() => Math.random() - 0.5);
+      // Keep original order whenever questions depend on shared context such as passages, tables or diagrams
+      const preserveOrder = isEnglishSubject(subject) || qualityPool.some((q: any) => hasVisualReference(q.question_text || "") || hasPassageReference(q.question_text || ""));
+      const ordered = preserveOrder ? qualityPool : qualityPool.sort(() => Math.random() - 0.5);
       const selected = ordered.slice(0, questionsPerSubject);
 
       const formatted = selected.map((q: any) => ({
