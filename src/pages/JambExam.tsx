@@ -1412,6 +1412,18 @@ const JambExam = () => {
                   </ReactMarkdown>
                 </div>
 
+                {/* Question Image */}
+                {currentQuestion.image_url && (
+                  <div className="mb-4 md:mb-6">
+                    <img
+                      src={currentQuestion.image_url}
+                      alt="Question diagram"
+                      className="max-w-full h-auto rounded-lg border border-border mx-auto max-h-[300px] md:max-h-[400px] object-contain bg-white"
+                      loading="lazy"
+                    />
+                  </div>
+                )}
+
                 {/* Options */}
                 <RadioGroup
                   value={answers[currentQuestionIndex]?.toString() || ""}
