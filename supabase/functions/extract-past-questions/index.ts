@@ -319,7 +319,7 @@ ${systemPrompt}`;
       const batch = rows.slice(i, i + batchSize);
       const { error: insertError, data: insertData } = await supabase
         .from("cached_api_questions")
-        .upsert(batch, { onConflict: "exam_level,subject,question_text", ignoreDuplicates: true })
+        .upsert(batch, { onConflict: "exam_level,subject,question_text" })
         .select("id");
 
       if (insertError) {
