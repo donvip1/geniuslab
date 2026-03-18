@@ -227,6 +227,28 @@ export const QuestionBankSync = () => {
 
   const [showUpload, setShowUpload] = useState(false);
 
+  const backfillImages = async () => {
+    setBackfilling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("backfill-images", {
+        body: { startYear: 2001, endYear: 2025 },
+      });
+      if (error) throw error;
+      toast({
+        title: "Image Backfill Complete",
+        description: `Checked ${data?.totalChecked || 0} questions, updated ${data?.totalUpdated || 0} with images.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: "Backfill Failed",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Upload Past Questions Section */}
