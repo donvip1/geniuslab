@@ -319,9 +319,13 @@ export const QuestionBankSync = () => {
                 Fetch Priority ({lowCountSubjects.length} subjects)
               </Button>
             )}
-            <Button onClick={fetchAllSubjects} disabled={fetching} className="gap-2 bg-green-600 hover:bg-green-700">
+            <Button onClick={fetchAllSubjects} disabled={fetching || backfilling} className="gap-2 bg-green-600 hover:bg-green-700">
               {fetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
               Bulk Fetch All Subjects
+            </Button>
+            <Button onClick={backfillImages} disabled={fetching || backfilling} variant="outline" className="gap-2">
+              {backfilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+              {backfilling ? "Backfilling Images..." : "Backfill Images from ALOC"}
             </Button>
             <Button onClick={fetchCacheStats} disabled={loading || fetching} variant="outline" className="gap-2">
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
