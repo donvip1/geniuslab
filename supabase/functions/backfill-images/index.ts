@@ -83,9 +83,10 @@ serve(async (req) => {
           const res = await fetchWithTimeout(url, {
             headers: {
               "Accept": "application/json",
+              "Content-Type": "application/json",
               "AccessToken": ALOC_API_KEY,
             },
-          }, 15000);
+          }, 45000);
 
           if (!res.ok) {
             if (res.status === 401 || res.status === 403) break;
