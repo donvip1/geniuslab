@@ -229,30 +229,64 @@ export const QuestionBankSync = () => {
 
   const backfillImages = async () => {
     setBackfilling(true);
-    const scienceSubjects = ["Physics", "Chemistry", "Biology", "Mathematics", "Economics", "Government", "Commerce", "Use of English"];
+    const subjects = [
+      { name: "Physics", aloc: "physics" },
+      { name: "Chemistry", aloc: "chemistry" },
+      { name: "Biology", aloc: "biology" },
+      { name: "Mathematics", aloc: "mathematics" },
+      { name: "Economics", aloc: "economics" },
+      { name: "Government", aloc: "government" },
+      { name: "Use of English", aloc: "english" },
+    ];
     let totalUpdated = 0;
     let totalChecked = 0;
 
-    for (const subject of scienceSubjects) {
-      try {
-        setFetchProgress({ current: scienceSubjects.indexOf(subject) + 1, total: scienceSubjects.length, subject: `Backfilling images: ${subject}` });
-        const { data, error } = await supabase.functions.invoke("backfill-images", {
-          body: { subject, startYear: 2001, endYear: 2025 },
-        });
-        if (error) {
-          console.error(`Backfill error for ${subject}:`, error);
-          continue;
+    for (let si = 0; si < subjects.length; si++) {
+      const { name: subject, aloc: alocParam } = subjects[si];
+      setFetchProgress({ current: si + 1, total: subjects.length, subject: `Backfilling: ${subject}` });
+
+      for (let year = 2024; year >= 2001; year--) {
+        try {
+          // Client-side fetch to ALOC (bypasses Supabase edge geographic issues)
+          const url = `https://questions.aloc.com.ng/api/v2/q/40?subject=${alocParam}&year=${year}&type=utme`;
+          const res = await fetch(url, {
+            headers: { "Accept": "application/json" },
+          });
+          if (!res.ok) continue;
+
+          const json = await res.json();
+          const questions = Array.isArray(json?.data) ? json.data : [];
+
+          const updates = questions
+            .filter((q: any) => q?.image && q?.question?.trim())
+            .map((q: any) => ({
+              question_text: q.question.trim(),
+              image_url: q.image,
+              subject,
+              exam_level: "JAMB / UTME",
+            }));
+
+          totalChecked += updates.length;
+
+          if (updates.length > 0) {
+            const { data, error } = await supabase.functions.invoke("backfill-images", {
+              body: { updates },
+            });
+            if (!error && data?.updated) {
+              totalUpdated += data.updated;
+            }
+          }
+        } catch (err: any) {
+          console.error(`ALOC ${subject} ${year}:`, err.message);
         }
-        totalChecked += data?.totalChecked || 0;
-        totalUpdated += data?.totalUpdated || 0;
-      } catch (err: any) {
-        console.error(`Backfill error for ${subject}:`, err.message);
+        // Small delay
+        await new Promise(r => setTimeout(r, 100));
       }
     }
 
     toast({
       title: "Image Backfill Complete",
-      description: `Checked ${totalChecked} questions, updated ${totalUpdated} with images across ${scienceSubjects.length} subjects.`,
+      description: `Found ${totalChecked} image questions, updated ${totalUpdated} in database.`,
     });
     setBackfilling(false);
     setFetchProgress({ current: 0, total: 0, subject: "" });
