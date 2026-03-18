@@ -229,24 +229,33 @@ export const QuestionBankSync = () => {
 
   const backfillImages = async () => {
     setBackfilling(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("backfill-images", {
-        body: { startYear: 2001, endYear: 2025 },
-      });
-      if (error) throw error;
-      toast({
-        title: "Image Backfill Complete",
-        description: `Checked ${data?.totalChecked || 0} questions, updated ${data?.totalUpdated || 0} with images.`,
-      });
-    } catch (err: any) {
-      toast({
-        title: "Backfill Failed",
-        description: err.message,
-        variant: "destructive",
-      });
-    } finally {
-      setBackfilling(false);
+    const scienceSubjects = ["Physics", "Chemistry", "Biology", "Mathematics", "Economics", "Government", "Commerce", "Use of English"];
+    let totalUpdated = 0;
+    let totalChecked = 0;
+
+    for (const subject of scienceSubjects) {
+      try {
+        setFetchProgress({ current: scienceSubjects.indexOf(subject) + 1, total: scienceSubjects.length, subject: `Backfilling images: ${subject}` });
+        const { data, error } = await supabase.functions.invoke("backfill-images", {
+          body: { subject, startYear: 2001, endYear: 2025 },
+        });
+        if (error) {
+          console.error(`Backfill error for ${subject}:`, error);
+          continue;
+        }
+        totalChecked += data?.totalChecked || 0;
+        totalUpdated += data?.totalUpdated || 0;
+      } catch (err: any) {
+        console.error(`Backfill error for ${subject}:`, err.message);
+      }
     }
+
+    toast({
+      title: "Image Backfill Complete",
+      description: `Checked ${totalChecked} questions, updated ${totalUpdated} with images across ${scienceSubjects.length} subjects.`,
+    });
+    setBackfilling(false);
+    setFetchProgress({ current: 0, total: 0, subject: "" });
   };
 
   return (
