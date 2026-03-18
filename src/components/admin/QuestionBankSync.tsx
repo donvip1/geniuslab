@@ -47,6 +47,7 @@ export const QuestionBankSync = () => {
   const [cacheStats, setCacheStats] = useState<CacheStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
   const [fetchProgress, setFetchProgress] = useState({ current: 0, total: 0, subject: "" });
   const [fetchResults, setFetchResults] = useState<FetchResult[]>([]);
   const [selectedLevel, setSelectedLevel] = useState<string>("JAMB / UTME");
