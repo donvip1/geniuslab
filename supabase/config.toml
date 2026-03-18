@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.verify-paystack-payment]
 verify_jwt = false
+
+[functions.backfill-images]
+verify_jwt = false

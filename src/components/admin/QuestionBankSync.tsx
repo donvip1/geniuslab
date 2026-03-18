@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { RefreshCw, Database, Loader2, CheckCircle, XCircle, Zap, AlertTriangle, Upload, ChevronDown, ChevronUp } from "lucide-react";
+import { RefreshCw, Database, Loader2, CheckCircle, XCircle, Zap, AlertTriangle, Upload, ChevronDown, ChevronUp, ImageIcon } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import {
   Select,
@@ -47,6 +47,7 @@ export const QuestionBankSync = () => {
   const [cacheStats, setCacheStats] = useState<CacheStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
   const [fetchProgress, setFetchProgress] = useState({ current: 0, total: 0, subject: "" });
   const [fetchResults, setFetchResults] = useState<FetchResult[]>([]);
   const [selectedLevel, setSelectedLevel] = useState<string>("JAMB / UTME");
@@ -226,6 +227,71 @@ export const QuestionBankSync = () => {
 
   const [showUpload, setShowUpload] = useState(false);
 
+  const backfillImages = async () => {
+    setBackfilling(true);
+    const subjects = [
+      { name: "Physics", aloc: "physics" },
+      { name: "Chemistry", aloc: "chemistry" },
+      { name: "Biology", aloc: "biology" },
+      { name: "Mathematics", aloc: "mathematics" },
+      { name: "Economics", aloc: "economics" },
+      { name: "Government", aloc: "government" },
+      { name: "Use of English", aloc: "english" },
+    ];
+    let totalUpdated = 0;
+    let totalChecked = 0;
+
+    for (let si = 0; si < subjects.length; si++) {
+      const { name: subject, aloc: alocParam } = subjects[si];
+      setFetchProgress({ current: si + 1, total: subjects.length, subject: `Backfilling: ${subject}` });
+
+      for (let year = 2024; year >= 2001; year--) {
+        try {
+          // Client-side fetch to ALOC (bypasses Supabase edge geographic issues)
+          const url = `https://questions.aloc.com.ng/api/v2/q/40?subject=${alocParam}&year=${year}&type=utme`;
+          const res = await fetch(url, {
+            headers: { "Accept": "application/json" },
+          });
+          if (!res.ok) continue;
+
+          const json = await res.json();
+          const questions = Array.isArray(json?.data) ? json.data : [];
+
+          const updates = questions
+            .filter((q: any) => q?.image && q?.question?.trim())
+            .map((q: any) => ({
+              question_text: q.question.trim(),
+              image_url: q.image,
+              subject,
+              exam_level: "JAMB / UTME",
+            }));
+
+          totalChecked += updates.length;
+
+          if (updates.length > 0) {
+            const { data, error } = await supabase.functions.invoke("backfill-images", {
+              body: { updates },
+            });
+            if (!error && data?.updated) {
+              totalUpdated += data.updated;
+            }
+          }
+        } catch (err: any) {
+          console.error(`ALOC ${subject} ${year}:`, err.message);
+        }
+        // Small delay
+        await new Promise(r => setTimeout(r, 100));
+      }
+    }
+
+    toast({
+      title: "Image Backfill Complete",
+      description: `Found ${totalChecked} image questions, updated ${totalUpdated} in database.`,
+    });
+    setBackfilling(false);
+    setFetchProgress({ current: 0, total: 0, subject: "" });
+  };
+
   return (
     <div className="space-y-6">
       {/* Upload Past Questions Section */}
@@ -296,9 +362,13 @@ export const QuestionBankSync = () => {
                 Fetch Priority ({lowCountSubjects.length} subjects)
               </Button>
             )}
-            <Button onClick={fetchAllSubjects} disabled={fetching} className="gap-2 bg-green-600 hover:bg-green-700">
+            <Button onClick={fetchAllSubjects} disabled={fetching || backfilling} className="gap-2 bg-green-600 hover:bg-green-700">
               {fetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
               Bulk Fetch All Subjects
+            </Button>
+            <Button onClick={backfillImages} disabled={fetching || backfilling} variant="outline" className="gap-2">
+              {backfilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+              {backfilling ? "Backfilling Images..." : "Backfill Images from ALOC"}
             </Button>
             <Button onClick={fetchCacheStats} disabled={loading || fetching} variant="outline" className="gap-2">
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
