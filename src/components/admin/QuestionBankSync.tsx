@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { RefreshCw, Database, Loader2, CheckCircle, XCircle, Zap, AlertTriangle, Upload, ChevronDown, ChevronUp } from "lucide-react";
+import { RefreshCw, Database, Loader2, CheckCircle, XCircle, Zap, AlertTriangle, Upload, ChevronDown, ChevronUp, ImageIcon } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import {
   Select,
