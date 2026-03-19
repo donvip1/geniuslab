@@ -171,7 +171,7 @@ export const PastQuestionUpload = () => {
           throw new Error(errText || `HTTP ${response.status}`);
         }
 
-        var data = await response.json();
+        const data = await response.json();
         if (data?.error) throw new Error(data.error);
       } catch (fetchErr: any) {
         clearTimeout(timeoutId);
