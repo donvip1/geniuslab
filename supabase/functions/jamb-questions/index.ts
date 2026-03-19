@@ -148,18 +148,10 @@ async function fetchAlocRows(subject: string, level: string, apiKey: string, pre
   return rows;
 }
 
-const shouldRefreshForContext = (pool: any[], subject: string, requiredCount: number) => {
-  const visualWithoutImage = pool.filter((q: any) => hasVisualReference(q.question_text || "") && !q.image_url).length;
-  const passageWithoutContext = isEnglishSubject(subject)
-    ? pool.filter((q: any) => hasPassageReference(q.question_text || "") && !hasEmbeddedPassage(q.question_text || "")).length
-    : 0;
-  const contextSafeCount = pool.filter((q: any) => {
-    if (hasVisualReference(q.question_text || "")) return !!q.image_url;
-    if (isEnglishSubject(subject) && hasPassageReference(q.question_text || "")) return hasEmbeddedPassage(q.question_text || "");
-    return true;
-  }).length;
-
-  return visualWithoutImage > 0 || passageWithoutContext > 0 || contextSafeCount < requiredCount;
+// Only refresh when the pool is genuinely too small — do NOT refresh just
+// because cached questions lack image_url (that is handled by the backfill tool).
+const shouldRefreshForContext = (pool: any[], _subject: string, requiredCount: number) => {
+  return pool.length < requiredCount;
 };
 
 serve(async (req) => {
@@ -323,7 +315,8 @@ serve(async (req) => {
         if (validOpts.length < 4) return false;
         const unique = new Set(validOpts.map((o: string) => o.trim().toLowerCase()));
         if (unique.size < 2) return false;
-        if (hasVisualReference(rawText) && !q.image_url) return false;
+        // Don't block questions just because they mention a diagram but lack an image —
+        // the question text is still usable. Only block orphaned English passage questions.
         if (isEnglishSubject(subject) && hasPassageReference(rawText) && !hasEmbeddedPassage(rawText)) return false;
         return true;
       });
