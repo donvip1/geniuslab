@@ -190,7 +190,7 @@ export const PastQuestionUpload = () => {
     }
 
     // Text content path - use supabase.functions.invoke (small payload)
-    const { data, error } = await supabase.functions.invoke("extract-past-questions", {
+    const { data: textData, error } = await supabase.functions.invoke("extract-past-questions", {
       body: { examLevel, subject: fileItem.subject, year: fileItem.year || undefined, textContent: fileContent, fileName: f.name },
     });
     if (error) throw error;
