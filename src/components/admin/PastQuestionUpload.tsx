@@ -140,20 +140,50 @@ export const PastQuestionUpload = () => {
       fileBase64 = btoa(binary);
     }
 
-    const { data, error } = await supabase.functions.invoke("extract-past-questions", {
-      body: {
-        examLevel,
-        subject: fileItem.subject,
-        year: fileItem.year || undefined, // empty = auto-detect
-        textContent: fileContent,
-        fileBase64,
-        fileType: f.type || "application/octet-stream",
-        fileName: f.name,
-      },
-    });
-
-    if (error) throw error;
-    if (data?.error) throw new Error(data.error);
+    // Use fetch directly with a longer timeout for large files (5 min)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 300000);
+    
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    try {
+      const response = await fetch(`${supabaseUrl}/functions/v1/extract-past-questions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token || supabaseKey}`,
+          "apikey": supabaseKey,
+        },
+        body: JSON.stringify({
+          examLevel,
+          subject: fileItem.subject,
+          year: fileItem.year || undefined,
+          textContent: fileContent,
+          fileBase64,
+          fileType: f.type || "application/octet-stream",
+          fileName: f.name,
+        }),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(errText || `HTTP ${response.status}`);
+      }
+      
+      var data = await response.json();
+      if (data?.error) throw new Error(data.error);
+    } catch (fetchErr: any) {
+      clearTimeout(timeoutId);
+      if (fetchErr.name === "AbortError") {
+        throw new Error("Request timed out. The file may be too large. Try splitting it into smaller files.");
+      }
+      throw fetchErr;
+    }
 
     return {
       questionsExtracted: data?.questionsExtracted || 0,
