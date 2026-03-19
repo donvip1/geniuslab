@@ -128,7 +128,6 @@ export const PastQuestionUpload = () => {
     if (fileTypeStr.includes("text") || f.name.endsWith(".txt")) {
       fileContent = await f.text();
     } else {
-      // Upload file to storage first, then pass storage path to edge function
       const storagePath = `past-questions/${Date.now()}-${f.name}`;
       const { error: uploadError } = await supabase.storage
         .from("documents")
@@ -138,7 +137,6 @@ export const PastQuestionUpload = () => {
         throw new Error(`File upload failed: ${uploadError.message}`);
       }
 
-      // Call edge function with storage path instead of base64
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 300000);
 
@@ -146,6 +144,7 @@ export const PastQuestionUpload = () => {
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const { data: { session } } = await supabase.auth.getSession();
 
+      let responseData: any;
       try {
         const response = await fetch(`${supabaseUrl}/functions/v1/extract-past-questions`, {
           method: "POST",
@@ -171,8 +170,8 @@ export const PastQuestionUpload = () => {
           throw new Error(errText || `HTTP ${response.status}`);
         }
 
-        const data = await response.json();
-        if (data?.error) throw new Error(data.error);
+        responseData = await response.json();
+        if (responseData?.error) throw new Error(responseData.error);
       } catch (fetchErr: any) {
         clearTimeout(timeoutId);
         if (fetchErr.name === "AbortError") {
@@ -182,10 +181,10 @@ export const PastQuestionUpload = () => {
       }
 
       return {
-        questionsExtracted: data?.questionsExtracted || 0,
-        preAnswered: data?.preAnswered,
-        aiSolved: data?.aiSolved,
-        detectedYear: data?.detectedYear,
+        questionsExtracted: responseData?.questionsExtracted || 0,
+        preAnswered: responseData?.preAnswered,
+        aiSolved: responseData?.aiSolved,
+        detectedYear: responseData?.detectedYear,
       };
     }
 
@@ -194,13 +193,13 @@ export const PastQuestionUpload = () => {
       body: { examLevel, subject: fileItem.subject, year: fileItem.year || undefined, textContent: fileContent, fileName: f.name },
     });
     if (error) throw error;
-    if (data?.error) throw new Error(data.error);
+    if (textData?.error) throw new Error(textData.error);
 
     return {
-      questionsExtracted: data?.questionsExtracted || 0,
-      preAnswered: data?.preAnswered,
-      aiSolved: data?.aiSolved,
-      detectedYear: data?.detectedYear,
+      questionsExtracted: textData?.questionsExtracted || 0,
+      preAnswered: textData?.preAnswered,
+      aiSolved: textData?.aiSolved,
+      detectedYear: textData?.detectedYear,
     };
   };
 
