@@ -70,12 +70,12 @@ serve(async (req) => {
   }
 
   try {
-    const { examLevel, subject, year, textContent, fileBase64, fileType, fileName } = await req.json();
+    const { examLevel, subject, year, textContent, fileBase64, fileType, fileName, storagePath } = await req.json();
 
     if (!examLevel || !subject) {
       throw new Error("Missing required fields: examLevel, subject");
     }
-    if (!textContent && !fileBase64) {
+    if (!textContent && !fileBase64 && !storagePath) {
       throw new Error("No content provided. Please upload a file or paste text.");
     }
 
@@ -91,9 +91,41 @@ serve(async (req) => {
     console.log(`Processing ${subject} (${examLevel}) - Year: ${year || "auto-detect"}`);
 
     let extractedText = textContent || "";
+    let resolvedBase64 = fileBase64 || "";
+
+    // If storagePath provided, download file from storage and convert to base64
+    if (storagePath && !textContent && !fileBase64) {
+      console.log("Downloading file from storage:", storagePath);
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const storageSupabase = createClient(supabaseUrl, supabaseKey);
+
+      const { data: fileData, error: downloadError } = await storageSupabase.storage
+        .from("documents")
+        .download(storagePath);
+
+      if (downloadError) {
+        throw new Error(`Failed to download file: ${downloadError.message}`);
+      }
+
+      const arrayBuffer = await fileData.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = "";
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+        binary += String.fromCharCode(...chunk);
+      }
+      resolvedBase64 = btoa(binary);
+      console.log("File downloaded, base64 length:", resolvedBase64.length);
+
+      // Clean up storage file after download
+      await storageSupabase.storage.from("documents").remove([storagePath]);
+      console.log("Storage file cleaned up");
+    }
 
     // Step 1: Extract text from file using vision
-    if (fileBase64 && !textContent) {
+    if (resolvedBase64 && !textContent) {
       console.log("Extracting text from file using AI vision...");
 
       let mimeType = fileType || "application/octet-stream";
@@ -105,21 +137,19 @@ serve(async (req) => {
       const visionPrompt = "Extract ALL text from this document/image. It contains exam past questions. Transcribe everything accurately: question numbers, options (A, B, C, D), answers, and any mathematical formulas or symbols. Maintain the original structure. If answers are marked or highlighted, note them clearly. IMPORTANT: Also look for and note the exam year (e.g. 'JAMB 2019', 'WAEC 2020', '2018 NECO', etc.) if visible anywhere in the document.";
 
       if (useLovable) {
-        // Lovable Gateway uses OpenAI vision format
         extractedText = await callAI([{
           role: "user",
           content: [
             { type: "text", text: visionPrompt },
-            { type: "image_url", image_url: { url: `data:${mimeType};base64,${fileBase64}` } },
+            { type: "image_url", image_url: { url: `data:${mimeType};base64,${resolvedBase64}` } },
           ],
         }], true, LOVABLE_API_KEY, GEMINI_API_KEY);
       } else {
-        // Direct Gemini uses native format
         extractedText = await callAI([{
           role: "user",
           content: [
             { text: visionPrompt },
-            { inline_data: { mime_type: mimeType, data: fileBase64 } },
+            { inline_data: { mime_type: mimeType, data: resolvedBase64 } },
           ],
         }], false, LOVABLE_API_KEY, GEMINI_API_KEY);
       }
