@@ -315,7 +315,8 @@ serve(async (req) => {
         if (validOpts.length < 4) return false;
         const unique = new Set(validOpts.map((o: string) => o.trim().toLowerCase()));
         if (unique.size < 2) return false;
-        if (hasVisualReference(rawText) && !q.image_url) return false;
+        // Don't block questions just because they mention a diagram but lack an image —
+        // the question text is still usable. Only block orphaned English passage questions.
         if (isEnglishSubject(subject) && hasPassageReference(rawText) && !hasEmbeddedPassage(rawText)) return false;
         return true;
       });
