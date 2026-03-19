@@ -124,66 +124,77 @@ export const PastQuestionUpload = () => {
     const fileTypeStr = f.type || f.name.split(".").pop()?.toLowerCase() || "unknown";
 
     let fileContent: string | null = null;
-    let fileBase64: string | null = null;
 
     if (fileTypeStr.includes("text") || f.name.endsWith(".txt")) {
       fileContent = await f.text();
     } else {
-      const buffer = await f.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
-      let binary = "";
-      const chunkSize = 8192;
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-        binary += String.fromCharCode(...chunk);
+      // Upload file to storage first, then pass storage path to edge function
+      const storagePath = `past-questions/${Date.now()}-${f.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("documents")
+        .upload(storagePath, f, { contentType: f.type || "application/octet-stream" });
+
+      if (uploadError) {
+        throw new Error(`File upload failed: ${uploadError.message}`);
       }
-      fileBase64 = btoa(binary);
+
+      // Call edge function with storage path instead of base64
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 300000);
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const { data: { session } } = await supabase.auth.getSession();
+
+      try {
+        const response = await fetch(`${supabaseUrl}/functions/v1/extract-past-questions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session?.access_token || supabaseKey}`,
+            "apikey": supabaseKey,
+          },
+          body: JSON.stringify({
+            examLevel,
+            subject: fileItem.subject,
+            year: fileItem.year || undefined,
+            storagePath,
+            fileName: f.name,
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(errText || `HTTP ${response.status}`);
+        }
+
+        var data = await response.json();
+        if (data?.error) throw new Error(data.error);
+      } catch (fetchErr: any) {
+        clearTimeout(timeoutId);
+        if (fetchErr.name === "AbortError") {
+          throw new Error("Request timed out. The file may be too large. Try splitting it into smaller files.");
+        }
+        throw fetchErr;
+      }
+
+      return {
+        questionsExtracted: data?.questionsExtracted || 0,
+        preAnswered: data?.preAnswered,
+        aiSolved: data?.aiSolved,
+        detectedYear: data?.detectedYear,
+      };
     }
 
-    // Use fetch directly with a longer timeout for large files (5 min)
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 300000);
-    
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    try {
-      const response = await fetch(`${supabaseUrl}/functions/v1/extract-past-questions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${session?.access_token || supabaseKey}`,
-          "apikey": supabaseKey,
-        },
-        body: JSON.stringify({
-          examLevel,
-          subject: fileItem.subject,
-          year: fileItem.year || undefined,
-          textContent: fileContent,
-          fileBase64,
-          fileType: f.type || "application/octet-stream",
-          fileName: f.name,
-        }),
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(errText || `HTTP ${response.status}`);
-      }
-      
-      var data = await response.json();
-      if (data?.error) throw new Error(data.error);
-    } catch (fetchErr: any) {
-      clearTimeout(timeoutId);
-      if (fetchErr.name === "AbortError") {
-        throw new Error("Request timed out. The file may be too large. Try splitting it into smaller files.");
-      }
-      throw fetchErr;
-    }
+    // Text content path - use supabase.functions.invoke (small payload)
+    const { data, error } = await supabase.functions.invoke("extract-past-questions", {
+      body: { examLevel, subject: fileItem.subject, year: fileItem.year || undefined, textContent: fileContent, fileName: f.name },
+    });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
 
     return {
       questionsExtracted: data?.questionsExtracted || 0,
