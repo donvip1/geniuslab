@@ -148,18 +148,10 @@ async function fetchAlocRows(subject: string, level: string, apiKey: string, pre
   return rows;
 }
 
-const shouldRefreshForContext = (pool: any[], subject: string, requiredCount: number) => {
-  const visualWithoutImage = pool.filter((q: any) => hasVisualReference(q.question_text || "") && !q.image_url).length;
-  const passageWithoutContext = isEnglishSubject(subject)
-    ? pool.filter((q: any) => hasPassageReference(q.question_text || "") && !hasEmbeddedPassage(q.question_text || "")).length
-    : 0;
-  const contextSafeCount = pool.filter((q: any) => {
-    if (hasVisualReference(q.question_text || "")) return !!q.image_url;
-    if (isEnglishSubject(subject) && hasPassageReference(q.question_text || "")) return hasEmbeddedPassage(q.question_text || "");
-    return true;
-  }).length;
-
-  return visualWithoutImage > 0 || passageWithoutContext > 0 || contextSafeCount < requiredCount;
+// Only refresh when the pool is genuinely too small — do NOT refresh just
+// because cached questions lack image_url (that is handled by the backfill tool).
+const shouldRefreshForContext = (pool: any[], _subject: string, requiredCount: number) => {
+  return pool.length < requiredCount;
 };
 
 serve(async (req) => {
