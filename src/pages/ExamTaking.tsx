@@ -103,6 +103,13 @@ const ExamTaking = () => {
   const visibleQuestions = questions.slice(startIndex, endIndex);
 
   useEffect(() => {
+    // Reset all state when subject changes or component mounts
+    setQuestions([]);
+    setAnswers({});
+    setCurrentQuestionIndex(0);
+    setExamStarted(false);
+    setLoading(true);
+
     checkAccessControl();
     fetchExamSettings();
     fetchQuestionsAndSubject();
