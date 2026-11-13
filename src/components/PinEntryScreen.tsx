@@ -33,7 +33,7 @@ export const PinEntryScreen = ({ onSuccess, userEmail }: PinEntryScreenProps) =>
     accountNumber: "8124269495",
     bankName: "Opay",
     accountHolder: "Nsisong Etim",
-    amount: 1000,
+    amount: 2500,
   });
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export const PinEntryScreen = ({ onSuccess, userEmail }: PinEntryScreenProps) =>
           accountNumber: data.payment_account_number || "8124269495",
           bankName: data.payment_bank_name || "Opay",
           accountHolder: data.payment_account_holder || "Nsisong Etim",
-          amount: data.payment_amount || 1000,
+          amount: data.payment_amount || 2500,
         });
       }
     } catch (error) {
@@ -136,7 +136,7 @@ export const PinEntryScreen = ({ onSuccess, userEmail }: PinEntryScreenProps) =>
       }
 
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30); // 1 month
+      expiresAt.setDate(expiresAt.getDate() + 90); // 3 months
 
       const { error: updateError } = await supabase
         .from("access_pins")

@@ -78,7 +78,7 @@ const Payment = () => {
     accountNumber: "",
     bankName: "",
     accountHolder: "",
-    amount: 1000,
+    amount: 2500,
     manualPaymentEnabled: false,
   });
 
@@ -125,7 +125,7 @@ const Payment = () => {
         accountNumber: data.payment_account_number || "",
         bankName: data.payment_bank_name || "",
         accountHolder: data.payment_account_holder || "",
-        amount: data.payment_amount || 1000,
+        amount: data.payment_amount || 2500,
         manualPaymentEnabled: (data as any).manual_payment_enabled ?? false,
       });
     }
@@ -195,7 +195,7 @@ const Payment = () => {
       }
 
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30);
+      expiresAt.setDate(expiresAt.getDate() + 90); // 3 months = 90 days
 
       await supabase
         .from("access_pins")
@@ -218,7 +218,7 @@ const Payment = () => {
         expires_at: expiresAt.toISOString(),
       });
 
-      toast({ title: "PIN Activated!", description: "You now have exam access for 1 month." });
+      toast({ title: "PIN Activated!", description: "You now have exam access for 3 months." });
       navigate("/exam");
     } catch (error: any) {
       toast({ title: "Error", description: "Failed to activate PIN.", variant: "destructive" });
@@ -288,7 +288,7 @@ const Payment = () => {
               </div>
               <h2 className="text-2xl font-bold text-green-600">Payment Successful!</h2>
               <p className="text-muted-foreground">
-                You now have unlimited access to <strong>{successCategoryName || categoryNameParam || "your exam category"}</strong> for 1 month.
+                You now have unlimited access to <strong>{successCategoryName || categoryNameParam || "your exam category"}</strong> for 3 months.
               </p>
               <Button onClick={() => navigate("/exam")} className="w-full" size="lg">
                 <Zap className="mr-2 h-4 w-4" />
@@ -324,7 +324,7 @@ const Payment = () => {
                   </div>
                   <div>
                     <h3 className="font-bold text-lg">Activate GeniusLab CBT for unlimited access</h3>
-                    <p className="text-sm text-muted-foreground">₦1,000/month</p>
+                    <p className="text-sm text-muted-foreground">₦2,500/3 months</p>
                   </div>
                 </div>
                 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -336,7 +336,7 @@ const Payment = () => {
                     "Access Detailed Explanations",
                     "Track Your Performance",
                     "No ads or interruptions",
-                    "Activation lasts for 1 month",
+                    "Activation lasts for 3 months",
                   ].map((benefit, i) => (
                     <li key={i} className="flex items-center gap-2">
                       <CheckCircle className="h-4 w-4 text-primary shrink-0" />
@@ -469,7 +469,7 @@ const Payment = () => {
                         <CreditCard className="h-6 w-6 text-primary" />
                       </div>
                       <CardTitle>Pay ₦{selectedCategory.monthly_price.toLocaleString()}</CardTitle>
-                      <CardDescription>1 month access to {selectedCategory.name} — instant activation</CardDescription>
+                      <CardDescription>3 months access to {selectedCategory.name} — instant activation</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2 border">
@@ -477,7 +477,7 @@ const Payment = () => {
                         <ul className="list-disc list-inside text-muted-foreground space-y-1">
                           <li>Unlimited practice questions</li>
                           <li>Download study materials</li>
-                          <li>30 days of full access</li>
+                          <li>90 days of full access</li>
                           <li>Instant activation after payment</li>
                         </ul>
                       </div>

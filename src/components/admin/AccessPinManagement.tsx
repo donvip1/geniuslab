@@ -110,7 +110,7 @@ export const AccessPinManagement = () => {
     payment_account_number: "8124269495",
     payment_bank_name: "Opay",
     payment_account_holder: "Nsisong Etim",
-    payment_amount: 1000,
+    payment_amount: 2500,
   });
   const [paymentLoading, setPaymentLoading] = useState(false);
   
@@ -222,7 +222,7 @@ export const AccessPinManagement = () => {
           payment_account_number: data.payment_account_number || "8124269495",
           payment_bank_name: data.payment_bank_name || "Opay",
           payment_account_holder: data.payment_account_holder || "Nsisong Etim",
-          payment_amount: data.payment_amount || 1000,
+          payment_amount: data.payment_amount || 2500,
         });
       }
     } catch (error) {
