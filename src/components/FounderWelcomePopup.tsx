@@ -42,19 +42,9 @@ export const FounderWelcomePopup = ({ isOpen, onClose }: FounderWelcomePopupProp
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <div className="flex justify-between items-start">
-            <DialogTitle className="text-xl font-bold text-primary">
-              Welcome, Student!
-            </DialogTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              className="h-8 w-8 -mr-2 -mt-2"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <DialogTitle className="text-xl font-bold text-primary">
+            Welcome, Student!
+          </DialogTitle>
         </DialogHeader>
         
         <div className="flex flex-col items-center text-center space-y-4">

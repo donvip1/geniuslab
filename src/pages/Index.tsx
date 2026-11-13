@@ -75,28 +75,34 @@ const Index = () => {
   const stat3 = useCountUp(50, 2000);
   const stat4 = useCountUp(300, 2000);
 
+  // Get current exam year (e.g., if it's 2024, next JAMB is 2025)
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth(); // 0-11
+  // If we're past May (month 4), show next year; otherwise show current year
+  const examYear = currentMonth >= 5 ? currentYear + 1 : currentYear;
+
   useEffect(() => {
-    if (sessionStorage.getItem("jamb2026PopupShown")) return;
+    if (sessionStorage.getItem("jambPopupShown")) return;
     const timer = setTimeout(() => {
       setShowJambPopup(true);
-      sessionStorage.setItem("jamb2026PopupShown", "true");
+      sessionStorage.setItem("jambPopupShown", "true");
     }, 3000);
     return () => clearTimeout(timer);
   }, []);
 
   const examAlerts = [
-    { text: "🎯 JAMB 2026 Practice Exams Now Live!", link: "/exam", active: true },
+    { text: `🎯 JAMB ${examYear} Practice Exams Now Live!`, link: "/exam", active: true },
     { text: "📚 University CBT Exams Available", link: "/exam", active: true },
-    { text: "🔥 WAEC/NECO Past Questions Ready", link: "/exam", active: true },
+    { text: `🔥 WAEC/NECO ${examYear} Past Questions Ready`, link: "/exam", active: true },
   ];
 
   return (
     <div className="min-h-screen flex flex-col pb-20 lg:pb-0">
       <SEOHead
-        title="GeniusLab – Free JAMB CBT Practice, WAEC, NECO & University Past Questions 2025"
-        description="Practice 20,000+ JAMB UTME, WAEC, NECO past questions with answers & explanations. Free CBT mock exams. University departmental exam prep. Start now!"
+        title={`GeniusLab – Free JAMB CBT Practice, WAEC, NECO & University Past Questions ${examYear}`}
+        description={`Practice 20,000+ JAMB UTME, WAEC, NECO past questions with answers & explanations. Free CBT mock exams. University departmental exam prep. Start now!`}
         canonical="https://geniuslabz.xyz/"
-        keywords="JAMB CBT practice, JAMB past questions 2025, WAEC past questions, NECO, NABTEB, university exams, CBT practice Nigeria, JAMB mock exam, free JAMB app"
+        keywords={`JAMB CBT practice, JAMB past questions ${examYear}, WAEC past questions, NECO, NABTEB, university exams, CBT practice Nigeria, JAMB mock exam, free JAMB app`}
       />
       <Navbar />
       <AdvertisementPopup />
@@ -105,16 +111,6 @@ const Index = () => {
         <DialogContent className="sm:max-w-lg p-0 overflow-hidden border-0 bg-[#0a0a0a] text-white">
           <DialogTitle className="sr-only">GeniusLab is Now Live</DialogTitle>
           <div className="relative">
-            {/* Close button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-2 right-2 z-10 text-white/70 hover:text-white hover:bg-white/10"
-              onClick={() => setShowJambPopup(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-
             {/* Grid background overlay */}
             <div className="absolute inset-0 opacity-30" style={{
               backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
@@ -139,7 +135,7 @@ const Index = () => {
 
               {/* Subtitle */}
               <p className="text-center text-sm text-gray-400 max-w-sm mx-auto">
-                Conquer <span className="text-white font-semibold">JAMB 2026</span> and beyond with the ultimate CBT practice platform built for Nigerian students
+                Conquer <span className="text-white font-semibold">JAMB {examYear}</span> and beyond with the ultimate CBT practice platform built for Nigerian students
               </p>
 
               {/* CTA */}
