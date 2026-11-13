@@ -91,6 +91,16 @@ const MOCK_REQUIRED_SUBJECTS = 4;
 const PRACTICE_DURATION = 60 * 60; // 60 minutes
 const MOCK_DURATION = 2 * 60 * 60; // 2 hours (locked)
 
+// Shuffle array utility
+const shuffleArray = <T,>(array: T[]): T[] => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
 // Common JAMB UTME subjects
 const JAMB_SUBJECTS = [
   { id: "english", name: "Use of English", category: "Compulsory", compulsory: true },
@@ -118,20 +128,6 @@ const JAMB_SUBJECTS = [
   { id: "fine-arts", name: "Fine Arts", category: "Arts" },
   { id: "technical-drawing", name: "Technical Drawing", category: "Science" },
 ];
-
-const JAMB_EXAM_STORAGE_KEY = "jamb_exam_progress";
-
-interface SavedExamState {
-  examMode: ExamMode;
-  selectedSubjects: string[];
-  questions: JambQuestion[];
-  answers: Record<number, number>;
-  timeLeft: number;
-  currentQuestionIndex: number;
-  activeSubjectTab: string;
-  savedAt: number;
-  selectedYear?: string | null;
-}
 
 // === Results Dialog Component ===
 const JambResultsDialog = ({ userId, examCategoryId }: { userId?: string; examCategoryId: string | null }) => {
@@ -313,10 +309,6 @@ const JambSearchDialog = () => {
   );
 };
 
-const clearSavedExamState = () => {
-  try { localStorage.removeItem(JAMB_EXAM_STORAGE_KEY); } catch {}
-};
-
 const JambExam = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -353,59 +345,6 @@ const JambExam = () => {
   const [activeSubjectTab, setActiveSubjectTab] = useState("english");
 
   const examDuration = examMode === "practice" ? PRACTICE_DURATION : MOCK_DURATION;
-
-  // === Save exam progress to localStorage ===
-  useEffect(() => {
-    if (!examStarted || examFinished || questions.length === 0) return;
-    try {
-      const state: SavedExamState = {
-        examMode,
-        selectedSubjects,
-        questions,
-        answers,
-        timeLeft,
-        currentQuestionIndex,
-        activeSubjectTab,
-        savedAt: Date.now(),
-        selectedYear,
-      };
-      localStorage.setItem(JAMB_EXAM_STORAGE_KEY, JSON.stringify(state));
-    } catch {}
-  }, [answers, timeLeft, currentQuestionIndex, activeSubjectTab, examStarted, examFinished]);
-
-  // === Restore exam progress on mount ===
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(JAMB_EXAM_STORAGE_KEY);
-      if (!saved) return;
-      const state: SavedExamState = JSON.parse(saved);
-      // Only restore if saved less than 3 hours ago and has time left
-      const threeHoursMs = 3 * 60 * 60 * 1000;
-      if (Date.now() - state.savedAt > threeHoursMs || state.timeLeft <= 0) {
-        clearSavedExamState();
-        return;
-      }
-      if (state.questions.length > 0) {
-        setExamMode(state.examMode);
-        setSelectedSubjects(state.selectedSubjects);
-        setSelectedYear(state.selectedYear || null);
-        setQuestions(state.questions);
-        setAnswers(state.answers);
-        setTimeLeft(state.timeLeft);
-        setCurrentQuestionIndex(state.currentQuestionIndex);
-        setActiveSubjectTab(state.activeSubjectTab);
-        setSubjectsConfirmed(true);
-        setExamStarted(true);
-        setRestoredSession(true);
-        toast({
-          title: "Exam Resumed",
-          description: "Your previous exam progress has been restored.",
-        });
-      }
-    } catch {
-      clearSavedExamState();
-    }
-  }, []);
 
   // Auth + category init
   useEffect(() => {
@@ -545,7 +484,11 @@ const JambExam = () => {
       }
 
       console.log(`Filtered ${allQuestions.length - qualityQuestions.length} incomplete questions`);
-      setQuestions(qualityQuestions);
+
+      // Shuffle questions for every student
+      const shuffledQuestions = shuffleArray(qualityQuestions);
+
+      setQuestions(shuffledQuestions);
       setExamStarted(true);
       setTimeLeft(examDuration);
     } catch (error: any) {
@@ -641,7 +584,6 @@ const JambExam = () => {
   };
 
   const handleFinalize = useCallback(async () => {
-    clearSavedExamState();
     let correctCount = 0;
     questions.forEach((q, index) => {
       if (answers[index] === q.correctAnswerIndex) {
@@ -687,7 +629,6 @@ const JambExam = () => {
   const getOptionLabel = (index: number) => String.fromCharCode(65 + index);
 
   const restartExam = () => {
-    clearSavedExamState();
     setAnswers({});
     setCurrentQuestionIndex(0);
     setTimeLeft(examDuration);
