@@ -59,13 +59,13 @@ serve(async (req) => {
     }
 
     const reference = `GEN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const amountInKobo = (category.monthly_price || 1000) * 100;
+    const amountInKobo = (category.monthly_price || 2500) * 100;
 
     // Create pending transaction
     await supabase.from("payment_transactions").insert({
       user_id: user.id,
       exam_category_id,
-      amount: category.monthly_price || 1000,
+      amount: category.monthly_price || 2500,
       reference,
       status: "pending",
     });

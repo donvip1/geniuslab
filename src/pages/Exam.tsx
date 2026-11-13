@@ -471,7 +471,7 @@ const Exam = () => {
                           {category.description}
                         </CardDescription>
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">₦{category.monthly_price.toLocaleString()}/month</span>
+                          <span className="text-xs text-muted-foreground">₦{category.monthly_price.toLocaleString()} for 3 months</span>
                           <div className="flex items-center text-primary font-medium text-sm group-hover:gap-2 transition-all">
                             Start Now
                             <ChevronRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
