@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, FileText, BookOpen, Loader2, Pencil, Trash2, X, Check, ChevronDown, ChevronUp, ClipboardPaste, Megaphone, Users, Star, Clock, BarChart3, UserX, Key, Database, Gift } from "lucide-react";
+import { Upload, FileText, BookOpen, Loader2, Pencil, Trash2, X, Check, ChevronDown, ChevronUp, ClipboardPaste, Megaphone, Users, Star, Clock, BarChart3, UserX, Key, Database, Gift, Shield } from "lucide-react";
 import { TeamExpertManagement } from "@/components/admin/TeamExpertManagement";
 import { SuccessStoryManagement } from "@/components/admin/SuccessStoryManagement";
 import { ExamModeManagement } from "@/components/admin/ExamModeManagement";
@@ -18,6 +18,8 @@ import { AnalyticsDashboard } from "@/components/admin/AnalyticsDashboard";
 import { UserManagement } from "@/components/admin/UserManagement";
 import { AccessPinManagement } from "@/components/admin/AccessPinManagement";
 import { QuestionBankSync } from "@/components/admin/QuestionBankSync";
+import { SecurityLogs } from "@/components/admin/SecurityLogs";
+import { useAdminAccess } from "@/hooks/useAdminAccess";
 
 import { TrialManagement } from "@/components/admin/TrialManagement";
 import {
@@ -66,10 +68,7 @@ interface Question {
 }
 
 const Admin = () => {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const navigate = useNavigate();
+  const { isAdmin, isLoading, user } = useAdminAccess();
   const { toast } = useToast();
 
   // Subject Management State
@@ -145,48 +144,11 @@ const Admin = () => {
   const [bulkImportProgress, setBulkImportProgress] = useState({ stage: "", percent: 0 });
 
   useEffect(() => {
-    checkUser();
-  }, []);
-
-  const checkUser = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        navigate("/auth");
-        return;
-      }
-
-      setUser(session.user);
-
-      // Check if user has admin role
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .eq("role", "admin")
-        .single();
-
-      if (!roleData) {
-        toast({
-          title: "Access Denied",
-          description: "You don't have admin privileges",
-          variant: "destructive",
-        });
-        navigate("/exam");
-        return;
-      }
-
-      setIsAdmin(true);
+    if (isAdmin) {
       fetchSubjects();
       fetchAdvertisements();
-    } catch (error) {
-      console.error("Error checking user:", error);
-      navigate("/auth");
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [isAdmin]);
 
   const fetchSubjects = async () => {
     const { data, error } = await supabase
@@ -905,7 +867,7 @@ const Admin = () => {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -977,6 +939,10 @@ const Admin = () => {
               <TabsTrigger value="analytics">
                 <BarChart3 className="h-4 w-4 mr-1" />
                 <span className="hidden sm:inline">Analytics</span>
+              </TabsTrigger>
+              <TabsTrigger value="security">
+                <Shield className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Security</span>
               </TabsTrigger>
             </TabsList>
             </div>
@@ -2116,6 +2082,11 @@ Or any other format - our AI will parse it automatically!`}
             {/* Analytics Tab */}
             <TabsContent value="analytics">
               <AnalyticsDashboard />
+            </TabsContent>
+
+            {/* Security Tab */}
+            <TabsContent value="security">
+              <SecurityLogs />
             </TabsContent>
           </Tabs>
         </div>
