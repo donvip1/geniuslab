@@ -1504,7 +1504,7 @@ const JambExam = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>Continue with {FREE_QUESTION_LIMIT} questions</AlertDialogCancel>
             <AlertDialogAction onClick={() => navigate("/payment")}>
-              Activate Now — ₦1,000/month
+              Activate Now — ₦2,500/3 months
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

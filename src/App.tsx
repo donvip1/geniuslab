@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { PageTracker } from "@/components/PageTracker";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { SplashScreen } from "@/components/SplashScreen";
+import { NetworkStatus } from "@/components/NetworkStatus";
 import { initializeAdMob } from "@/lib/admob";
 import { NativeAdBanner } from "@/components/NativeAdBanner";
 import Index from "./pages/Index";
@@ -52,6 +53,7 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <NetworkStatus />
         <BrowserRouter>
           <PageTracker />
           <Routes>

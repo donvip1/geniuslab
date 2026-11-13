@@ -302,7 +302,7 @@ export const SubscriptionGate = ({
               "100 Likely JAMB Questions & Answers",
               "Track Your Performance",
               "No ads or interruptions",
-              "Activation lasts for 1 month",
+              "Activation lasts for 3 months",
             ].map((benefit, i) => (
               <li key={i} className="flex items-center gap-3">
                 <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
@@ -313,7 +313,7 @@ export const SubscriptionGate = ({
 
           <Button onClick={goToPayment} size="lg" className="w-full">
             <CreditCard className="mr-2 h-5 w-5" />
-            Activate Now — ₦1,000/month
+            Activate Now — ₦2,500/3 months
           </Button>
 
           <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
