@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Require authentication for admin_credentials" ON public.admin_credentials;
