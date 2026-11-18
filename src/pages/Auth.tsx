@@ -193,7 +193,13 @@ const Auth = () => {
         navigate("/exam");
       }
     } catch (error: any) {
-      toast({ title: "Login failed", description: error.message || "Invalid credentials", variant: "destructive" });
+      let description = error.message || "Invalid credentials";
+      if (description.toLowerCase().includes("email not confirmed")) {
+        description = "Your email isn't confirmed yet. Check your inbox (and spam folder) for the confirmation link we sent when you signed up.";
+      } else if (description.toLowerCase().includes("invalid login credentials") || description.toLowerCase().includes("invalid credentials")) {
+        description = "Email or password is incorrect. If you just signed up, make sure you confirmed your email first.";
+      }
+      toast({ title: "Login failed", description, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -218,7 +224,7 @@ const Auth = () => {
 
     try {
       const redirectUrl = `${window.location.origin}/`;
-      
+
       const { data, error } = await supabase.auth.signUp({
         email: signupData.email,
         password: signupData.password,
@@ -233,9 +239,26 @@ const Auth = () => {
 
       if (error) throw error;
 
-      toast({ title: "Account created successfully!", description: "You can now login and start practicing." });
-      setActiveTab("login");
+      // Supabase returns no error but empty identities when the email is already
+      // registered (it suppresses the error to prevent email enumeration).
+      if (data.user && data.user.identities && data.user.identities.length === 0) {
+        throw new Error("This email is already registered. Please log in instead.");
+      }
+
       setSignupData({ fullName: "", username: "", email: "", password: "", confirmPassword: "" });
+
+      if (data.session) {
+        // Email confirmation is disabled on this project — user is auto-logged in.
+        toast({ title: "Account created!", description: "Welcome to GeniusLab CBT." });
+        navigate("/exam");
+      } else {
+        // Email confirmation is enabled — user must click the link in their inbox.
+        toast({
+          title: "Almost there!",
+          description: "We sent a confirmation link to your email. Click it, then come back to log in.",
+        });
+        setActiveTab("login");
+      }
     } catch (error: any) {
       toast({ title: "Signup failed", description: error.message || "Could not create account", variant: "destructive" });
     } finally {
