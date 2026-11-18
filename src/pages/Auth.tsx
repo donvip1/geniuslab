@@ -138,24 +138,14 @@ const Auth = () => {
       let authData;
       
       if (isAdminLogin) {
-        const { data: adminData, error: adminError } = await supabase
-          .from("admin_credentials")
-          .select("user_id")
-          .eq("username", loginData.username)
-          .single();
+        const { data: adminEmail, error: lookupError } = await supabase.rpc("get_email_by_username", {
+          p_username: loginData.username.trim(),
+        });
 
-        if (adminError || !adminData) throw new Error("Invalid admin credentials");
-
-        const { data: profileData, error: profileError } = await supabase
-          .from("profiles")
-          .select("email")
-          .eq("user_id", adminData.user_id)
-          .single();
-
-        if (profileError || !profileData) throw new Error("Admin profile not found");
+        if (lookupError || !adminEmail) throw new Error("Admin username not found. Please check and try again.");
 
         const { data, error } = await supabase.auth.signInWithPassword({
-          email: profileData.email,
+          email: adminEmail,
           password: loginData.password,
         });
         if (error) throw error;
@@ -178,16 +168,24 @@ const Auth = () => {
         authData = data;
       }
 
+      const { data: hasAdminRole, error: roleError } = await supabase.rpc("has_role", {
+        _user_id: authData.user.id,
+        _role: "admin",
+      });
+
+      if (roleError && isAdminLogin) {
+        await supabase.auth.signOut();
+        throw new Error("Unable to verify admin access. Please try again.");
+      }
+
+      if (isAdminLogin && !hasAdminRole) {
+        await supabase.auth.signOut();
+        throw new Error("This account does not have admin access.");
+      }
+
       toast({ title: "Login successful!", description: "Welcome back to GeniusLab CBT." });
 
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", authData.user.id)
-        .eq("role", "admin")
-        .single();
-
-      if (roleData) {
+      if (hasAdminRole) {
         navigate("/admin");
       } else {
         navigate("/exam");

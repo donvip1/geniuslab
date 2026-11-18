@@ -22,9 +22,9 @@ export const useAdminAccess = (): AdminAccessResult => {
 
   const verifyAdminAccess = async () => {
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const { data: { user: authenticatedUser }, error: userError } = await supabase.auth.getUser();
 
-      if (sessionError || !session) {
+      if (userError || !authenticatedUser) {
         toast({
           title: "Authentication Required",
           description: "Please login to continue",
@@ -34,17 +34,14 @@ export const useAdminAccess = (): AdminAccessResult => {
         return;
       }
 
-      setUser(session.user);
+      setUser(authenticatedUser);
 
-      // Check admin role directly in the database.
-      // The DB-level RLS policies (has_role check) are the real security boundary;
-      // this UI gate just prevents non-admins from seeing the admin page.
-      const { data: roleData, error: roleError } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .eq("role", "admin")
-        .maybeSingle();
+      // Use the database role-check function so access remains reliable when
+      // direct role-table reads are restricted by row-level security.
+      const { data: hasAdminRole, error: roleError } = await supabase.rpc("has_role", {
+        _user_id: authenticatedUser.id,
+        _role: "admin",
+      });
 
       if (roleError) {
         console.error("Admin role check error:", roleError);
@@ -57,7 +54,7 @@ export const useAdminAccess = (): AdminAccessResult => {
         return;
       }
 
-      if (!roleData) {
+      if (!hasAdminRole) {
         toast({
           title: "Access Denied",
           description: "You don't have admin privileges.",
@@ -69,8 +66,8 @@ export const useAdminAccess = (): AdminAccessResult => {
 
       // Log the access in the background — never block on it.
       supabase.from("admin_access_logs").insert([{
-        user_id: session.user.id,
-        email: session.user.email ?? "unknown",
+        user_id: authenticatedUser.id,
+        email: authenticatedUser.email ?? "unknown",
         ip_address: "client",
         user_agent: navigator.userAgent,
         access_granted: true,
