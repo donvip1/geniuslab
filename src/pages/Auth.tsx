@@ -193,9 +193,9 @@ const Auth = () => {
     } catch (error: any) {
       let description = error.message || "Invalid credentials";
       if (description.toLowerCase().includes("email not confirmed")) {
-        description = "Your email isn't confirmed yet. Check your inbox (and spam folder) for the confirmation link we sent when you signed up.";
+        description = "This account still needs email verification. Try signing up again or contact support if the problem continues.";
       } else if (description.toLowerCase().includes("invalid login credentials") || description.toLowerCase().includes("invalid credentials")) {
-        description = "Email or password is incorrect. If you just signed up, make sure you confirmed your email first.";
+        description = "Email or password is incorrect. Please check your details and try again.";
       }
       toast({ title: "Login failed", description, variant: "destructive" });
     } finally {
@@ -246,14 +246,13 @@ const Auth = () => {
       setSignupData({ fullName: "", username: "", email: "", password: "", confirmPassword: "" });
 
       if (data.session) {
-        // Email confirmation is disabled on this project — user is auto-logged in.
+        // Auto-confirmed signups receive a session immediately.
         toast({ title: "Account created!", description: "Welcome to GeniusLab CBT." });
         navigate("/exam");
       } else {
-        // Email confirmation is enabled — user must click the link in their inbox.
         toast({
-          title: "Almost there!",
-          description: "We sent a confirmation link to your email. Click it, then come back to log in.",
+          title: "Account created",
+          description: "You can now log in with your email and password.",
         });
         setActiveTab("login");
       }

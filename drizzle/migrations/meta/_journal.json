@@ -8,6 +8,13 @@
       "when": 1794965984898,
       "tag": "0000_make_signup_username_collision_safe",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795123568076,
+      "tag": "0001_repair_admin_username_login",
+      "breakpoints": true
     }
   ]
 }
